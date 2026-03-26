@@ -1,0 +1,116 @@
+{
+  "auth": {
+    "notLoggedIn": "Chưa đăng nhập",
+    "invalidToken": "Token không hợp lệ",
+    "noPermission": "Không có quyền truy cập",
+    "loginFailed": "Email hoặc mật khẩu không đúng",
+    "oldPasswordWrong": "Mật khẩu cũ không đúng",
+    "passwordChanged": "Đổi mật khẩu thành công",
+    "logoutSuccess": "Đăng xuất thành công"
+  },
+  "user": {
+    "notFound": "Không tìm thấy người dùng",
+    "emailExists": "Email đã tồn tại",
+    "deactivated": "Đã vô hiệu hóa tài khoản"
+  },
+  "product": {
+    "notFound": "Không tìm thấy sản phẩm",
+    "skuExists": "SKU đã tồn tại",
+    "deleted": "Đã ẩn sản phẩm"
+  },
+  "customer": {
+    "notFound": "Không tìm thấy khách hàng",
+    "deleted": "Đã ẩn khách hàng"
+  },
+  "supplier": {
+    "notFound": "Không tìm thấy nhà cung cấp",
+    "deleted": "Đã ẩn nhà cung cấp"
+  },
+  "order": {
+    "salesNotFound": "Không tìm thấy đơn hàng",
+    "purchaseNotFound": "Không tìm thấy đơn mua hàng",
+    "invalidStatus": "Trạng thái không hợp lệ"
+  },
+  "debt": {
+    "notFound": "Không tìm thấy công nợ",
+    "amountPositive": "Số tiền phải lớn hơn 0",
+    "amountExceedsRemaining": "Số tiền vượt quá công nợ còn lại"
+  },
+  "cost": {
+    "categoryNotFound": "Không tìm thấy danh mục chi phí",
+    "deleted": "Đã xóa chi phí"
+  },
+  "alert": {
+    "notFound": "Không tìm thấy cảnh báo",
+    "markedRead": "Đã đánh dấu đã đọc",
+    "approachingDeadline": "Đơn hàng {{code}} sắp đến hạn giao (còn {{days}} ngày)",
+    "dueToday": "Đơn mua hàng #{{code}} đến hạn giao HÔM NAY",
+    "deliveryNotConfirmed": "Chưa xác nhận giao hàng",
+    "overdueDays": "Đơn hàng {{code}} quá hạn {{days}} ngày - chưa xác nhận giao hàng",
+    "reportToManager": "Cần báo cáo lên quản lý"
+  },
+  "validation": {
+    "emailRequired": "Vui lòng nhập email",
+    "emailInvalid": "Email không hợp lệ",
+    "passwordRequired": "Vui lòng nhập mật khẩu",
+    "passwordMin6": "Mật khẩu tối thiểu 6 ký tự",
+    "oldPasswordRequired": "Vui lòng nhập mật khẩu cũ",
+    "fullNameRequired": "Vui lòng nhập họ tên",
+    "roleRequired": "Vui lòng chọn vai trò",
+    "productNameRequired": "Vui lòng nhập tên sản phẩm",
+    "capacityPositive": "Dung tích phải lớn hơn 0",
+    "heightPositive": "Chiều cao phải lớn hơn 0",
+    "bodyDiaPositive": "ĐK thân phải lớn hơn 0",
+    "neckDiaPositive": "ĐK cổ phải lớn hơn 0",
+    "weightPositive": "Trọng lượng phải lớn hơn 0",
+    "retailPricePositive": "Giá bán lẻ phải lớn hơn 0",
+    "wholesalePricePositive": "Giá sỉ phải lớn hơn 0",
+    "minQtyPositive": "SL tối thiểu phải lớn hơn 0",
+    "pricePositive": "Giá phải lớn hơn 0",
+    "companyNameRequired": "Vui lòng nhập tên công ty",
+    "customerTypeRequired": "Vui lòng chọn loại KH",
+    "debtLimitNonNegative": "Hạn mức nợ >= 0",
+    "supplierNameRequired": "Vui lòng nhập tên NCC",
+    "customerRequired": "Vui lòng chọn khách hàng",
+    "supplierRequired": "Vui lòng chọn NCC",
+    "vatRateRequired": "Vui lòng chọn thuế suất",
+    "qtyInteger": "Số lượng phải là số nguyên",
+    "qtyPositive": "Số lượng phải > 0",
+    "unitPricePositive": "Đơn giá phải > 0",
+    "minOneItem": "Đơn hàng phải có ít nhất 1 SP",
+    "productRequired": "Vui lòng chọn sản phẩm",
+    "amountPositive": "Số tiền phải > 0",
+    "paymentMethodRequired": "Vui lòng chọn phương thức TT",
+    "dateRequired": "Vui lòng chọn ngày",
+    "categoryRequired": "Vui lòng chọn danh mục",
+    "categoryNameRequired": "Vui lòng nhập tên danh mục",
+    "statusRequired": "Vui lòng chọn trạng thái",
+    "idRequired": "ID không được để trống",
+    "invalidId": "ID không hợp lệ"
+  },
+  "upload": {
+    "invalidFileType": "Định dạng file không hỗ trợ. Chỉ chấp nhận JPG, PNG, WebP",
+    "fileTooLarge": "Kích thước file vượt quá giới hạn cho phép",
+    "tooManyFiles": "Số lượng file vượt quá giới hạn cho phép",
+    "uploadFailed": "Tải ảnh lên thất bại",
+    "imageNotFound": "Không tìm thấy ảnh",
+    "deleteSuccess": "Đã xóa ảnh"
+  },
+  "zalo": {
+    "configSaved": "Đã lưu cấu hình Zalo",
+    "configNotFound": "Chưa cấu hình Zalo",
+    "webhookReceived": "Đã nhận webhook"
+  },
+  "errors": {
+    "serverError": "Lỗi hệ thống. Vui lòng thử lại sau.",
+    "tooManyRequests": "Quá nhiều yêu cầu. Vui lòng thử lại sau.",
+    "validationFailed": "Dữ liệu không hợp lệ",
+    "duplicateRecord": "Dữ liệu bị trùng lặp ({{fields}})",
+    "recordNotFound": "Không tìm thấy bản ghi",
+    "foreignKeyViolation": "Dữ liệu tham chiếu không tồn tại",
+    "relationViolation": "Không thể thực hiện do ràng buộc quan hệ",
+    "databaseError": "Lỗi cơ sở dữ liệu",
+    "invalidData": "Dữ liệu gửi lên không hợp lệ",
+    "serviceUnavailable": "Dịch vụ tạm thời không khả dụng"
+  }
+}

@@ -1,0 +1,614 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ──────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  STAFF
+  VIEWER
+}
+
+enum CustomerType {
+  RETAIL
+  WHOLESALE
+  DISTRIBUTOR
+  OEM
+}
+
+enum PaymentTerms {
+  IMMEDIATE
+  NET_30
+  NET_60
+  NET_90
+}
+
+enum PlasticMaterial {
+  PET
+  HDPE
+  PP
+  PVC
+  PS
+  ABS
+}
+
+enum ProductColor {
+  TRANSPARENT
+  WHITE
+  CUSTOM
+}
+
+enum ProductShape {
+  ROUND
+  SQUARE
+  OVAL
+  FLAT
+}
+
+enum NeckType {
+  WIDE
+  NARROW
+  PUMP
+  SPRAY
+  SCREW
+}
+
+enum UnitOfSale {
+  PIECE
+  CARTON
+  KG
+}
+
+enum Industry {
+  FOOD
+  COSMETICS
+  CHEMICAL
+  PHARMA
+  HOUSEHOLD
+}
+
+enum SafetyStandard {
+  FDA_FOOD_GRADE
+  BPA_FREE
+  ISO
+}
+
+enum SalesOrderStatus {
+  NEW
+  CONFIRMED
+  PREPARING
+  SHIPPING
+  COMPLETED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  NEW
+  CONFIRMED
+  PROCESSING
+  SHIPPING
+  COMPLETED
+  CANCELLED
+}
+
+enum DebtStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  OTHER
+}
+
+enum VATRate {
+  VAT_0
+  VAT_8
+  VAT_10
+}
+
+// ─── USERS ──────────────────────────────────────────
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  full_name     String
+  role          UserRole @default(STAFF)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  audit_logs AuditLog[]
+
+  @@map("users")
+}
+
+// ─── CATEGORIES ─────────────────────────────────────
+
+model Category {
+  id        String  @id @default(uuid())
+  name      String
+  parent_id String?
+  sort_order Int    @default(0)
+  is_active Boolean @default(true)
+
+  parent   Category?  @relation("CategoryTree", fields: [parent_id], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@map("categories")
+}
+
+// ─── PRODUCTS ───────────────────────────────────────
+
+model Product {
+  id          String          @id @default(uuid())
+  sku         String          @unique
+  name        String
+  category_id String?
+  description String?
+
+  // Technical specs
+  material      PlasticMaterial?
+  capacity_ml   Float?
+  height_mm     Float?
+  body_dia_mm   Float?
+  neck_dia_mm   Float?
+  weight_g      Float?
+  color         ProductColor?
+  custom_color  String?
+  shape         ProductShape?
+  neck_type     NeckType?
+  neck_spec     String?
+
+  // Packaging
+  unit_of_sale    UnitOfSale @default(PIECE)
+  pcs_per_carton  Int?
+  carton_weight   Float?
+  carton_length   Float?
+  carton_width    Float?
+  carton_height   Float?
+
+  // Application
+  industries      Industry[]
+  safety_standards SafetyStandard[]
+
+  // Pricing
+  moq             Int?
+  retail_price    Float?
+  wholesale_price Float?
+
+  // Media
+  catalog_pdf_url String?
+
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  category          Category?          @relation(fields: [category_id], references: [id])
+  images            ProductImage[]
+  price_tiers       PriceTier[]
+  supplier_prices   SupplierPrice[]
+  cap_compatibles   CapCompatibility[] @relation("BottleProduct")
+  compatible_with   CapCompatibility[] @relation("CapProduct")
+  combo_items       ComboItem[]
+  sales_order_items SalesOrderItem[]
+  purchase_order_items PurchaseOrderItem[]
+
+  @@map("products")
+}
+
+model ProductImage {
+  id         String  @id @default(uuid())
+  product_id String
+  url        String
+  public_id  String?
+  is_primary Boolean @default(false)
+  sort_order Int     @default(0)
+
+  product Product @relation(fields: [product_id], references: [id])
+
+  @@map("product_images")
+}
+
+model PriceTier {
+  id         String @id @default(uuid())
+  product_id String
+  min_qty    Int
+  price      Float
+
+  product Product @relation(fields: [product_id], references: [id])
+
+  @@map("price_tiers")
+}
+
+model CapCompatibility {
+  id         String @id @default(uuid())
+  bottle_id  String
+  cap_id     String
+
+  bottle Product @relation("BottleProduct", fields: [bottle_id], references: [id])
+  cap    Product @relation("CapProduct", fields: [cap_id], references: [id])
+
+  @@unique([bottle_id, cap_id])
+  @@map("cap_compatibilities")
+}
+
+// ─── PRODUCT COMBOS ─────────────────────────────────
+
+model ProductCombo {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  combo_price Float
+  is_active   Boolean @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  items             ComboItem[]
+  sales_order_items SalesOrderItem[]
+
+  @@map("product_combos")
+}
+
+model ComboItem {
+  id       String @id @default(uuid())
+  combo_id String
+  product_id String
+  quantity   Int
+
+  combo   ProductCombo @relation(fields: [combo_id], references: [id])
+  product Product      @relation(fields: [product_id], references: [id])
+
+  @@map("combo_items")
+}
+
+// ─── CUSTOMERS ──────────────────────────────────────
+
+model Customer {
+  id           String       @id @default(uuid())
+  company_name String
+  tax_code     String?
+  address      String?
+  contact_name String?
+  phone        String?
+  email        String?
+  customer_type CustomerType @default(RETAIL)
+  debt_limit   Float        @default(0)
+  zalo_user_id String?      // Phase 2
+  is_active    Boolean      @default(true)
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+
+  sales_orders SalesOrder[]
+  receivables  Receivable[]
+
+  @@map("customers")
+}
+
+// ─── SUPPLIERS ──────────────────────────────────────
+
+model Supplier {
+  id            String       @id @default(uuid())
+  company_name  String
+  tax_code      String?
+  address       String?
+  contact_name  String?
+  phone         String?
+  email         String?
+  payment_terms PaymentTerms @default(NET_30)
+  zalo_user_id  String?      // Phase 2
+  is_active     Boolean      @default(true)
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+
+  supplier_prices  SupplierPrice[]
+  purchase_orders  PurchaseOrder[]
+  payables         Payable[]
+
+  @@map("suppliers")
+}
+
+model SupplierPrice {
+  id            String  @id @default(uuid())
+  supplier_id   String
+  product_id    String
+  purchase_price Float
+  moq           Int?
+  lead_time_days Int?
+  is_preferred  Boolean @default(false)
+
+  supplier Supplier @relation(fields: [supplier_id], references: [id])
+  product  Product  @relation(fields: [product_id], references: [id])
+
+  @@unique([supplier_id, product_id])
+  @@map("supplier_prices")
+}
+
+// ─── SALES ORDERS ───────────────────────────────────
+
+model SalesOrder {
+  id                  String           @id @default(uuid())
+  order_code          String           @unique
+  customer_id         String
+  order_date          DateTime         @default(now())
+  expected_delivery   DateTime?
+  notes               String?
+  subtotal            Float            @default(0)
+  discount_amount     Float            @default(0)
+  vat_rate            VATRate          @default(VAT_0)
+  vat_amount          Float            @default(0)
+  grand_total         Float            @default(0)
+  status              SalesOrderStatus @default(NEW)
+  zalo_message_id     String?          // Phase 2
+  created_at          DateTime         @default(now())
+  updated_at          DateTime         @updatedAt
+
+  customer    Customer         @relation(fields: [customer_id], references: [id])
+  items       SalesOrderItem[]
+  receivables Receivable[]
+
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id             String  @id @default(uuid())
+  sales_order_id String
+  product_id     String?
+  combo_id       String?
+  quantity       Int
+  unit_price     Float
+  discount_pct   Float   @default(0)
+  line_total     Float
+  color_note     String?
+  packaging_note String?
+
+  sales_order SalesOrder    @relation(fields: [sales_order_id], references: [id])
+  product     Product?      @relation(fields: [product_id], references: [id])
+  combo       ProductCombo? @relation(fields: [combo_id], references: [id])
+
+  @@map("sales_order_items")
+}
+
+// ─── PURCHASE ORDERS ────────────────────────────────
+
+model PurchaseOrder {
+  id                 String              @id @default(uuid())
+  order_code         String              @unique
+  supplier_id        String
+  order_date         DateTime            @default(now())
+  expected_delivery  DateTime?
+  notes              String?
+  total              Float               @default(0)
+  status             PurchaseOrderStatus @default(NEW)
+  zalo_message_id    String?             // Phase 2
+  created_at         DateTime            @default(now())
+  updated_at         DateTime            @updatedAt
+
+  supplier  Supplier            @relation(fields: [supplier_id], references: [id])
+  items     PurchaseOrderItem[]
+  payables  Payable[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id                String @id @default(uuid())
+  purchase_order_id String
+  product_id        String
+  quantity          Int
+  unit_price        Float
+  line_total        Float
+
+  purchase_order PurchaseOrder @relation(fields: [purchase_order_id], references: [id])
+  product        Product       @relation(fields: [product_id], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+// ─── RECEIVABLES ────────────────────────────────────
+
+model Receivable {
+  id              String     @id @default(uuid())
+  sales_order_id  String
+  customer_id     String
+  invoice_number  String?
+  invoice_date    DateTime   @default(now())
+  due_date        DateTime
+  original_amount Float
+  paid_amount     Float      @default(0)
+  remaining       Float
+  status          DebtStatus @default(UNPAID)
+  created_at      DateTime   @default(now())
+  updated_at      DateTime   @updatedAt
+
+  sales_order SalesOrder        @relation(fields: [sales_order_id], references: [id])
+  customer    Customer          @relation(fields: [customer_id], references: [id])
+  payments    ReceivablePayment[]
+
+  @@map("receivables")
+}
+
+model ReceivablePayment {
+  id            String        @id @default(uuid())
+  receivable_id String
+  amount        Float
+  payment_date  DateTime      @default(now())
+  method        PaymentMethod @default(BANK_TRANSFER)
+  reference     String?
+  created_at    DateTime      @default(now())
+
+  receivable Receivable @relation(fields: [receivable_id], references: [id])
+
+  @@map("receivable_payments")
+}
+
+// ─── PAYABLES ───────────────────────────────────────
+
+model Payable {
+  id                String     @id @default(uuid())
+  purchase_order_id String
+  supplier_id       String
+  invoice_number    String?
+  invoice_date      DateTime   @default(now())
+  due_date          DateTime
+  original_amount   Float
+  paid_amount       Float      @default(0)
+  remaining         Float
+  status            DebtStatus @default(UNPAID)
+  statement_url     String?    // uploaded supplier statement
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+
+  purchase_order PurchaseOrder   @relation(fields: [purchase_order_id], references: [id])
+  supplier       Supplier        @relation(fields: [supplier_id], references: [id])
+  payments       PayablePayment[]
+
+  @@map("payables")
+}
+
+model PayablePayment {
+  id          String        @id @default(uuid())
+  payable_id  String
+  amount      Float
+  payment_date DateTime     @default(now())
+  method      PaymentMethod @default(BANK_TRANSFER)
+  reference   String?
+  created_at  DateTime      @default(now())
+
+  payable Payable @relation(fields: [payable_id], references: [id])
+
+  @@map("payable_payments")
+}
+
+// ─── OPERATING COSTS ────────────────────────────────
+
+model OperatingCostCategory {
+  id        String  @id @default(uuid())
+  name      String  @unique
+  is_active Boolean @default(true)
+
+  costs OperatingCost[]
+
+  @@map("operating_cost_categories")
+}
+
+model OperatingCost {
+  id          String   @id @default(uuid())
+  date        DateTime
+  category_id String
+  description String?
+  amount      Float
+  receipt_url String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  category OperatingCostCategory @relation(fields: [category_id], references: [id])
+
+  @@map("operating_costs")
+}
+
+// ─── ALERTS ─────────────────────────────────────────
+
+model Alert {
+  id              String   @id @default(uuid())
+  type            String   // WARNING, URGENT, CRITICAL, ESCALATION
+  title           String
+  message         String
+  purchase_order_id String?
+  is_read         Boolean  @default(false)
+  action_taken    String?  // CONFIRMED_DELAY, DELIVERED, etc.
+  new_expected_date DateTime?
+  created_at      DateTime @default(now())
+
+  @@map("alerts")
+}
+
+// ─── SYSTEM CONFIG ──────────────────────────────────
+
+model SystemConfig {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String // JSON string
+
+  @@map("system_configs")
+}
+
+// ─── AUDIT LOG ──────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  user_id   String
+  action    String
+  entity    String
+  entity_id String?
+  old_value Json?
+  new_value Json?
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ─── ZALO INTEGRATION ────────────────────────────────
+
+model ZaloConfig {
+  id                    String   @id @default(uuid())
+  // FUNC_GET_THREADS
+  get_threads_url       String?
+  get_threads_token     String?
+  // FUNC_GET_MESSAGES
+  get_messages_url      String?
+  get_messages_token    String?
+  // GET_GROUP_INFO
+  get_group_info_url    String?
+  get_group_info_token  String?
+  // GET_USER_INFO_V2
+  get_user_info_url     String?
+  get_user_info_token   String?
+  // GET_USER_INFO_EXTRA
+  get_user_extra_url    String?
+  get_user_extra_token  String?
+  // General
+  account_token         String?
+  webhook_secret        String?
+  is_active             Boolean  @default(true)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@map("zalo_configs")
+}
+
+model ZaloMessage {
+  id            String   @id @default(uuid())
+  direction     String   // INCOMING | OUTGOING
+  platform      String   @default("ZALO_USER")
+  account_id    String?
+  sender_id     String?
+  sender_name   String?
+  recipient_id  String?
+  group_id      String?
+  msg_id        String?
+  msg_type      String?  // webchat, group, etc.
+  content       String?
+  event         String?  // RECEIVED_MESSAGE, SENT_MESSAGE, etc.
+  raw_payload   Json?
+  status        String   @default("RECEIVED") // RECEIVED, SENT, FAILED
+  created_at    DateTime @default(now())
+
+  @@index([sender_id])
+  @@index([created_at])
+  @@map("zalo_messages")
+}

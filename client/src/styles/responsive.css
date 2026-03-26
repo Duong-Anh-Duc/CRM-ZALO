@@ -1,0 +1,317 @@
+/* ═══════════════════════════════════════════
+   Responsive Styles — UNIKI CRM
+   Breakpoints: 480, 768, 1024, 1200
+   ═══════════════════════════════════════════ */
+
+/* ── Global responsive ── */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+/* ── Tables: horizontal scroll on small screens ── */
+.ant-table-wrapper {
+  overflow-x: auto;
+}
+
+.ant-table {
+  min-width: 600px;
+}
+
+/* ── Descriptions: stack on mobile ── */
+@media (max-width: 768px) {
+  .ant-descriptions-item-label,
+  .ant-descriptions-item-content {
+    display: block !important;
+    width: 100% !important;
+    padding: 8px 12px !important;
+  }
+
+  .ant-descriptions-item-label {
+    font-weight: 600;
+    background: #fafafa !important;
+  }
+
+  .ant-descriptions-row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ant-descriptions-item {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* ── Cards ── */
+.ant-card {
+  overflow: hidden;
+}
+
+.ant-card-head-title {
+  white-space: normal !important;
+  word-break: break-word;
+}
+
+/* ── Statistic cards: smaller font on mobile ── */
+@media (max-width: 480px) {
+  .ant-statistic-title {
+    font-size: 12px !important;
+  }
+
+  .ant-statistic-content-value {
+    font-size: 18px !important;
+  }
+
+  .ant-statistic-content-prefix {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Modal responsive ── */
+@media (max-width: 768px) {
+  .ant-modal {
+    max-width: calc(100vw - 32px) !important;
+    margin: 16px auto !important;
+    top: 16px !important;
+  }
+
+  .ant-modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .ant-modal {
+    max-width: 100vw !important;
+    margin: 0 !important;
+    top: 0 !important;
+    padding: 0 !important;
+  }
+
+  .ant-modal-content {
+    border-radius: 0 !important;
+    min-height: 100vh;
+  }
+}
+
+/* ── Forms ── */
+@media (max-width: 768px) {
+  .ant-form-item-label > label {
+    font-size: 13px;
+  }
+}
+
+/* ── Tabs ── */
+@media (max-width: 480px) {
+  .ant-tabs-nav {
+    margin-bottom: 12px !important;
+  }
+
+  .ant-tabs-tab {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* ── Buttons ── */
+@media (max-width: 480px) {
+  .ant-btn {
+    font-size: 13px !important;
+  }
+}
+
+/* ── Tags ── */
+.ant-tag {
+  white-space: nowrap;
+}
+
+/* ── Layout: Main content ── */
+@media (max-width: 768px) {
+  .crm-content {
+    margin: 8px !important;
+    padding: 12px !important;
+  }
+
+  .crm-content > div {
+    padding: 0 !important;
+  }
+}
+
+/* ── Layout: Header ── */
+@media (max-width: 768px) {
+  .crm-header {
+    padding: 0 12px !important;
+  }
+
+  .crm-header .ant-select {
+    display: none !important;
+  }
+
+  .crm-header .ant-space-item:has(.ant-select) {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .crm-header .ant-typography {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* ── Page headers ── */
+@media (max-width: 768px) {
+  h2 {
+    font-size: 18px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  h2 {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Sidebar overlay on mobile ── */
+@media (max-width: 768px) {
+  .crm-sider {
+    position: fixed !important;
+    z-index: 100 !important;
+    height: 100vh !important;
+  }
+
+  .crm-sider-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 99;
+    transition: opacity 0.3s;
+  }
+
+  .crm-layout-main {
+    margin-left: 0 !important;
+  }
+}
+
+/* ── Space/Flex wrapping ── */
+@media (max-width: 768px) {
+  .ant-space-horizontal {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+}
+
+/* ── Row/Col: full width on mobile ── */
+@media (max-width: 768px) {
+  .ant-row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .ant-col {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+/* ── Select/Input: prevent overflow ── */
+.ant-select,
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-picker {
+  max-width: 100%;
+}
+
+/* ── Filter bars: wrap on mobile ── */
+@media (max-width: 768px) {
+  .ant-space-wrap {
+    width: 100%;
+  }
+
+  .ant-space-wrap > .ant-space-item {
+    width: 100%;
+  }
+
+  .ant-space-wrap > .ant-space-item .ant-input,
+  .ant-space-wrap > .ant-space-item .ant-select,
+  .ant-space-wrap > .ant-space-item .ant-picker {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ── Pagination ── */
+@media (max-width: 480px) {
+  .ant-pagination {
+    justify-content: center;
+  }
+
+  .ant-pagination-total-text {
+    display: none !important;
+  }
+
+  .ant-pagination-options {
+    display: none !important;
+  }
+}
+
+/* ── Charts: responsive height ── */
+@media (max-width: 768px) {
+  .recharts-responsive-container {
+    min-height: 200px !important;
+  }
+}
+
+/* ── Popconfirm ── */
+@media (max-width: 480px) {
+  .ant-popover {
+    max-width: calc(100vw - 32px) !important;
+  }
+}
+
+/* ── Typography: prevent text overflow ── */
+.ant-typography {
+  word-break: break-word;
+}
+
+/* ── Product image manager ── */
+@media (max-width: 480px) {
+  .login-card-wrapper {
+    padding: 0 12px !important;
+  }
+}
+
+/* ── Zalo page: stack conversations + messages ── */
+@media (max-width: 768px) {
+  .ant-col-md-8,
+  .ant-col-md-16 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ── Print: hide sidebar/header ── */
+@media print {
+  .crm-sider,
+  .crm-header,
+  .ant-layout-sider {
+    display: none !important;
+  }
+
+  .crm-layout-main {
+    margin-left: 0 !important;
+  }
+
+  .crm-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+}

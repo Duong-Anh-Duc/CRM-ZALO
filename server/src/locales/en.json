@@ -1,0 +1,116 @@
+{
+  "auth": {
+    "notLoggedIn": "Not logged in",
+    "invalidToken": "Invalid token",
+    "noPermission": "Access denied",
+    "loginFailed": "Invalid email or password",
+    "oldPasswordWrong": "Current password is incorrect",
+    "passwordChanged": "Password changed successfully",
+    "logoutSuccess": "Logged out successfully"
+  },
+  "user": {
+    "notFound": "User not found",
+    "emailExists": "Email already exists",
+    "deactivated": "Account deactivated"
+  },
+  "product": {
+    "notFound": "Product not found",
+    "skuExists": "SKU already exists",
+    "deleted": "Product hidden"
+  },
+  "customer": {
+    "notFound": "Customer not found",
+    "deleted": "Customer hidden"
+  },
+  "supplier": {
+    "notFound": "Supplier not found",
+    "deleted": "Supplier hidden"
+  },
+  "order": {
+    "salesNotFound": "Sales order not found",
+    "purchaseNotFound": "Purchase order not found",
+    "invalidStatus": "Invalid status"
+  },
+  "debt": {
+    "notFound": "Debt record not found",
+    "amountPositive": "Amount must be greater than 0",
+    "amountExceedsRemaining": "Amount exceeds remaining debt"
+  },
+  "cost": {
+    "categoryNotFound": "Cost category not found",
+    "deleted": "Cost deleted"
+  },
+  "alert": {
+    "notFound": "Alert not found",
+    "markedRead": "Marked as read",
+    "approachingDeadline": "Order {{code}} approaching delivery deadline ({{days}} days left)",
+    "dueToday": "Purchase order #{{code}} delivery due TODAY",
+    "deliveryNotConfirmed": "Delivery not confirmed",
+    "overdueDays": "Order {{code}} overdue {{days}} days - delivery not confirmed",
+    "reportToManager": "Report to management required"
+  },
+  "validation": {
+    "emailRequired": "Please enter email",
+    "emailInvalid": "Invalid email",
+    "passwordRequired": "Please enter password",
+    "passwordMin6": "Password must be at least 6 characters",
+    "oldPasswordRequired": "Please enter current password",
+    "fullNameRequired": "Please enter full name",
+    "roleRequired": "Please select role",
+    "productNameRequired": "Please enter product name",
+    "capacityPositive": "Capacity must be greater than 0",
+    "heightPositive": "Height must be greater than 0",
+    "bodyDiaPositive": "Body dia must be greater than 0",
+    "neckDiaPositive": "Neck dia must be greater than 0",
+    "weightPositive": "Weight must be greater than 0",
+    "retailPricePositive": "Retail price must be greater than 0",
+    "wholesalePricePositive": "Wholesale price must be greater than 0",
+    "minQtyPositive": "Min qty must be greater than 0",
+    "pricePositive": "Price must be greater than 0",
+    "companyNameRequired": "Please enter company name",
+    "customerTypeRequired": "Please select customer type",
+    "debtLimitNonNegative": "Debt limit must not be negative",
+    "supplierNameRequired": "Please enter supplier name",
+    "customerRequired": "Please select customer",
+    "supplierRequired": "Please select supplier",
+    "vatRateRequired": "Please select VAT rate",
+    "qtyInteger": "Quantity must be integer",
+    "qtyPositive": "Quantity must be greater than 0",
+    "unitPricePositive": "Unit price must be greater than 0",
+    "minOneItem": "Order must have at least 1 item",
+    "productRequired": "Please select product",
+    "amountPositive": "Amount must be greater than 0",
+    "paymentMethodRequired": "Please select payment method",
+    "dateRequired": "Please select date",
+    "categoryRequired": "Please select category",
+    "categoryNameRequired": "Please enter category name",
+    "statusRequired": "Please select status",
+    "idRequired": "ID is required",
+    "invalidId": "Invalid ID"
+  },
+  "upload": {
+    "invalidFileType": "Unsupported file format. Only JPG, PNG, WebP accepted",
+    "fileTooLarge": "File size exceeds the allowed limit",
+    "tooManyFiles": "Number of files exceeds the allowed limit",
+    "uploadFailed": "Image upload failed",
+    "imageNotFound": "Image not found",
+    "deleteSuccess": "Image deleted"
+  },
+  "zalo": {
+    "configSaved": "Zalo configuration saved",
+    "configNotFound": "Zalo not configured",
+    "webhookReceived": "Webhook received"
+  },
+  "errors": {
+    "serverError": "System error. Please try again later.",
+    "tooManyRequests": "Too many requests. Please try again later.",
+    "validationFailed": "Validation failed",
+    "duplicateRecord": "Duplicate record ({{fields}})",
+    "recordNotFound": "Record not found",
+    "foreignKeyViolation": "Referenced data does not exist",
+    "relationViolation": "Cannot perform due to relation constraint",
+    "databaseError": "Database error",
+    "invalidData": "Invalid data submitted",
+    "serviceUnavailable": "Service temporarily unavailable"
+  }
+}
