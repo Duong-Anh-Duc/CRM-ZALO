@@ -63,3 +63,54 @@ export function useZaloMessages(filters?: Record<string, unknown>) {
     refetchInterval: 10000,
   });
 }
+
+export function useZaloSyncMessages() {
+  return useMutation({
+    mutationFn: () => zaloApi.syncMessages().then(r => r.data),
+    onSuccess: (res: any) => {
+      const data = res.data;
+      toast.success(`Đồng bộ xong: ${data?.synced || 0} tin nhắn mới, ${data?.skipped || 0} đã có`);
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err)),
+  });
+}
+
+export function useZaloAiChat() {
+  return useMutation({
+    mutationFn: (question: string) => zaloApi.aiChat(question).then(r => r.data),
+    onError: (err: unknown) => toast.error(getErrorMessage(err)),
+  });
+}
+
+export function useAiTrainingList(category?: string) {
+  return useQuery({
+    queryKey: ['ai-training', category],
+    queryFn: () => zaloApi.listTraining(category).then(r => r.data),
+  });
+}
+
+export function useCreateAiTraining() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { category: string; title: string; content: string }) => zaloApi.createTraining(data).then(r => r.data),
+    onSuccess: () => { toast.success('Đã thêm kiến thức cho AI'); qc.invalidateQueries({ queryKey: ['ai-training'] }); },
+    onError: (err: unknown) => toast.error(getErrorMessage(err)),
+  });
+}
+
+export function useRemoveAiTraining() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => zaloApi.removeTraining(id).then(r => r.data),
+    onSuccess: () => { toast.success('Đã xóa'); qc.invalidateQueries({ queryKey: ['ai-training'] }); },
+    onError: (err: unknown) => toast.error(getErrorMessage(err)),
+  });
+}
+
+export function useZaloAiSummary(hours?: number) {
+  return useQuery({
+    queryKey: ['zalo-ai-summary', hours],
+    queryFn: () => zaloApi.aiSummary(hours).then(r => r.data),
+    enabled: false, // manual trigger only
+  });
+}

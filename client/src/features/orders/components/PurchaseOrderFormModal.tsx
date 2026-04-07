@@ -5,14 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { useCreatePurchaseOrder } from '../hooks';
 import { useSuppliers } from '@/features/suppliers/hooks';
 import { useProducts } from '@/features/products/hooks';
+import { PurchaseOrderFormModalProps } from '../types';
 
-interface Props {
-  open: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
-const PurchaseOrderFormModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
+const PurchaseOrderFormModal: React.FC<PurchaseOrderFormModalProps> = ({ open, onClose, onSuccess }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const createMutation = useCreatePurchaseOrder();

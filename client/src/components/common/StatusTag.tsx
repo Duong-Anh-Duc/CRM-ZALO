@@ -6,11 +6,7 @@ import {
   purchaseStatusLabels,
   debtStatusLabels,
 } from '@/utils/format';
-
-interface StatusTagProps {
-  status: string;
-  type?: 'sales' | 'purchase' | 'debt';
-}
+import { StatusTagProps } from './types';
 
 const labelMaps: Record<string, Record<string, string>> = {
   sales: salesStatusLabels,

@@ -584,6 +584,10 @@ model ZaloConfig {
   // General
   account_token         String?
   webhook_secret        String?
+  // AI Prompts
+  ai_chat_prompt        String?  @db.Text
+  ai_summary_prompt     String?  @db.Text
+  ai_order_prompt       String?  @db.Text
   is_active             Boolean  @default(true)
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
@@ -611,4 +615,18 @@ model ZaloMessage {
   @@index([sender_id])
   @@index([created_at])
   @@map("zalo_messages")
+}
+
+model AiTraining {
+  id          String   @id @default(uuid())
+  category    String   // PRODUCT_ALIAS, ORDER_EXAMPLE, CORRECTION, BUSINESS_RULE, CUSTOMER_INFO
+  title       String
+  content     String   @db.Text
+  is_active   Boolean  @default(true)
+  created_by  String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([category])
+  @@map("ai_trainings")
 }

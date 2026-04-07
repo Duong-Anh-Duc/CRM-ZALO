@@ -3,9 +3,11 @@ import { Button, Input, Select, Table, Tag, Space, Spin, Empty, Tooltip, Popconf
 import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { useProducts, useDeleteProduct } from '../hooks';
+import { productApi } from '../api';
 import { useAuthStore } from '@/stores/auth.store';
-import { Product, PlasticMaterial } from '@/types';
+import { Product, PlasticMaterial, Category } from '@/types';
 import { formatVND, materialLabels } from '@/utils/format';
 import ProductFormModal from '../components/ProductFormModal';
 
@@ -35,6 +37,11 @@ const ProductListPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
 
   const { data, isLoading, refetch } = useProducts({ search, material, category_id: categoryId, page, limit: pageSize });
+  const { data: categoriesData } = useQuery<Category[]>({
+    queryKey: ['product-categories'],
+    queryFn: () => productApi.list({ type: 'categories' }).then((r) => r.data.data ?? []),
+  });
+  const categoryOptions = (categoriesData ?? []).map((c: Category) => ({ value: c.id, label: c.name }));
   const deleteMutation = useDeleteProduct();
 
   const products: Product[] = data?.data ?? [];
@@ -206,7 +213,7 @@ const ProductListPage: React.FC = () => {
             setCategoryId(v);
             setPage(1);
           }}
-          options={[]}
+          options={categoryOptions}
         />
       </Space>
 

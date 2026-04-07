@@ -1,12 +1,7 @@
-import React, { ReactNode } from 'react';
+import React from 'react';
 import { Popconfirm } from 'antd';
 import { useTranslation } from 'react-i18next';
-
-interface ConfirmDeleteProps {
-  title: string;
-  onConfirm: () => void;
-  children: ReactNode;
-}
+import { ConfirmDeleteProps } from './types';
 
 const ConfirmDelete: React.FC<ConfirmDeleteProps> = ({ title, onConfirm, children }) => {
   const { t } = useTranslation();

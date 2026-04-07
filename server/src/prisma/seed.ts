@@ -13,14 +13,14 @@ async function main() {
   console.log('🌱 Seeding database...');
 
   // Users
-  const adminHash = await bcrypt.hash('Admin@123456', 12);
+  const adminHash = await bcrypt.hash('Duckhiem040603@', 12);
   const staffHash = await bcrypt.hash('Staff@123456', 12);
   const viewerHash = await bcrypt.hash('Viewer@123456', 12);
 
   await prisma.user.upsert({
-    where: { email: 'admin@packflow.vn' },
+    where: { email: 'ducytcg123456@gmail.com' },
     update: {},
-    create: { email: 'admin@packflow.vn', password_hash: adminHash, full_name: 'Nguyễn Văn Admin', role: 'ADMIN' },
+    create: { email: 'ducytcg123456@gmail.com', password_hash: adminHash, full_name: 'Nguyễn Văn Admin', role: 'ADMIN' },
   });
 
   await prisma.user.upsert({

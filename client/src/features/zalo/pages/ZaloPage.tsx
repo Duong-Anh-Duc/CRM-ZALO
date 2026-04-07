@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Tabs, Card, Form, Input, Button, Row, Col, Statistic, Space, Typography, Badge, Empty, Spin, Avatar, Divider } from 'antd';
-import { SettingOutlined, MessageOutlined, WechatOutlined, ArrowLeftOutlined, UserOutlined } from '@ant-design/icons';
+import { SettingOutlined, MessageOutlined, WechatOutlined, ArrowLeftOutlined, UserOutlined, RobotOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useZaloConfig, useSaveZaloConfig, useZaloThreads, useZaloThreadMessages } from '../hooks';
+import AiChatTab from '../components/AiChatTab';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/vi';
@@ -60,6 +61,7 @@ const ConfigTab: React.FC = () => {
           {t('zalo.saveConfig')}
         </Button>
       </Card>
+
     </Form>
   );
 };
@@ -269,6 +271,7 @@ const ZaloPage: React.FC = () => {
       <h2 style={{ marginBottom: 20 }}>{t('zalo.title')}</h2>
       <Tabs items={[
         { key: 'chat', label: <span><MessageOutlined /> {t('zalo.messages')}</span>, children: <ChatTab /> },
+        { key: 'ai', label: <span><RobotOutlined /> AI Assistant</span>, children: <AiChatTab /> },
         { key: 'config', label: <span><SettingOutlined /> {t('zalo.config')}</span>, children: <ConfigTab /> },
       ]} defaultActiveKey="chat" />
     </div>

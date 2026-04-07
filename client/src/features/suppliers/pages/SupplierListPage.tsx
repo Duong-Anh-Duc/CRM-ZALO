@@ -19,7 +19,7 @@ const SupplierListPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editSupplier, setEditSupplier] = useState<Supplier | undefined>(undefined);
 
-  const { data, isLoading, refetch } = useSuppliers({ search, page, limit: 20 });
+  const { data, isLoading, refetch } = useSuppliers({ search, page, limit: pageSize });
   const deleteMutation = useDeleteSupplier();
 
   const suppliers: Supplier[] = data?.data ?? [];

@@ -16,5 +16,13 @@ router.get('/thread-messages', ZaloController.getThreadMessages);
 router.get('/group-info', ZaloController.getGroupInfo);
 router.get('/user-info', ZaloController.getUserInfo);
 router.get('/user-info-extra', ZaloController.getUserInfoExtra);
+router.post('/sync-messages', requireRole('ADMIN'), ZaloController.syncMessages);
+router.post('/ai-chat', ZaloController.aiChat);
+router.get('/ai-summary', ZaloController.aiSummary);
+router.get('/ai-training/categories', ZaloController.getTrainingCategories);
+router.get('/ai-training', ZaloController.listTraining);
+router.post('/ai-training', ZaloController.createTraining);
+router.patch('/ai-training/:id', ZaloController.updateTraining);
+router.delete('/ai-training/:id', ZaloController.removeTraining);
 
 export default router;

@@ -70,6 +70,13 @@ export const config = {
     apiSecret: process.env.CLOUDINARY_API_SECRET || '',
   },
 
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+    baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS || '2048', 10),
+  },
+
   zalo: {
     getThreadsUrl: process.env.ZALO_FUNC_GET_THREADS_URL || '',
     getThreadsToken: process.env.ZALO_FUNC_GET_THREADS_TOKEN || '',

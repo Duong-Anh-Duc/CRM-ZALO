@@ -31,9 +31,6 @@
     "selectDate": "Select date",
     "date": "Date",
     "new": "New",
-    "phase2": "Phase 2",
-    "phase2Zalo": "Phase 2 — Zalo Integration",
-    "phase2ZaloIntegration": "Phase 2 — Zalo Integration",
     "amount": "Amount",
     "description": "Description",
     "notes": "Notes",
@@ -367,7 +364,7 @@
     "remaining": "Remaining",
     "dueDate": "Due Date",
     "sendZalo": "Send Zalo Message",
-    "zaloPlaceholder": "Zalo messaging will be available in Phase 2...",
+    "zaloPlaceholder": "Enter Zalo message...",
     "quantity": "Qty",
     "productName": "Product",
     "supplier": "Supplier",
@@ -420,7 +417,7 @@
     "totalRecords": "Total {{count}} records",
     "searchCustomer": "Search customer...",
     "searchSupplier": "Search supplier...",
-    "aiReconciliation": "AI Reconciliation (Phase 2)"
+    "aiReconciliation": "AI Reconciliation"
   },
   "payment": {
     "amount": "Amount",

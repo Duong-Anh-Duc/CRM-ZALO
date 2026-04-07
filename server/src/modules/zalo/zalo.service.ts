@@ -3,6 +3,8 @@ import { AppError } from '../../middleware/error.middleware';
 import { t } from '../../locales';
 import logger from '../../utils/logger';
 import axios from 'axios';
+import { ZaloOrderService } from './zalo-order.service';
+import { AIService } from '../ai/ai.service';
 
 export class ZaloService {
   // ──── Config ────
@@ -141,6 +143,27 @@ export class ZaloService {
 
         await prisma.zaloMessage.createMany({ data: records });
         logger.info(`Zalo webhook: saved ${records.length} ${direction} messages (${event})`);
+
+        // Auto-create orders from incoming messages (fire-and-forget)
+        if (direction === 'INCOMING') {
+          for (const msg of msgs) {
+            const msgContent = msg.content || msg.text || '';
+            if (msgContent && msgContent.length > 5) {
+              ZaloOrderService.processMessage(
+                msg.uidFrom || msg.senderId || '',
+                msg.dName || msg.senderName || '',
+                msgContent,
+              ).then((result) => {
+                if (result.created) {
+                  logger.info(`Zalo auto-order: ${result.order_code} created from message`);
+                }
+              }).catch((err) => {
+                logger.error('Zalo auto-order background error:', err);
+              });
+            }
+          }
+        }
+
         return { received: records.length };
       }
 
@@ -218,5 +241,112 @@ export class ZaloService {
       prisma.zaloMessage.count({ where: { created_at: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
     ]);
     return { total_messages: total, today_messages: today };
+  }
+
+  // ──── Sync messages from Func.vn → DB ────
+
+  static async syncMessages() {
+    const cfg = await this.getActiveConfig();
+    if (!cfg.get_threads_url || !cfg.get_messages_url) {
+      throw new AppError(t('zalo.configNotFound'), 400);
+    }
+
+    // 1. Fetch all threads (personal + group)
+    const threadsResult = await this.callFunc(cfg.get_threads_url, cfg.get_threads_token!, { limit: 100 });
+    const threads = (threadsResult?.data || []).filter(
+      (th: any) => th.last_content,
+    );
+
+    let totalSynced = 0;
+    let totalSkipped = 0;
+
+    // 2. For each thread, fetch messages and save to DB
+    for (const thread of threads) {
+      try {
+        const msgsResult = await this.callFunc(cfg.get_messages_url, cfg.get_messages_token!, {
+          contact_pid: thread.pid,
+          limit: 100,
+        });
+        const msgs = msgsResult?.data || [];
+
+        for (const msg of msgs) {
+          const msgId = msg.origin?.msgId || msg.id || '';
+          const content = msg.text || msg.content || '';
+
+          // Skip empty, sticker-only, or control messages
+          if (!content && msg.type !== 'TEXT') continue;
+
+          // Check if already exists by msg_id
+          if (msgId) {
+            const exists = await prisma.zaloMessage.findFirst({ where: { msg_id: msgId } });
+            if (exists) { totalSkipped++; continue; }
+          }
+
+          const isMe = msg.sender_pid === thread.account_pid;
+          const isGroup = thread.type === 'GROUP_MESSAGING';
+          const sentAt = msg.sent_at ? new Date(msg.sent_at) : new Date(msg.created_at);
+
+          await prisma.zaloMessage.create({
+            data: {
+              direction: isMe ? 'OUTGOING' : 'INCOMING',
+              platform: 'ZALO_USER',
+              account_id: thread.account_pid || '',
+              sender_id: msg.sender?.pid || msg.sender_pid || '',
+              sender_name: msg.sender?.name || msg.origin?.dName || '',
+              recipient_id: msg.receiver_pid || '',
+              group_id: isGroup ? thread.pid : null,
+              msg_id: msgId,
+              msg_type: isGroup ? 'group' : 'webchat',
+              content,
+              event: isMe ? 'SENT_MESSAGE' : 'RECEIVED_MESSAGE',
+              raw_payload: msg,
+              status: isMe ? 'SENT' : 'RECEIVED',
+              created_at: sentAt,
+            },
+          });
+          totalSynced++;
+        }
+      } catch (err: any) {
+        logger.warn(`Sync error for thread ${thread.name}: ${err.message}`);
+      }
+    }
+
+    logger.info(`Zalo sync complete: ${totalSynced} new, ${totalSkipped} skipped, ${threads.length} threads`);
+    return { synced: totalSynced, skipped: totalSkipped, threads_processed: threads.length };
+  }
+
+  // ──── AI Chat ────
+
+  static async aiChat(question: string, limit: number = 100) {
+    const messages = await prisma.zaloMessage.findMany({
+      where: { msg_type: { not: 'control' } },
+      orderBy: { created_at: 'desc' },
+      take: limit,
+      select: { sender_name: true, content: true, direction: true, created_at: true },
+    });
+
+    const reversed = [...messages].reverse();
+    const answer = await AIService.chatAboutMessages(question, reversed);
+    return { question, answer, messages_analyzed: messages.length };
+  }
+
+  // ──── AI Summary ────
+
+  static async aiSummary(hours: number = 24, limit: number = 100) {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const messages = await prisma.zaloMessage.findMany({
+      where: { msg_type: { not: 'control' }, created_at: { gte: since } },
+      orderBy: { created_at: 'desc' },
+      take: limit,
+      select: { sender_name: true, content: true, direction: true, created_at: true },
+    });
+
+    if (messages.length === 0) {
+      return { summary: 'Không có tin nhắn nào trong khoảng thời gian này.', messages_analyzed: 0 };
+    }
+
+    const reversed = [...messages].reverse();
+    const result = await AIService.summarizeMessages(reversed);
+    return { ...result, messages_analyzed: messages.length, period_hours: hours };
   }
 }

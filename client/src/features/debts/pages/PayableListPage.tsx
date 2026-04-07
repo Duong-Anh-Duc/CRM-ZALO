@@ -188,13 +188,7 @@ const PayableListPage: React.FC = () => {
             <Space>
               <Button
                 icon={<RobotOutlined />}
-                style={{
-                  borderRadius: 8,
-                  borderColor: '#d9d9d9',
-                  background: '#f5f5f5',
-                  opacity: 0.6,
-                }}
-                disabled
+                style={{ borderRadius: 8 }}
               >
                 {t('debt.aiReconciliation')}
               </Button>

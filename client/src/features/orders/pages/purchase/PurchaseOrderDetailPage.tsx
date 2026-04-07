@@ -92,13 +92,15 @@ const PurchaseOrderDetailPage: React.FC = () => {
 
         <Divider />
 
-        <div style={{ textAlign: 'right', maxWidth: 300, marginLeft: 'auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Text strong style={{ fontSize: 16 }}>{t('order.total')}</Text>
-            <Text strong style={{ fontSize: 16, color: '#1890ff' }}>
-              {formatVND(order.total)}
-            </Text>
-          </div>
+        <div style={{ textAlign: 'right', maxWidth: 350, marginLeft: 'auto' }}>
+          <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Text strong style={{ fontSize: 16 }}>{t('order.total')}</Text>
+              <Text strong style={{ fontSize: 16, color: '#1890ff' }}>
+                {formatVND(order.total)}
+              </Text>
+            </div>
+          </Space>
         </div>
       </Card>
 

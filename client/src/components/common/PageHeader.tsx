@@ -1,11 +1,6 @@
-import React, { ReactNode } from 'react';
+import React from 'react';
 import { Typography, Flex } from 'antd';
-
-interface PageHeaderProps {
-  title: string;
-  subtitle?: string;
-  extra?: ReactNode;
-}
+import { PageHeaderProps } from './types';
 
 const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, extra }) => (
   <Flex

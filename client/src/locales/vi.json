@@ -31,9 +31,6 @@
     "selectDate": "Chọn ngày",
     "date": "Ngày",
     "new": "Mới",
-    "phase2": "Phase 2",
-    "phase2Zalo": "Phase 2 — Tích hợp Zalo",
-    "phase2ZaloIntegration": "Phase 2 — Zalo Integration",
     "amount": "Số tiền",
     "description": "Mô tả",
     "notes": "Ghi chú",
@@ -367,7 +364,7 @@
     "remaining": "Còn lại",
     "dueDate": "Hạn thanh toán",
     "sendZalo": "Gửi tin nhắn Zalo",
-    "zaloPlaceholder": "Chức năng gửi Zalo sẽ được triển khai trong Phase 2...",
+    "zaloPlaceholder": "Nhập nội dung tin nhắn Zalo...",
     "quantity": "SL",
     "productName": "Tên SP",
     "supplier": "Nhà cung cấp",
@@ -420,7 +417,7 @@
     "totalRecords": "Tổng {{count}} bản ghi",
     "searchCustomer": "Tìm khách hàng...",
     "searchSupplier": "Tìm nhà cung cấp...",
-    "aiReconciliation": "Đối chiếu AI (Phase 2)"
+    "aiReconciliation": "Đối chiếu AI"
   },
   "payment": {
     "amount": "Số tiền",

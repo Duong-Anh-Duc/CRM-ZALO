@@ -1,16 +1,10 @@
 import React, { useEffect } from 'react';
-import { Form, Input, InputNumber, Modal, Select, Tooltip } from 'antd';
+import { Form, Input, InputNumber, Modal, Select } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useCreateCustomer, useUpdateCustomer } from '../hooks';
-import { Customer, CustomerType } from '@/types';
+import { CustomerType } from '@/types';
 import { customerTypeLabels, formatNumber } from '@/utils/format';
-
-interface CustomerFormModalProps {
-  open: boolean;
-  customer?: Customer;
-  onClose: () => void;
-  onSuccess: () => void;
-}
+import { CustomerFormModalProps } from '../types';
 
 const customerTypeOptions = (
   Object.entries(customerTypeLabels) as [CustomerType, string][]
@@ -141,11 +135,9 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
           />
         </Form.Item>
 
-        <Tooltip title={t('common.phase2ZaloIntegration')}>
-          <Form.Item label={t('customer.zalo')}>
-            <Input disabled placeholder={t('common.phase2ZaloIntegration')} style={{ borderRadius: 8 }} />
-          </Form.Item>
-        </Tooltip>
+        <Form.Item name="zalo_user_id" label={t('customer.zalo')}>
+          <Input placeholder="Zalo User ID" style={{ borderRadius: 8 }} />
+        </Form.Item>
       </Form>
     </Modal>
   );

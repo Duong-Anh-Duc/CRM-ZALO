@@ -1,11 +1,6 @@
 import React from 'react';
 import { Empty, Button } from 'antd';
-
-interface EmptyStateProps {
-  message: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}
+import { EmptyStateProps } from './types';
 
 const EmptyState: React.FC<EmptyStateProps> = ({ message, actionLabel, onAction }) => (
   <Empty

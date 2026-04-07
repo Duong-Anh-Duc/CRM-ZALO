@@ -13,7 +13,6 @@ import { useUsers, useCreateUser, useDeactivateUser } from '@/features/auth/hook
 import { useCostCategories, useCreateCostCategory } from '@/features/operating-costs/hooks';
 import { productApi } from '@/features/products/api';
 import { AuthUser, CreateUserInput, UserRole, OperatingCostCategory, Category } from '@/types';
-import { Phase2Placeholder } from '@/components/common';
 
 const cardStyle: React.CSSProperties = {
   borderRadius: 12,
@@ -177,16 +176,6 @@ const CostCategoriesTab: React.FC = () => {
   );
 };
 
-/* ---- Zalo Tab ---- */
-const ZaloTab: React.FC = () => {
-  const { t } = useTranslation();
-  return (
-    <Card style={{ ...cardStyle, opacity: 0.6 }}>
-      <Phase2Placeholder title={t('common.phase2Zalo')} />
-    </Card>
-  );
-};
-
 /* ---- Main Settings Page ---- */
 const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -195,7 +184,6 @@ const SettingsPage: React.FC = () => {
     { key: 'users', label: t('settings.userManagement'), children: <UserManagementTab /> },
     { key: 'product-cats', label: t('settings.productCategories'), children: <ProductCategoriesTab /> },
     { key: 'cost-cats', label: t('settings.costCategories'), children: <CostCategoriesTab /> },
-    { key: 'zalo', label: t('settings.zaloIntegration'), children: <ZaloTab />, disabled: false },
   ];
 
   return (

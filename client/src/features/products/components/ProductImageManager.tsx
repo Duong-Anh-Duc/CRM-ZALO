@@ -5,16 +5,10 @@ import {
 } from '@ant-design/icons';
 import type { UploadFile } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { ProductImage } from '@/types';
 import { useUploadProductImages, useDeleteProductImage, useSetPrimaryImage } from '../hooks';
+import { ProductImageManagerProps } from '../types';
 
-interface Props {
-  productId: string;
-  images: ProductImage[];
-  canManage: boolean;
-}
-
-const ProductImageManager: React.FC<Props> = ({ productId, images, canManage }) => {
+const ProductImageManager: React.FC<ProductImageManagerProps> = ({ productId, images, canManage }) => {
   const { t } = useTranslation();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');

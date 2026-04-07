@@ -1,14 +1,12 @@
 import React from 'react';
 import { Button, Result } from 'antd';
 import i18n from '@/locales';
+import { ErrorBoundaryProps, ErrorBoundaryState } from './types';
 
-interface Props { children: React.ReactNode }
-interface State { hasError: boolean; error?: Error }
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { hasError: false };
 
-class ErrorBoundary extends React.Component<Props, State> {
-  state: State = { hasError: false };
-
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 

@@ -4,12 +4,7 @@ import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUpdateProfile, useChangePassword } from '../hooks';
-
-interface Props {
-  open: boolean;
-  defaultTab?: 'profile' | 'password';
-  onClose: () => void;
-}
+import { ProfileModalProps } from '../types';
 
 const roleLabels: Record<string, { vi: string; en: string; color: string }> = {
   ADMIN: { vi: 'Quản trị viên', en: 'Admin', color: 'red' },
@@ -17,7 +12,7 @@ const roleLabels: Record<string, { vi: string; en: string; color: string }> = {
   VIEWER: { vi: 'Xem', en: 'Viewer', color: 'default' },
 };
 
-const ProfileModal: React.FC<Props> = ({ open, defaultTab = 'profile', onClose }) => {
+const ProfileModal: React.FC<ProfileModalProps> = ({ open, defaultTab = 'profile', onClose }) => {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const [profileForm] = Form.useForm();

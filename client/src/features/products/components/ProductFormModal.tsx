@@ -6,22 +6,15 @@ import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useCreateProduct, useUpdateProduct } from '../hooks';
-import { Product } from '@/types';
 import ProductImageManager from './ProductImageManager';
-
-interface Props {
-  open: boolean;
-  product?: Product | null;
-  onClose: () => void;
-  onSuccess: () => void;
-}
+import { ProductFormModalProps } from '../types';
 
 const opt = (pairs: [string, string][]) => pairs.map(([value, label]) => ({ value, label }));
 const materialOptions = opt([['PET','PET'],['HDPE','HDPE'],['PP','PP'],['PVC','PVC'],['PS','PS'],['ABS','ABS']]);
 
 const fieldStyle: React.CSSProperties = { borderRadius: 8 };
 
-const ProductFormModal: React.FC<Props> = ({ open, product, onClose, onSuccess }) => {
+const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onClose, onSuccess }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [fileList, setFileList] = useState<UploadFile[]>([]);

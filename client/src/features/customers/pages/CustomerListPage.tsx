@@ -19,7 +19,7 @@ const CustomerListPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editCustomer, setEditCustomer] = useState<Customer | undefined>(undefined);
 
-  const { data, isLoading, refetch } = useCustomers({ search, page, limit: 20 });
+  const { data, isLoading, refetch } = useCustomers({ search, page, limit: pageSize });
   const deleteMutation = useDeleteCustomer();
 
   const customers: Customer[] = data?.data ?? [];

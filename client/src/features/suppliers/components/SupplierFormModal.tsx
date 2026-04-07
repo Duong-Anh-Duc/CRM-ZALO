@@ -1,15 +1,9 @@
 import React, { useEffect } from 'react';
-import { Form, Input, Modal, Select, Tooltip } from 'antd';
+import { Form, Input, Modal, Select } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useCreateSupplier, useUpdateSupplier } from '../hooks';
-import { Supplier, PaymentTerms } from '@/types';
-
-interface SupplierFormModalProps {
-  open: boolean;
-  supplier?: Supplier;
-  onClose: () => void;
-  onSuccess: () => void;
-}
+import { PaymentTerms } from '@/types';
+import { SupplierFormModalProps } from '../types';
 
 const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
   open,
@@ -126,11 +120,9 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
           />
         </Form.Item>
 
-        <Tooltip title={t('common.phase2ZaloIntegration')}>
-          <Form.Item label={t('customer.zalo')}>
-            <Input disabled placeholder={t('common.phase2ZaloIntegration')} style={{ borderRadius: 8 }} />
-          </Form.Item>
-        </Tooltip>
+        <Form.Item name="zalo_user_id" label={t('customer.zalo')}>
+          <Input placeholder="Zalo User ID" style={{ borderRadius: 8 }} />
+        </Form.Item>
       </Form>
     </Modal>
   );

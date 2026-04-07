@@ -7,14 +7,7 @@ import dayjs from 'dayjs';
 import { receivableApi, payableApi } from '@/features/debts/api';
 import { RecordPaymentInput, PaymentMethod } from '@/types';
 import { formatVND } from '@/utils/format';
-
-interface PaymentModalProps {
-  open: boolean;
-  onClose: () => void;
-  type: 'receivable' | 'payable';
-  debtId: string;
-  maxAmount: number;
-}
+import { PaymentModalProps } from './types';
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
   open, onClose, type, debtId, maxAmount,

@@ -1,8 +1,8 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  Card, Descriptions, Tag, Space, Typography, Spin, Empty,
-  Divider, Input, Table,
+  Card, Descriptions, Space, Typography, Spin, Empty,
+  Divider, Table,
 } from 'antd';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
@@ -146,19 +146,6 @@ const SalesOrderDetailPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Zalo - Phase 2 */}
-      <Card
-        title={t('order.sendZalo')}
-        style={{ borderRadius: 12, opacity: 0.5 }}
-        extra={<Tag style={{ borderRadius: 8 }}>{t('common.phase2')}</Tag>}
-      >
-        <Input.TextArea
-          rows={3}
-          disabled
-          placeholder={t('order.zaloPlaceholder')}
-          style={{ borderRadius: 8 }}
-        />
-      </Card>
     </div>
   );
 };

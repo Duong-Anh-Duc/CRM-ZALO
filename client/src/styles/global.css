@@ -30,13 +30,3 @@ body {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
-/* Phase 2 placeholder */
-.phase2-placeholder {
-  background: #fafafa;
-  border: 2px dashed #d9d9d9;
-  border-radius: 12px;
-  padding: 24px;
-  text-align: center;
-  color: #bfbfbf;
-}

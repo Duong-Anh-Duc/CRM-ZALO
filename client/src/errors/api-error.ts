@@ -1,11 +1,6 @@
 import { AxiosError } from 'axios';
 import i18n from '@/locales';
-
-export interface ApiErrorResponse {
-  success: false;
-  message: string;
-  errors?: Record<string, string[]>;
-}
+import { ApiErrorResponse } from './types';
 
 export function getApiErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {

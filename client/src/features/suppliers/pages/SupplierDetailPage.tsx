@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  Card, Descriptions, Spin, Table, Tabs, Tag, Typography, Space, Tooltip
+  Card, Descriptions, Spin, Table, Tabs, Tag, Typography, Space, Empty
 } from 'antd';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
@@ -38,7 +38,11 @@ const SupplierDetailPage: React.FC = () => {
   }
 
   if (!supplier) {
-    return <Text>{t('supplier.notFound')}</Text>;
+    return (
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <Empty description={t('supplier.notFound')} />
+      </div>
+    );
   }
 
   const products: Product[] = (supplierData?.data?.products as Product[]) ?? [];
@@ -99,9 +103,7 @@ const SupplierDetailPage: React.FC = () => {
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label={t('customer.zalo')}>
-            <Tooltip title={t('common.phase2ZaloIntegration')}>
-              <Text disabled>{t('common.phase2ZaloIntegration')}</Text>
-            </Tooltip>
+            <Text>{supplier.zalo_user_id || '—'}</Text>
           </Descriptions.Item>
           <Descriptions.Item label={t('customer.createdAt')}>{formatDateTime(supplier.created_at)}</Descriptions.Item>
           <Descriptions.Item label={t('supplier.updatedAt')}>{formatDateTime(supplier.updated_at)}</Descriptions.Item>

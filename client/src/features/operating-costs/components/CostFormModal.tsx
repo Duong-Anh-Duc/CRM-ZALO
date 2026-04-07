@@ -4,14 +4,8 @@ import { UploadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useCostCategories, useCreateCost, useUpdateCost } from '../hooks';
-import { OperatingCost, OperatingCostCategory } from '@/types';
-
-interface CostFormModalProps {
-  open: boolean;
-  editingCost: OperatingCost | null;
-  onCancel: () => void;
-  onSuccess: () => void;
-}
+import { OperatingCostCategory } from '@/types';
+import { CostFormModalProps } from '../types';
 
 const CostFormModal: React.FC<CostFormModalProps> = ({
   open,

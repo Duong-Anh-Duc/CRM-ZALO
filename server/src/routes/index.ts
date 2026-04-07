@@ -13,6 +13,7 @@ import dashboardRoutes from '../modules/dashboard/dashboard.routes';
 import reportRoutes from '../modules/report/report.routes';
 import alertRoutes from '../modules/alert/alert.routes';
 import zaloRoutes from '../modules/zalo/zalo.route';
+import invoiceRoutes from '../modules/invoice/invoice.route';
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use('/operating-costs', operatingCostRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reports', reportRoutes);
 router.use('/alerts', alertRoutes);
+router.use('/invoice', invoiceRoutes);
 
 export default router;
