@@ -121,7 +121,7 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
         </Form.Item>
 
         <Form.Item name="zalo_user_id" label={t('customer.zalo')}>
-          <Input placeholder="Zalo User ID" style={{ borderRadius: 8 }} />
+          <Input placeholder={t('customer.zaloPlaceholder')} style={{ borderRadius: 8 }} />
         </Form.Item>
       </Form>
     </Modal>

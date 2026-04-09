@@ -36,16 +36,20 @@ const { Text } = Typography;
 
 const MOBILE_BREAKPOINT = 768;
 
-const getMenuItems = (t: (key: string) => string) => [
+const getMenuItems = (t: (key: string) => string): MenuProps['items'] => [
   { key: '/', icon: <DashboardOutlined />, label: t('menu.dashboard') },
+  { type: 'group', label: t('menu.catalog') },
   { key: '/products', icon: <ShoppingOutlined />, label: t('menu.products') },
   { key: '/customers', icon: <TeamOutlined />, label: t('menu.customers') },
   { key: '/suppliers', icon: <ShopOutlined />, label: t('menu.suppliers') },
+  { type: 'group', label: t('menu.orders') },
   { key: '/sales-orders', icon: <FileTextOutlined />, label: t('menu.salesOrders') },
   { key: '/purchase-orders', icon: <ImportOutlined />, label: t('menu.purchaseOrders') },
+  { type: 'group', label: t('menu.finance') },
   { key: '/receivables', icon: <DollarOutlined />, label: t('menu.receivables') },
   { key: '/payables', icon: <WalletOutlined />, label: t('menu.payables') },
   { key: '/operating-costs', icon: <AccountBookOutlined />, label: t('menu.operatingCosts') },
+  { type: 'group', label: t('menu.tools') },
   { key: '/zalo', icon: <MessageOutlined />, label: t('menu.zalo') },
   { key: '/reports', icon: <BarChartOutlined />, label: t('menu.reports') },
 ];
@@ -97,13 +101,13 @@ const AppLayout: React.FC = () => {
   };
 
   const menuItems: MenuProps['items'] = [
-    ...getMenuItems(t).map((item) => ({
-      key: item.key,
-      icon: item.icon,
-      label: item.label,
-    })),
+    ...getMenuItems(t)!,
     ...(hasRole('ADMIN')
-      ? [{ key: '/settings', icon: <SettingOutlined />, label: t('menu.settings') }]
+      ? [
+          { type: 'group' as const, label: t('menu.admin') },
+          { key: '/users', icon: <TeamOutlined />, label: t('settings.userManagement') },
+          { key: '/settings', icon: <SettingOutlined />, label: t('menu.settings') },
+        ]
       : []),
   ];
 

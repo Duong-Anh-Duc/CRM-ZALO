@@ -1,18 +1,10 @@
-import React, { useState } from 'react';
-import {
-  Tabs, Card, Form, Input, Button, Table, Tag, Space, Modal, Select,
-  Tree, Popconfirm, Row, Col, Spin, Empty, List,
-} from 'antd';
-import {
-  PlusOutlined, EditOutlined, StopOutlined, PhoneOutlined, MailOutlined,
-  BankOutlined, EnvironmentOutlined,
-} from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import React, { useEffect } from 'react';
+import { Tabs, Card, Form, Input, Button, Row, Col, Badge, Spin, Divider } from 'antd';
+import { BankOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined, SettingOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useUsers, useCreateUser, useDeactivateUser } from '@/features/auth/hooks';
-import { useCostCategories, useCreateCostCategory } from '@/features/operating-costs/hooks';
-import { productApi } from '@/features/products/api';
-import { AuthUser, CreateUserInput, UserRole, OperatingCostCategory, Category } from '@/types';
+import { PageHeader } from '@/components/common';
+import { toast } from 'react-toastify';
+import { useZaloConfig, useSaveZaloConfig } from '@/features/zalo/hooks';
 
 const cardStyle: React.CSSProperties = {
   borderRadius: 12,
@@ -24,155 +16,91 @@ const CompanyInfoTab: React.FC = () => {
   const { t } = useTranslation();
   return (
     <Card style={cardStyle}>
-      <Row gutter={[24, 16]}>
-        <Col xs={24} md={12}>
-          <Form layout="vertical" initialValues={{
-            name: 'CÔNG TY TNHH TECHLA AI',
-            address: 'Tầng 8, Tòa Licogi, số 164 Khuất Duy Tiến, Hà Nội',
-            phone: '0868287651',
-            email: 'admin@techlaai.com',
-          }}>
+      <Form layout="vertical" initialValues={{
+        name: 'CÔNG TY TNHH TECHLA AI',
+        address: 'Tầng 8, Tòa Licogi, số 164 Khuất Duy Tiến, Hà Nội',
+        phone: '0868287651',
+        email: 'admin@techlaai.com',
+      }} onFinish={(values) => {
+        localStorage.setItem('company_info', JSON.stringify(values));
+        toast.success(t('common.save') + ' OK');
+      }}>
+        <Row gutter={24}>
+          <Col xs={24} md={12}>
             <Form.Item label={t('settings.companyName')} name="name">
               <Input prefix={<BankOutlined />} style={{ borderRadius: 8 }} />
             </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
             <Form.Item label={t('settings.address')} name="address">
               <Input prefix={<EnvironmentOutlined />} style={{ borderRadius: 8 }} />
             </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
             <Form.Item label={t('settings.phone')} name="phone">
               <Input prefix={<PhoneOutlined />} style={{ borderRadius: 8 }} />
             </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
             <Form.Item label={t('settings.email')} name="email">
               <Input prefix={<MailOutlined />} style={{ borderRadius: 8 }} />
             </Form.Item>
-            <Button type="primary" style={{ borderRadius: 8 }}>{t('settings.saveInfo')}</Button>
-          </Form>
-        </Col>
-        <Col xs={24} md={12}>
-          <div style={{ textAlign: 'center', padding: 40, border: '2px dashed #d9d9d9', borderRadius: 12 }}>
-            <BankOutlined style={{ fontSize: 48, color: '#bfbfbf' }} />
-            <p style={{ marginTop: 12, color: '#8c8c8c' }}>{t('settings.companyLogo')}</p>
-          </div>
-        </Col>
-      </Row>
+          </Col>
+        </Row>
+        <Button type="primary" htmlType="submit" style={{ borderRadius: 8 }}>{t('settings.saveInfo')}</Button>
+      </Form>
     </Card>
   );
 };
 
-/* ---- User Management Tab ---- */
-const UserManagementTab: React.FC = () => {
+/* ---- Zalo API Config Tab ---- */
+const ApiConfigItem: React.FC<{ name: string; label: string; urlField: string; tokenField: string }> = ({ name, label, urlField, tokenField }) => {
   const { t } = useTranslation();
-  const [modalOpen, setModalOpen] = useState(false);
+  return (
+    <Card size="small" title={<span style={{ color: '#1677ff', fontWeight: 600 }}>{name}</span>} style={{ ...cardStyle, marginBottom: 12 }}>
+      <Form.Item name={urlField} label={`${label} URL`} rules={[{ required: true, message: t('zalo.urlRequired') }]} style={{ marginBottom: 8 }}>
+        <Input placeholder="https://public-api.func.vn/functions/xxxxxx" style={{ borderRadius: 8 }} />
+      </Form.Item>
+      <Form.Item name={tokenField} label="API Token" rules={[{ required: true, message: t('zalo.tokenRequired') }]} style={{ marginBottom: 0 }}>
+        <Input.Password placeholder="eyJhbGci..." style={{ borderRadius: 8 }} />
+      </Form.Item>
+    </Card>
+  );
+};
+
+const ZaloConfigTab: React.FC = () => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
+  const { data: configData, isLoading } = useZaloConfig();
+  const saveMutation = useSaveZaloConfig();
+  const config = configData?.data;
 
-  const { data, isLoading } = useUsers();
+  useEffect(() => {
+    if (config) form.setFieldsValue(config);
+  }, [config, form]);
 
-  const createMutation = useCreateUser();
-  const deactivateMutation = useDeactivateUser();
-
-  const roleLabels: Record<UserRole, string> = { ADMIN: t('user.roleAdmin'), STAFF: t('user.roleStaff'), VIEWER: t('user.roleViewer') };
-  const roleColors: Record<UserRole, string> = { ADMIN: 'red', STAFF: 'blue', VIEWER: 'default' };
-
-  const columns = [
-    { title: t('user.fullName'), dataIndex: 'full_name', key: 'full_name' },
-    { title: t('settings.email'), dataIndex: 'email', key: 'email' },
-    { title: t('user.role'), dataIndex: 'role', key: 'role', render: (r: UserRole) => <Tag color={roleColors[r]} style={{ borderRadius: 8 }}>{roleLabels[r]}</Tag> },
-    { title: t('common.status'), dataIndex: 'is_active', key: 'is_active', render: (v: boolean) => <Tag color={v ? 'green' : 'default'} style={{ borderRadius: 8 }}>{v ? t('common.active') : t('common.disabled')}</Tag> },
-    {
-      title: t('common.actions'), key: 'actions',
-      render: (_: unknown, record: AuthUser) => (
-        <Space>
-          {record.is_active && (
-            <Popconfirm title={t('user.deactivateConfirm')} onConfirm={() => deactivateMutation.mutate(record.id)} okText={t('common.confirm')} cancelText={t('common.cancel')}>
-              <Button size="small" danger icon={<StopOutlined />} style={{ borderRadius: 8 }}>{t('common.disabled')}</Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
-  ];
+  if (isLoading) return <Spin tip={t('common.loading')}><div style={{ padding: 50 }} /></Spin>;
 
   return (
-    <>
-      <Row justify="end" style={{ marginBottom: 16 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)} style={{ borderRadius: 8 }}>{t('user.addUser')}</Button>
-      </Row>
-      {isLoading ? <Spin /> : (
-        <Table dataSource={data?.data ?? []} columns={columns} rowKey="id" size="small" pagination={{ pageSize: 10 }} locale={{ emptyText: <Empty description={t('user.noUsers')} /> }} />
-      )}
-      <Modal open={modalOpen} title={t('user.addUser')} onCancel={() => setModalOpen(false)} onOk={() => form.submit()} okText={t('common.create')} cancelText={t('common.cancel')} confirmLoading={createMutation.isPending} style={{ borderRadius: 12 }}>
-        <Form form={form} layout="vertical" onFinish={(v) => createMutation.mutate(v as CreateUserInput, { onSuccess: () => { setModalOpen(false); form.resetFields(); } })}>
-          <Form.Item name="full_name" label={t('user.fullName')} rules={[{ required: true, message: t('user.fullNameRequired') }]}><Input style={{ borderRadius: 8 }} /></Form.Item>
-          <Form.Item name="email" label={t('settings.email')} rules={[{ required: true, type: 'email', message: t('user.emailValidRequired') }]}><Input style={{ borderRadius: 8 }} /></Form.Item>
-          <Form.Item name="password" label={t('auth.password')} rules={[{ required: true, min: 6, message: t('user.passwordMin') }]}><Input.Password style={{ borderRadius: 8 }} /></Form.Item>
-          <Form.Item name="role" label={t('user.role')} rules={[{ required: true, message: t('user.roleRequired') }]}>
-            <Select style={{ borderRadius: 8 }} options={[{ label: t('user.roleAdmin'), value: 'ADMIN' }, { label: t('user.roleStaff'), value: 'STAFF' }, { label: t('user.roleViewer'), value: 'VIEWER' }]} />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </>
-  );
-};
-
-/* ---- Product Categories Tab ---- */
-const ProductCategoriesTab: React.FC = () => {
-  const { t } = useTranslation();
-  const [newCat, setNewCat] = useState('');
-
-  const { data: categories, isLoading } = useQuery<Category[]>({
-    queryKey: ['product-categories'],
-    queryFn: () => productApi.list({ type: 'categories' }).then((r) => r.data.data ?? []),
-  });
-
-  const toTreeData = (cats: Category[]): { title: string; key: string; children?: { title: string; key: string }[] }[] =>
-    cats.map((c) => ({
-      title: c.name,
-      key: c.id,
-      children: c.children ? toTreeData(c.children) : undefined,
-    }));
-
-  return (
-    <Card style={cardStyle}>
-      <Space style={{ marginBottom: 16 }}>
-        <Input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder={t('settings.newCategoryName')} style={{ borderRadius: 8, width: 240 }} />
-        <Button type="primary" icon={<PlusOutlined />} disabled={!newCat.trim()} style={{ borderRadius: 8 }}>{t('common.add')}</Button>
-      </Space>
-      {isLoading ? <Spin /> : (categories ?? []).length > 0 ? (
-        <Tree treeData={toTreeData(categories!)} defaultExpandAll showLine blockNode />
-      ) : (
-        <Empty description={t('settings.noProductCategories')} />
-      )}
-    </Card>
-  );
-};
-
-/* ---- Cost Categories Tab ---- */
-const CostCategoriesTab: React.FC = () => {
-  const { t } = useTranslation();
-  const [newCat, setNewCat] = useState('');
-
-  const { data: categoriesData, isLoading } = useCostCategories();
-  const categories = (categoriesData?.data ?? []) as OperatingCostCategory[];
-
-  const createMutation = useCreateCostCategory();
-
-  return (
-    <Card style={cardStyle}>
-      <Space style={{ marginBottom: 16 }}>
-        <Input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder={t('settings.newCostCategoryName')} style={{ borderRadius: 8, width: 240 }} onPressEnter={() => newCat.trim() && createMutation.mutate(newCat.trim(), { onSuccess: () => setNewCat('') })} />
-        <Button type="primary" icon={<PlusOutlined />} loading={createMutation.isPending} disabled={!newCat.trim()} onClick={() => createMutation.mutate(newCat.trim(), { onSuccess: () => setNewCat('') })} style={{ borderRadius: 8 }}>{t('common.add')}</Button>
-      </Space>
-      {isLoading ? <Spin /> : (
-        <List
-          dataSource={categories ?? []}
-          renderItem={(item) => (
-            <List.Item actions={[<Button size="small" icon={<EditOutlined />} style={{ borderRadius: 8 }}>{t('common.edit')}</Button>]}>
-              <List.Item.Meta title={item.name} description={item.is_active ? t('common.activeStatus') : t('common.inactiveStatus')} />
-            </List.Item>
-          )}
-          locale={{ emptyText: <Empty description={t('settings.noCategories')} /> }}
-        />
-      )}
-    </Card>
+    <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)}>
+      <Card
+        title={t('zalo.apiConfig')}
+        style={cardStyle}
+        extra={config?.is_active
+          ? <Badge status="success" text={t('zalo.connected')} />
+          : <Badge status="default" text={t('zalo.notConnected')} />
+        }
+      >
+        <ApiConfigItem name="FUNC_GET_THREADS" label="Get Threads" urlField="get_threads_url" tokenField="get_threads_token" />
+        <ApiConfigItem name="FUNC_GET_MESSAGES" label="Get Messages" urlField="get_messages_url" tokenField="get_messages_token" />
+        <ApiConfigItem name="GET_GROUP_INFO" label="Group Info" urlField="get_group_info_url" tokenField="get_group_info_token" />
+        <ApiConfigItem name="GET_USER_INFO_V2" label="User Info" urlField="get_user_info_url" tokenField="get_user_info_token" />
+        <Divider />
+        <Button type="primary" htmlType="submit" loading={saveMutation.isPending} style={{ borderRadius: 8 }}>
+          {t('zalo.saveConfig')}
+        </Button>
+      </Card>
+    </Form>
   );
 };
 
@@ -180,16 +108,16 @@ const CostCategoriesTab: React.FC = () => {
 const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const tabItems = [
-    { key: 'company', label: t('settings.companyInfo'), children: <CompanyInfoTab /> },
-    { key: 'users', label: t('settings.userManagement'), children: <UserManagementTab /> },
-    { key: 'product-cats', label: t('settings.productCategories'), children: <ProductCategoriesTab /> },
-    { key: 'cost-cats', label: t('settings.costCategories'), children: <CostCategoriesTab /> },
+    { key: 'company', label: <span><BankOutlined /> {t('settings.companyInfo')}</span>, children: <CompanyInfoTab /> },
+    { key: 'zalo-config', label: <span><SettingOutlined /> {t('zalo.apiConfig')}</span>, children: <ZaloConfigTab /> },
   ];
 
   return (
     <div style={{ padding: 24 }}>
-      <h2 style={{ marginBottom: 20 }}>{t('settings.title')}</h2>
-      <Tabs items={tabItems} defaultActiveKey="company" />
+      <Card style={{ borderRadius: 12 }}>
+        <PageHeader title={t('settings.title')} />
+        <Tabs items={tabItems} defaultActiveKey="company" />
+      </Card>
     </div>
   );
 };

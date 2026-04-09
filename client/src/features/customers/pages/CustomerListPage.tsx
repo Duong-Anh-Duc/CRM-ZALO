@@ -27,6 +27,13 @@ const CustomerListPage: React.FC = () => {
 
   const columns: ColumnsType<Customer> = [
     {
+      title: 'STT',
+      key: 'stt',
+      width: 60,
+      align: 'center' as const,
+      render: (_: unknown, __: unknown, index: number) => (page - 1) * pageSize + index + 1,
+    },
+    {
       title: t('customer.companyName'),
       dataIndex: 'company_name',
       key: 'company_name',
@@ -37,6 +44,7 @@ const CustomerListPage: React.FC = () => {
       dataIndex: 'customer_type',
       key: 'customer_type',
       width: 100,
+      responsive: ['md'],
       render: (type: string) => (
         <Tag color="blue" style={{ borderRadius: 8 }}>
           {customerTypeLabels[type] ?? type}
@@ -48,18 +56,21 @@ const CustomerListPage: React.FC = () => {
       dataIndex: 'contact_name',
       key: 'contact_name',
       ellipsis: true,
+      responsive: ['md'],
     },
     {
       title: t('customer.phoneShort'),
       dataIndex: 'phone',
       key: 'phone',
       width: 130,
+      responsive: ['md'],
     },
     {
       title: t('customer.totalReceivable'),
       dataIndex: 'total_receivable',
       key: 'total_receivable',
       width: 150,
+      responsive: ['lg'],
       align: 'right',
       render: (val: number) => formatVND(val),
     },
@@ -68,6 +79,7 @@ const CustomerListPage: React.FC = () => {
       dataIndex: 'overdue_amount',
       key: 'overdue_amount',
       width: 150,
+      responsive: ['lg'],
       align: 'right',
       render: (val: number) => (
         <span style={{ color: val ? '#ff4d4f' : undefined, fontWeight: val ? 600 : 400 }}>
@@ -80,6 +92,7 @@ const CustomerListPage: React.FC = () => {
       dataIndex: 'last_order_date',
       key: 'last_order_date',
       width: 130,
+      responsive: ['lg'],
       render: (val: string) => formatDate(val),
     },
     {

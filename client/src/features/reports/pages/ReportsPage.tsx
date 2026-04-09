@@ -10,6 +10,7 @@ import { usePnlReport, useDebtAgingReport, useProductSalesReport } from '../hook
 import { PnlReport, DebtAgingReport, ProductSalesItem } from '@/types';
 import { formatVND } from '@/utils/format';
 import { exportToExcel } from '@/utils/export';
+import { PageHeader } from '@/components/common';
 
 const { RangePicker } = DatePicker;
 
@@ -96,6 +97,7 @@ const ReportsPage: React.FC = () => {
     .slice(0, 10);
 
   const debtColumns = [
+    { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
     { title: t('report.type'), dataIndex: 'type', key: 'type' },
     { title: t('report.current'), dataIndex: 'current', key: 'current', align: 'right' as const, render: (v: number) => formatVND(v) },
     { title: t('report.days1_30'), dataIndex: 'd1_30', key: 'd1_30', align: 'right' as const, render: (v: number) => formatVND(v) },
@@ -125,6 +127,7 @@ const ReportsPage: React.FC = () => {
     : [];
 
   const productColumns = [
+    { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
     { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 120 },
     { title: t('product.name'), dataIndex: 'name', key: 'name', ellipsis: true },
     { title: t('dashboard.qty'), dataIndex: 'qty', key: 'qty', align: 'right' as const, width: 100 },
@@ -137,6 +140,9 @@ const ReportsPage: React.FC = () => {
       label: t('report.pnl'),
       children: pnlLoading ? <Spin /> : !pnl ? <Empty description={t('common.noData')} /> : (
         <>
+          <Row justify="end" style={{ marginBottom: 12 }}>
+            <Button icon={<DownloadOutlined />} onClick={handleExportPnl} style={{ borderRadius: 8 }}>{t('common.exportExcel')}</Button>
+          </Row>
           <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
             {[
               { title: t('report.revenue'), value: pnl.revenue, color: '#1890ff', icon: <RiseOutlined /> },
@@ -163,7 +169,6 @@ const ReportsPage: React.FC = () => {
               </BarChart>
             </ResponsiveContainer>
           </Card>
-          <Button icon={<DownloadOutlined />} onClick={handleExportPnl} style={{ marginTop: 16, borderRadius: 8 }}>{t('common.exportExcel')}</Button>
         </>
       ),
     },
@@ -172,8 +177,10 @@ const ReportsPage: React.FC = () => {
       label: t('report.debtAging'),
       children: debtLoading ? <Spin /> : !debtAging ? <Empty description={t('common.noData')} /> : (
         <>
-          <Table dataSource={debtTableData} columns={debtColumns} pagination={false} style={{ marginBottom: 16 }} locale={{ emptyText: <Empty description={t('common.noData')} /> }} />
-          <Button icon={<DownloadOutlined />} onClick={handleExportDebt} style={{ borderRadius: 8 }}>{t('common.exportExcel')}</Button>
+          <Row justify="end" style={{ marginBottom: 12 }}>
+            <Button icon={<DownloadOutlined />} onClick={handleExportDebt} style={{ borderRadius: 8 }}>{t('common.exportExcel')}</Button>
+          </Row>
+          <Table dataSource={debtTableData} columns={debtColumns} pagination={false} locale={{ emptyText: <Empty description={t('common.noData')} /> }} />
         </>
       ),
     },
@@ -182,6 +189,9 @@ const ReportsPage: React.FC = () => {
       label: t('report.productSales'),
       children: salesLoading ? <Spin /> : !(productSales ?? []).length ? <Empty description={t('common.noData')} /> : (
         <>
+          <Row justify="end" style={{ marginBottom: 12 }}>
+            <Button icon={<DownloadOutlined />} onClick={handleExportProducts} style={{ borderRadius: 8 }}>{t('common.exportExcel')}</Button>
+          </Row>
           <Table dataSource={productSales} columns={productColumns} rowKey="sku" pagination={{ pageSize: 10 }} size="small" style={{ marginBottom: 20 }} />
           {top10Products.length > 0 && (
             <Card title={t('report.top10Products')} style={cardStyle}>
@@ -196,7 +206,6 @@ const ReportsPage: React.FC = () => {
               </ResponsiveContainer>
             </Card>
           )}
-          <Button icon={<DownloadOutlined />} onClick={handleExportProducts} style={{ marginTop: 16, borderRadius: 8 }}>{t('common.exportExcel')}</Button>
         </>
       ),
     },
@@ -204,18 +213,20 @@ const ReportsPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 20 }}>
-        <Col><h2 style={{ margin: 0 }}>{t('report.title')}</h2></Col>
-        <Col>
-          <RangePicker
-            value={range}
-            onChange={(v) => v && v[0] && v[1] && setRange([v[0], v[1]])}
-            format="DD/MM/YYYY"
-            style={{ borderRadius: 8 }}
-          />
-        </Col>
-      </Row>
-      <Tabs items={tabItems} defaultActiveKey="pnl" />
+      <Card style={{ borderRadius: 12 }}>
+        <PageHeader
+          title={t('report.title')}
+          extra={
+            <RangePicker
+              value={range}
+              onChange={(v) => v && v[0] && v[1] && setRange([v[0], v[1]])}
+              format="DD/MM/YYYY"
+              style={{ borderRadius: 8 }}
+            />
+          }
+        />
+        <Tabs items={tabItems} defaultActiveKey="pnl" />
+      </Card>
     </div>
   );
 };

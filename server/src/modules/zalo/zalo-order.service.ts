@@ -1,4 +1,5 @@
 import prisma from '../../lib/prisma';
+import { t } from '../../locales';
 import logger from '../../utils/logger';
 import { AIService, ExtractedOrder } from '../ai/ai.service';
 import { SalesOrderService } from '../sales-order/sales-order.service';
@@ -30,7 +31,7 @@ export class ZaloOrderService {
 
       if (!extracted.is_order || extracted.items.length === 0) {
         logger.info(`Zalo auto-order: not an order message from ${senderName}`);
-        return { created: false, reason: extracted.raw_summary || 'Not an order message' };
+        return { created: false, reason: extracted.raw_summary || t('zalo.notAnOrderMessage') };
       }
 
       // 3. Match or create customer
@@ -41,7 +42,7 @@ export class ZaloOrderService {
 
       if (orderItems.length === 0) {
         logger.warn(`Zalo auto-order: no products matched for message from ${senderName}`);
-        return { created: false, reason: 'No matching products found' };
+        return { created: false, reason: t('zalo.noMatchingProducts') };
       }
 
       // 5. Create sales order

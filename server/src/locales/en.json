@@ -27,6 +27,7 @@
     "deleted": "Supplier hidden"
   },
   "order": {
+    "notFound": "Order not found",
     "salesNotFound": "Sales order not found",
     "purchaseNotFound": "Purchase order not found",
     "invalidStatus": "Invalid status"
@@ -86,7 +87,9 @@
     "categoryNameRequired": "Please enter category name",
     "statusRequired": "Please select status",
     "idRequired": "ID is required",
-    "invalidId": "Invalid ID"
+    "invalidId": "Invalid ID",
+    "questionRequired": "Question is required",
+    "trainingFieldsRequired": "Category, title, content are required"
   },
   "upload": {
     "invalidFileType": "Unsupported file format. Only JPG, PNG, WebP accepted",
@@ -96,10 +99,20 @@
     "imageNotFound": "Image not found",
     "deleteSuccess": "Image deleted"
   },
+  "ai": {
+    "apiKeyNotSet": "API key not set",
+    "emptyResponse": "Empty AI response",
+    "apiKeyNotConfigured": "API key not configured.",
+    "noResponse": "No response from AI.",
+    "error": "AI error"
+  },
   "zalo": {
     "configSaved": "Zalo configuration saved",
     "configNotFound": "Zalo not configured",
-    "webhookReceived": "Webhook received"
+    "webhookReceived": "Webhook received",
+    "noMessagesInPeriod": "No messages in this time period.",
+    "notAnOrderMessage": "Not an order message",
+    "noMatchingProducts": "No matching products found"
   },
   "errors": {
     "serverError": "System error. Please try again later.",

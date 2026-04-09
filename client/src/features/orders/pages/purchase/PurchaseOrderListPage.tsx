@@ -55,6 +55,13 @@ const PurchaseOrderListPage: React.FC = () => {
 
   const columns: ColumnsType<PurchaseOrder> = [
     {
+      title: 'STT',
+      key: 'stt',
+      width: 60,
+      align: 'center' as const,
+      render: (_: unknown, __: unknown, index: number) => (page - 1) * pageSize + index + 1,
+    },
+    {
       title: t('order.orderCode'),
       dataIndex: 'order_code',
       key: 'order_code',
@@ -71,6 +78,7 @@ const PurchaseOrderListPage: React.FC = () => {
       dataIndex: 'order_date',
       key: 'order_date',
       width: 120,
+      responsive: ['md'],
       render: (val: string) => formatDate(val),
     },
     {
@@ -93,6 +101,7 @@ const PurchaseOrderListPage: React.FC = () => {
       dataIndex: 'expected_delivery',
       key: 'expected_delivery',
       width: 160,
+      responsive: ['md'],
       render: (val: string) => (
         <Space>
           <TruckOutlined style={{ color: '#1890ff' }} />
@@ -158,7 +167,7 @@ const PurchaseOrderListPage: React.FC = () => {
           allowClear
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={{ width: 240, borderRadius: 8 }}
+          style={{ width: '100%', maxWidth: 400, borderRadius: 8 }}
         />
         <Select
           value={status}

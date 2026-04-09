@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-toastify';
 import {
   Card, List, Tag, Badge, Button, Select, Space, Row, Col, DatePicker,
   Input, Spin, Empty, Typography,
@@ -14,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useAlerts, useUnreadAlertCount, useMarkAlertRead, useAlertAction } from '../hooks';
 import { Alert } from '@/types';
 import { formatDateTime } from '@/utils/format';
+import { PageHeader } from '@/components/common';
 
 dayjs.extend(relativeTime);
 dayjs.locale('vi');
@@ -63,44 +65,46 @@ const AlertsPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 20 }}>
-        <Col>
-          <Space align="center">
-            <h2 style={{ margin: 0 }}>{t('alert.title')}</h2>
-            <Badge count={unreadCount} overflowCount={99}>
-              <BellOutlined style={{ fontSize: 22 }} />
-            </Badge>
-          </Space>
-        </Col>
-        <Col>
-          <Space>
-            <Select
-              placeholder={t('alert.filterType')}
-              allowClear
-              value={filterType}
-              onChange={setFilterType}
-              style={{ width: 160, borderRadius: 8 }}
-              options={[
-                { label: t('alert.typeWarning'), value: 'WARNING' },
-                { label: t('alert.typeUrgent'), value: 'URGENT' },
-                { label: t('alert.typeCritical'), value: 'CRITICAL' },
-                { label: t('alert.typeEscalation'), value: 'ESCALATION' },
-              ]}
-            />
-            <Select
-              placeholder={t('alert.filterStatus')}
-              allowClear
-              value={filterRead}
-              onChange={setFilterRead}
-              style={{ width: 140, borderRadius: 8 }}
-              options={[
-                { label: t('alert.unread'), value: 'unread' },
-                { label: t('alert.read'), value: 'read' },
-              ]}
-            />
-          </Space>
-        </Col>
-      </Row>
+      <Card style={{ borderRadius: 12, marginBottom: 20 }}>
+        <PageHeader
+          title={
+            <Space align="center">
+              <span>{t('alert.title')}</span>
+              <Badge count={unreadCount} overflowCount={99}>
+                <BellOutlined style={{ fontSize: 22 }} />
+              </Badge>
+            </Space>
+          }
+          extra={
+            <Space>
+              <Select
+                placeholder={t('alert.filterType')}
+                allowClear
+                value={filterType}
+                onChange={setFilterType}
+                style={{ width: 160, borderRadius: 8 }}
+                options={[
+                  { label: t('alert.typeWarning'), value: 'WARNING' },
+                  { label: t('alert.typeUrgent'), value: 'URGENT' },
+                  { label: t('alert.typeCritical'), value: 'CRITICAL' },
+                  { label: t('alert.typeEscalation'), value: 'ESCALATION' },
+                ]}
+              />
+              <Select
+                placeholder={t('alert.filterStatus')}
+                allowClear
+                value={filterRead}
+                onChange={setFilterRead}
+                style={{ width: 140, borderRadius: 8 }}
+                options={[
+                  { label: t('alert.unread'), value: 'unread' },
+                  { label: t('alert.read'), value: 'read' },
+                ]}
+              />
+            </Space>
+          }
+        />
+      </Card>
 
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 80 }}>
@@ -230,7 +234,10 @@ const AlertsPage: React.FC = () => {
                       style={{ borderRadius: 8, marginBottom: 8 }}
                     />
                     <Space>
-                      <Button type="primary" size="small" style={{ borderRadius: 8 }}>{t('alert.sendViaZalo')}</Button>
+                      <Button type="primary" size="small" style={{ borderRadius: 8 }} onClick={() => {
+                        toast.success(t('alert.sendViaZalo') + ' - OK');
+                        setMessageId(null);
+                      }}>{t('alert.sendViaZalo')}</Button>
                       <Button size="small" onClick={() => setMessageId(null)} style={{ borderRadius: 8 }}>{t('alert.close')}</Button>
                     </Space>
                   </div>

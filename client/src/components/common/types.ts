@@ -12,7 +12,7 @@ export interface ConfirmDeleteProps {
 }
 
 export interface PageHeaderProps {
-  title: string;
+  title: ReactNode;
   subtitle?: string;
   extra?: ReactNode;
 }

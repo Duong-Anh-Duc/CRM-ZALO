@@ -50,6 +50,7 @@ const SupplierDetailPage: React.FC = () => {
   const payables: Payable[] = (supplierData?.data?.payables as Payable[]) ?? [];
 
   const productColumns: ColumnsType<Product> = [
+    { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
     { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 120 },
     { title: t('order.productName'), dataIndex: 'name', key: 'name', ellipsis: true },
     { title: t('supplier.unit'), dataIndex: 'unit', key: 'unit', width: 100 },
@@ -60,6 +61,7 @@ const SupplierDetailPage: React.FC = () => {
   ];
 
   const orderColumns: ColumnsType<PurchaseOrder> = [
+    { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
     { title: t('order.orderCode'), dataIndex: 'order_code', key: 'order_code', width: 140 },
     { title: t('order.orderDate'), dataIndex: 'order_date', key: 'order_date', width: 120, render: formatDate },
     { title: t('order.grandTotal'), dataIndex: 'total', key: 'total', width: 150, align: 'right', render: (v: number) => formatVND(v) },
@@ -70,6 +72,7 @@ const SupplierDetailPage: React.FC = () => {
   ];
 
   const payableColumns: ColumnsType<Payable> = [
+    { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
     { title: t('order.invoiceNumber'), dataIndex: 'invoice_number', key: 'invoice_number', width: 140 },
     { title: t('debt.invoiceDate'), dataIndex: 'invoice_date', key: 'invoice_date', width: 120, render: formatDate },
     { title: t('order.dueDate'), dataIndex: 'due_date', key: 'due_date', width: 120, render: formatDate },

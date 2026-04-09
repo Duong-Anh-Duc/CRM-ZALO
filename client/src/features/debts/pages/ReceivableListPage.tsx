@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useReceivables, useReceivableSummary } from '../hooks';
 import { Receivable, DebtSummary } from '@/types';
 import { formatVND, formatDate } from '@/utils/format';
+import { exportToExcel } from '@/utils/export';
 import { PaymentModal, StatusTag, PageHeader } from '@/components/common';
 
 const { Text } = Typography;
@@ -54,6 +55,13 @@ const ReceivableListPage: React.FC = () => {
   const summary = summaryQuery.data?.data as DebtSummary | undefined;
 
   const columns: ColumnsType<Receivable> = [
+    {
+      title: 'STT',
+      key: 'stt',
+      width: 60,
+      align: 'center' as const,
+      render: (_: unknown, __: unknown, index: number) => (page - 1) * pageSize + index + 1,
+    },
     { title: t('debt.invoiceNumber'), dataIndex: 'invoice_number', key: 'invoice_number', width: 120, ellipsis: true },
     {
       title: t('customer.companyName'),
@@ -72,6 +80,7 @@ const ReceivableListPage: React.FC = () => {
       dataIndex: 'invoice_date',
       key: 'invoice_date',
       width: 110,
+      responsive: ['md'],
       render: (v: string) => formatDate(v),
     },
     {
@@ -79,6 +88,7 @@ const ReceivableListPage: React.FC = () => {
       dataIndex: 'due_date',
       key: 'due_date',
       width: 130,
+      responsive: ['md'],
       render: (v: string) => formatDate(v),
     },
     {
@@ -86,6 +96,7 @@ const ReceivableListPage: React.FC = () => {
       dataIndex: 'original_amount',
       key: 'original_amount',
       width: 140,
+      responsive: ['lg'],
       align: 'right',
       render: (v: number) => formatVND(v),
     },
@@ -185,7 +196,18 @@ const ReceivableListPage: React.FC = () => {
         <PageHeader
           title={t('debt.receivables')}
           extra={
-            <Button icon={<DownloadOutlined />} style={{ borderRadius: 8 }}>
+            <Button icon={<DownloadOutlined />} style={{ borderRadius: 8 }} onClick={() => {
+              if (list.length === 0) return;
+              exportToExcel(list.map((r) => ({
+                [t('export.invoiceNumber')]: r.invoice_number || '',
+                [t('export.customer')]: (r as any).customer?.company_name || '',
+                [t('export.invoiceDate')]: formatDate(r.invoice_date),
+                [t('export.dueDate')]: formatDate(r.due_date),
+                [t('export.originalAmount')]: r.original_amount,
+                [t('export.remaining')]: r.remaining,
+                [t('export.status')]: r.status,
+              })), `cong-no-phai-thu-${new Date().toISOString().slice(0, 10)}`);
+            }}>
               {t('common.exportExcel')}
             </Button>
           }

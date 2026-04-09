@@ -43,6 +43,7 @@ const CustomerDetailPage: React.FC = () => {
   const payments: Payment[] = receivables.flatMap((r) => r.payments ?? []);
 
   const orderColumns: ColumnsType<SalesOrder> = [
+    { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
     { title: t('order.orderCode'), dataIndex: 'order_code', key: 'order_code', width: 140 },
     { title: t('order.orderDate'), dataIndex: 'order_date', key: 'order_date', width: 120, render: formatDate },
     { title: t('order.grandTotal'), dataIndex: 'grand_total', key: 'grand_total', width: 150, align: 'right', render: (v: number) => formatVND(v) },
@@ -53,6 +54,7 @@ const CustomerDetailPage: React.FC = () => {
   ];
 
   const paymentColumns: ColumnsType<Payment> = [
+    { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
     { title: t('payment.paymentDate'), dataIndex: 'payment_date', key: 'payment_date', width: 140, render: formatDate },
     { title: t('common.amount'), dataIndex: 'amount', key: 'amount', width: 150, align: 'right', render: (v: number) => formatVND(v) },
     { title: t('payment.method'), dataIndex: 'method', key: 'method', width: 140 },
@@ -60,6 +62,7 @@ const CustomerDetailPage: React.FC = () => {
   ];
 
   const receivableColumns: ColumnsType<Receivable> = [
+    { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
     { title: t('order.invoiceNumber'), dataIndex: 'invoice_number', key: 'invoice_number', width: 140 },
     { title: t('debt.invoiceDate'), dataIndex: 'invoice_date', key: 'invoice_date', width: 120, render: formatDate },
     { title: t('order.dueDate'), dataIndex: 'due_date', key: 'due_date', width: 120, render: formatDate },

@@ -136,23 +136,24 @@ const DashboardPage: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Top Customers & Top Products */}
+      {/* Top Customers */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={24} lg={12}>
+        <Col xs={24}>
           <Card title={t('dashboard.top5Customers')} style={cardStyle}>
             <Table
               dataSource={top_customers}
               rowKey="id"
               pagination={false}
               size="small"
-              scroll={{ x: 360 }}
+              scroll={{ x: 400 }}
               columns={[
+                { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, i: number) => i + 1 },
                 { title: t('dashboard.customerName'), dataIndex: 'name', key: 'name', ellipsis: true },
                 {
                   title: t('dashboard.revenue'),
                   dataIndex: 'revenue',
                   key: 'revenue',
-                  width: 150,
+                  width: 160,
                   align: 'right',
                   render: (v: number) => formatVND(v),
                 },
@@ -161,15 +162,20 @@ const DashboardPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} lg={12}>
+      </Row>
+
+      {/* Top Products */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24}>
           <Card title={t('dashboard.top5Products')} style={cardStyle}>
             <Table
               dataSource={top_products}
               rowKey="id"
               pagination={false}
               size="small"
-              scroll={{ x: 400 }}
+              scroll={{ x: 500 }}
               columns={[
+                { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, i: number) => i + 1 },
                 { title: t('dashboard.productName'), dataIndex: 'name', key: 'name', ellipsis: true },
                 {
                   title: t('dashboard.qty'),
@@ -182,7 +188,7 @@ const DashboardPage: React.FC = () => {
                   title: t('dashboard.revenue'),
                   dataIndex: 'revenue',
                   key: 'revenue',
-                  width: 150,
+                  width: 160,
                   align: 'right',
                   render: (v: number) => formatVND(v),
                 },
@@ -202,7 +208,9 @@ const DashboardPage: React.FC = () => {
               rowKey="id"
               pagination={false}
               size="small"
+              scroll={{ x: 500 }}
               columns={[
+                { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, i: number) => i + 1 },
                 { title: t('order.orderCode'), dataIndex: 'order_code', key: 'order_code' },
                 {
                   title: t('order.supplier'),

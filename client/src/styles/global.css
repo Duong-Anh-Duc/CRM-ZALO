@@ -30,3 +30,16 @@ body {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .ant-card { margin: 0 !important; }
+  .ant-table-wrapper { overflow-x: auto; }
+  .ant-space-wrap { gap: 8px !important; }
+  h2 { font-size: 20px !important; }
+}
+
+@media (max-width: 576px) {
+  .ant-pagination { flex-wrap: wrap; justify-content: center; }
+  .ant-pagination .ant-pagination-options { margin-top: 8px; }
+}

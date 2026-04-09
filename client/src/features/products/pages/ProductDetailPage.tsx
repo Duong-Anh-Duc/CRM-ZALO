@@ -164,6 +164,7 @@ const ProductDetailPage: React.FC = () => {
           size="small"
           style={{ borderRadius: 12 }}
           columns={[
+            { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
             { title: t('product.minQty'), dataIndex: 'min_qty', key: 'min_qty', render: (v) => formatNumber(v) },
             { title: t('product.unitPrice'), dataIndex: 'price', key: 'price', align: 'right', render: (v) => formatVND(v) },
           ]}
@@ -180,6 +181,7 @@ const ProductDetailPage: React.FC = () => {
           size="small"
           style={{ borderRadius: 12 }}
           columns={[
+            { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
             { title: t('product.supplier'), dataIndex: ['supplier', 'company_name'], key: 'supplier' },
             { title: t('product.purchasePrice'), dataIndex: 'purchase_price', key: 'purchase_price', align: 'right', render: (v) => formatVND(v) },
             { title: 'MOQ', dataIndex: 'moq', key: 'moq', align: 'right', render: (v) => (v != null ? formatNumber(v) : '-') },

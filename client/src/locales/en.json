@@ -56,7 +56,12 @@
     "reports": "Reports",
     "alerts": "Alerts",
     "zalo": "Zalo",
-    "settings": "Settings"
+    "settings": "Settings",
+    "catalog": "CATALOG",
+    "orders": "ORDERS",
+    "finance": "FINANCE",
+    "tools": "TOOLS",
+    "admin": "ADMIN"
   },
   "auth": {
     "loginTitle": "Sign in to continue",
@@ -294,7 +299,8 @@
     "totalTransactions": "Total {{count}} transactions",
     "totalReceivables": "Total {{count}} receivables",
     "createdAt": "Created At",
-    "zalo": "Zalo"
+    "zalo": "Zalo",
+    "zaloPlaceholder": "Enter Zalo User ID"
   },
   "customerTypeLabels": {
     "RETAIL": "Retail",
@@ -417,7 +423,8 @@
     "totalRecords": "Total {{count}} records",
     "searchCustomer": "Search customer...",
     "searchSupplier": "Search supplier...",
-    "aiReconciliation": "AI Reconciliation"
+    "aiReconciliation": "AI Reconciliation",
+    "aiReconciliationSoon": "AI Reconciliation - Coming soon"
   },
   "payment": {
     "amount": "Amount",
@@ -653,7 +660,46 @@
     "urlRequired": "Please enter URL",
     "tokenRequired": "Please enter Token",
     "selectConversation": "Select a conversation to view messages",
-    "messageDeleted": "Message has been recalled"
+    "messageDeleted": "Message has been recalled",
+    "aiAssistant": "AI Assistant - Zalo",
+    "syncBanner": "AI analyzes based on synced messages in DB. Click \"Sync\" to update the latest messages from Zalo.",
+    "quickAsk": "Quick ask:",
+    "newOrders": "New Orders",
+    "summaryToday": "Summary Today",
+    "needsReply": "Needs Reply",
+    "analyze": "Analyze",
+    "aiAnalyzing": "Analyzing...",
+    "askAiPlaceholder": "Ask AI about Zalo messages...",
+    "aiSummary": "AI Summary",
+    "noAiResponse": "No response.",
+    "aiConnectionError": "AI connection error. Please try again.",
+    "cannotLoadSummary": "Cannot load summary.",
+    "aiSummaryLoading": "AI is analyzing...",
+    "overview": "Overview",
+    "potentialOrders": "Potential Orders",
+    "quoteRequests": "Quote Requests",
+    "issues": "Issues",
+    "analyzed": "Analyzed",
+    "messages_count": "messages",
+    "received": "received",
+    "sent": "sent",
+    "trainAiAgent": "Train AI Agent",
+    "trainDescription": "Add knowledge to make AI smarter. AI will learn from all data below.",
+    "selectType": "Select type",
+    "productAlias": "Product Alias",
+    "orderExample": "Order Example",
+    "aiCorrection": "AI Correction",
+    "businessRule": "Business Rule",
+    "customerInfo": "Customer Info",
+    "enterTitle": "Enter title",
+    "enterContent": "Enter content",
+    "noKnowledge": "No knowledge yet. Add to make AI smarter!",
+    "today": "Today",
+    "days3": "3 days",
+    "days7": "7 days",
+    "days30": "30 days",
+    "allTime": "All",
+    "knowledge": "knowledge"
   },
   "settings": {
     "title": "Settings",
@@ -674,6 +720,17 @@
     "noCategories": "No categories yet",
     "language": "Language",
     "vietnamese": "Tiếng Việt",
-    "english": "English"
+    "english": "English",
+    "categoryAdded": "Category added"
+  },
+  "export": {
+    "invoiceNumber": "Invoice Number",
+    "customer": "Customer",
+    "supplier": "Supplier",
+    "invoiceDate": "Invoice Date",
+    "dueDate": "Due Date",
+    "originalAmount": "Original Amount",
+    "remaining": "Remaining",
+    "status": "Status"
   }
 }

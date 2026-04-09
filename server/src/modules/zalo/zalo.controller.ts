@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '../../types';
 import { ZaloService } from './zalo.service';
 import { AiTrainingService } from '../ai/ai-training.service';
 import { sendSuccess, sendPaginated } from '../../utils/response';
+import { t } from '../../locales';
 import logger from '../../utils/logger';
 
 export class ZaloController {
@@ -71,7 +72,7 @@ export class ZaloController {
   static async aiChat(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { question, limit } = req.body;
-      if (!question) return res.status(400).json({ success: false, message: 'question is required' });
+      if (!question) return res.status(400).json({ success: false, message: t('validation.questionRequired') });
       sendSuccess(res, await ZaloService.aiChat(question, limit || 100));
     } catch (err) { next(err); }
   }
@@ -96,7 +97,7 @@ export class ZaloController {
   static async createTraining(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { category, title, content } = req.body;
-      if (!category || !title || !content) return res.status(400).json({ success: false, message: 'category, title, content required' });
+      if (!category || !title || !content) return res.status(400).json({ success: false, message: t('validation.trainingFieldsRequired') });
       sendSuccess(res, await AiTrainingService.create({ ...req.body, created_by: (req.user as any)?.id }));
     } catch (err) { next(err); }
   }

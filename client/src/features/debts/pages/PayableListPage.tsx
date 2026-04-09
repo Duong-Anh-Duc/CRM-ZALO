@@ -6,13 +6,14 @@ import {
 } from 'antd';
 import {
   DollarOutlined, WarningOutlined, CalendarOutlined,
-  DownloadOutlined, SearchOutlined, RobotOutlined, EyeOutlined,
+  DownloadOutlined, SearchOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
 import { usePayables, usePayableSummary } from '../hooks';
 import { Payable, DebtSummary } from '@/types';
 import { formatVND, formatDate } from '@/utils/format';
+import { exportToExcel } from '@/utils/export';
 import { PaymentModal, StatusTag, PageHeader } from '@/components/common';
 
 const { Text } = Typography;
@@ -54,6 +55,13 @@ const PayableListPage: React.FC = () => {
   const summary = summaryQuery.data?.data as DebtSummary | undefined;
 
   const columns: ColumnsType<Payable> = [
+    {
+      title: 'STT',
+      key: 'stt',
+      width: 60,
+      align: 'center' as const,
+      render: (_: unknown, __: unknown, index: number) => (page - 1) * pageSize + index + 1,
+    },
     { title: t('debt.invoiceNumber'), dataIndex: 'invoice_number', key: 'invoice_number', width: 120, ellipsis: true },
     {
       title: t('supplier.name'),
@@ -72,6 +80,7 @@ const PayableListPage: React.FC = () => {
       dataIndex: 'invoice_date',
       key: 'invoice_date',
       width: 110,
+      responsive: ['md'],
       render: (v: string) => formatDate(v),
     },
     {
@@ -79,6 +88,7 @@ const PayableListPage: React.FC = () => {
       dataIndex: 'due_date',
       key: 'due_date',
       width: 130,
+      responsive: ['md'],
       render: (v: string) => formatDate(v),
     },
     {
@@ -86,6 +96,7 @@ const PayableListPage: React.FC = () => {
       dataIndex: 'original_amount',
       key: 'original_amount',
       width: 140,
+      responsive: ['lg'],
       align: 'right',
       render: (v: number) => formatVND(v),
     },
@@ -185,17 +196,20 @@ const PayableListPage: React.FC = () => {
         <PageHeader
           title={t('debt.payables')}
           extra={
-            <Space>
-              <Button
-                icon={<RobotOutlined />}
-                style={{ borderRadius: 8 }}
-              >
-                {t('debt.aiReconciliation')}
-              </Button>
-              <Button icon={<DownloadOutlined />} style={{ borderRadius: 8 }}>
+            <Button icon={<DownloadOutlined />} style={{ borderRadius: 8 }} onClick={() => {
+                if (list.length === 0) return;
+                exportToExcel(list.map((p) => ({
+                  [t('export.invoiceNumber')]: p.invoice_number || '',
+                  [t('export.supplier')]: (p as any).supplier?.company_name || '',
+                  [t('export.invoiceDate')]: formatDate(p.invoice_date),
+                  [t('export.dueDate')]: formatDate(p.due_date),
+                  [t('export.originalAmount')]: p.original_amount,
+                  [t('export.remaining')]: p.remaining,
+                  [t('export.status')]: p.status,
+                })), `cong-no-phai-tra-${new Date().toISOString().slice(0, 10)}`);
+              }}>
                 {t('common.exportExcel')}
               </Button>
-            </Space>
           }
         />
 

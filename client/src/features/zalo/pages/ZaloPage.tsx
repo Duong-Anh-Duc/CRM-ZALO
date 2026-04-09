@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Tabs, Card, Form, Input, Button, Row, Col, Statistic, Space, Typography, Badge, Empty, Spin, Avatar, Divider } from 'antd';
-import { SettingOutlined, MessageOutlined, WechatOutlined, ArrowLeftOutlined, UserOutlined, RobotOutlined } from '@ant-design/icons';
+import { Tabs, Card, Row, Col, Statistic, Space, Typography, Button, Empty, Spin, Avatar, Badge, } from 'antd';
+import { MessageOutlined, WechatOutlined, ArrowLeftOutlined, UserOutlined, RobotOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useZaloConfig, useSaveZaloConfig, useZaloThreads, useZaloThreadMessages } from '../hooks';
+import { useZaloThreads, useZaloThreadMessages } from '../hooks';
+import { PageHeader } from '@/components/common';
 import AiChatTab from '../components/AiChatTab';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -12,59 +13,6 @@ dayjs.extend(relativeTime);
 
 const { Text } = Typography;
 const cardStyle: React.CSSProperties = { borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' };
-
-// ── API Config Item ──
-const ApiConfigItem: React.FC<{ name: string; label: string; urlField: string; tokenField: string }> = ({ name, label, urlField, tokenField }) => {
-  const { t } = useTranslation();
-  return (
-    <Card size="small" title={<Text strong style={{ color: '#1677ff' }}>{name}</Text>} style={{ ...cardStyle, marginBottom: 12 }}>
-      <Form.Item name={urlField} label={`${label} URL`} rules={[{ required: true, message: t('zalo.urlRequired') }]} style={{ marginBottom: 8 }}>
-        <Input placeholder="https://public-api.func.vn/functions/xxxxxx" style={{ borderRadius: 8 }} />
-      </Form.Item>
-      <Form.Item name={tokenField} label="API Token" rules={[{ required: true, message: t('zalo.tokenRequired') }]} style={{ marginBottom: 0 }}>
-        <Input.Password placeholder="eyJhbGci..." style={{ borderRadius: 8 }} />
-      </Form.Item>
-    </Card>
-  );
-};
-
-// ── Config Tab ──
-const ConfigTab: React.FC = () => {
-  const { t } = useTranslation();
-  const [form] = Form.useForm();
-  const { data: configData, isLoading } = useZaloConfig();
-  const saveMutation = useSaveZaloConfig();
-  const config = configData?.data;
-
-  useEffect(() => {
-    if (config) form.setFieldsValue(config);
-  }, [config, form]);
-
-  if (isLoading) return <Spin tip={t('common.loading')}><div style={{ padding: 50 }} /></Spin>;
-
-  return (
-    <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)}>
-      <Card
-        title={t('zalo.apiConfig')}
-        style={cardStyle}
-        extra={config?.is_active
-          ? <Badge status="success" text={t('zalo.connected')} />
-          : <Badge status="default" text={t('zalo.notConnected')} />
-        }
-      >
-        <ApiConfigItem name="FUNC_GET_THREADS" label="Get Threads" urlField="get_threads_url" tokenField="get_threads_token" />
-        <ApiConfigItem name="FUNC_GET_MESSAGES" label="Get Messages" urlField="get_messages_url" tokenField="get_messages_token" />
-        <ApiConfigItem name="GET_GROUP_INFO" label="Group Info" urlField="get_group_info_url" tokenField="get_group_info_token" />
-        <ApiConfigItem name="GET_USER_INFO_V2" label="User Info" urlField="get_user_info_url" tokenField="get_user_info_token" />
-        <Divider />
-        <Button type="primary" htmlType="submit" loading={saveMutation.isPending} style={{ borderRadius: 8 }}>
-          {t('zalo.saveConfig')}
-        </Button>
-      </Card>
-
-    </Form>
-  );
-};
 
 // ── Chat Tab (Zalo mini) ──
 const ChatTab: React.FC = () => {
@@ -247,7 +195,7 @@ const ChatTab: React.FC = () => {
                 <Button type="text" size="small" icon={<ArrowLeftOutlined />} onClick={() => setSelected(null)} />
                 <Avatar size={28} src={selected.picture && !selected.picture.includes('no-picture') ? selected.picture : undefined} icon={<UserOutlined />} />
                 <Text strong>{selected.name}</Text>
-                {selected.type === 'GROUP_MESSAGING' && <Badge count="Nhóm" style={{ backgroundColor: '#722ed1' }} />}
+                {selected.type === 'GROUP_MESSAGING' && <Badge count={t('zalo.group')} style={{ backgroundColor: '#722ed1' }} />}
               </Space>
             ) : t('zalo.messageHistory')}
           >
@@ -268,12 +216,13 @@ const ZaloPage: React.FC = () => {
   const { t } = useTranslation();
   return (
     <div style={{ padding: 24 }}>
-      <h2 style={{ marginBottom: 20 }}>{t('zalo.title')}</h2>
-      <Tabs items={[
-        { key: 'chat', label: <span><MessageOutlined /> {t('zalo.messages')}</span>, children: <ChatTab /> },
-        { key: 'ai', label: <span><RobotOutlined /> AI Assistant</span>, children: <AiChatTab /> },
-        { key: 'config', label: <span><SettingOutlined /> {t('zalo.config')}</span>, children: <ConfigTab /> },
-      ]} defaultActiveKey="chat" />
+      <Card style={{ borderRadius: 12 }}>
+        <PageHeader title={t('zalo.title')} />
+        <Tabs items={[
+          { key: 'chat', label: <span><MessageOutlined /> {t('zalo.messages')}</span>, children: <ChatTab /> },
+          { key: 'ai', label: <span><RobotOutlined /> {t('zalo.aiAssistant')}</span>, children: <AiChatTab /> },
+        ]} defaultActiveKey="chat" />
+      </Card>
     </div>
   );
 };

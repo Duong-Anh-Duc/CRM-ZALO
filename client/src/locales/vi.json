@@ -56,7 +56,12 @@
     "reports": "Báo cáo",
     "alerts": "Thông báo",
     "zalo": "Zalo",
-    "settings": "Cài đặt"
+    "settings": "Cài đặt",
+    "catalog": "DANH MỤC",
+    "orders": "ĐƠN HÀNG",
+    "finance": "TÀI CHÍNH",
+    "tools": "CÔNG CỤ",
+    "admin": "QUẢN TRỊ"
   },
   "auth": {
     "loginTitle": "Đăng nhập để tiếp tục",
@@ -294,7 +299,8 @@
     "totalTransactions": "Tổng {{count}} giao dịch",
     "totalReceivables": "Tổng {{count}} khoản phải thu",
     "createdAt": "Ngày tạo",
-    "zalo": "Zalo"
+    "zalo": "Zalo",
+    "zaloPlaceholder": "Nhập Zalo User ID"
   },
   "customerTypeLabels": {
     "RETAIL": "Lẻ",
@@ -417,7 +423,8 @@
     "totalRecords": "Tổng {{count}} bản ghi",
     "searchCustomer": "Tìm khách hàng...",
     "searchSupplier": "Tìm nhà cung cấp...",
-    "aiReconciliation": "Đối chiếu AI"
+    "aiReconciliation": "Đối chiếu AI",
+    "aiReconciliationSoon": "Đối chiếu AI - Sắp ra mắt"
   },
   "payment": {
     "amount": "Số tiền",
@@ -653,7 +660,46 @@
     "urlRequired": "Vui lòng nhập URL",
     "tokenRequired": "Vui lòng nhập Token",
     "selectConversation": "Chọn cuộc trò chuyện để xem tin nhắn",
-    "messageDeleted": "Tin nhắn đã bị gỡ"
+    "messageDeleted": "Tin nhắn đã bị gỡ",
+    "aiAssistant": "AI Assistant - Zalo",
+    "syncBanner": "AI phân tích dựa trên tin nhắn đã đồng bộ vào DB. Nhấn \"Đồng bộ\" để cập nhật tin nhắn mới nhất từ Zalo.",
+    "quickAsk": "Hỏi nhanh:",
+    "newOrders": "Đơn hàng mới",
+    "summaryToday": "Tóm tắt hôm nay",
+    "needsReply": "Cần trả lời",
+    "analyze": "Phân tích",
+    "aiAnalyzing": "Đang phân tích...",
+    "askAiPlaceholder": "Hỏi AI về tin nhắn Zalo...",
+    "aiSummary": "Tóm tắt AI",
+    "noAiResponse": "Không có phản hồi.",
+    "aiConnectionError": "Lỗi kết nối AI. Vui lòng thử lại.",
+    "cannotLoadSummary": "Không thể tải tóm tắt.",
+    "aiSummaryLoading": "AI đang phân tích...",
+    "overview": "Tổng quan",
+    "potentialOrders": "Đơn hàng tiềm năng",
+    "quoteRequests": "Yêu cầu báo giá",
+    "issues": "Vấn đề",
+    "analyzed": "Đã phân tích",
+    "messages_count": "tin nhắn",
+    "received": "nhận",
+    "sent": "gửi",
+    "trainAiAgent": "Huấn luyện AI Agent",
+    "trainDescription": "Thêm kiến thức để AI ngày càng thông minh hơn. AI sẽ học từ tất cả dữ liệu bên dưới.",
+    "selectType": "Chọn loại",
+    "productAlias": "Tên SP khác",
+    "orderExample": "Ví dụ đơn hàng",
+    "aiCorrection": "Sửa lỗi AI",
+    "businessRule": "Quy tắc KD",
+    "customerInfo": "Thông tin KH",
+    "enterTitle": "Nhập tiêu đề",
+    "enterContent": "Nhập nội dung",
+    "noKnowledge": "Chưa có kiến thức nào. Thêm để AI thông minh hơn!",
+    "today": "Hôm nay",
+    "days3": "3 ngày",
+    "days7": "7 ngày",
+    "days30": "30 ngày",
+    "allTime": "Tất cả",
+    "knowledge": "kiến thức"
   },
   "settings": {
     "title": "Cài đặt",
@@ -674,6 +720,17 @@
     "noCategories": "Chưa có danh mục",
     "language": "Ngôn ngữ",
     "vietnamese": "Tiếng Việt",
-    "english": "English"
+    "english": "English",
+    "categoryAdded": "Đã thêm danh mục"
+  },
+  "export": {
+    "invoiceNumber": "Mã hóa đơn",
+    "customer": "Khách hàng",
+    "supplier": "Nhà cung cấp",
+    "invoiceDate": "Ngày hóa đơn",
+    "dueDate": "Hạn thanh toán",
+    "originalAmount": "Số tiền gốc",
+    "remaining": "Còn lại",
+    "status": "Trạng thái"
   }
 }

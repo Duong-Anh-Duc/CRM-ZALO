@@ -27,6 +27,13 @@ const SupplierListPage: React.FC = () => {
 
   const columns: ColumnsType<Supplier> = [
     {
+      title: 'STT',
+      key: 'stt',
+      width: 60,
+      align: 'center' as const,
+      render: (_: unknown, __: unknown, index: number) => (page - 1) * pageSize + index + 1,
+    },
+    {
       title: t('supplier.name'),
       dataIndex: 'company_name',
       key: 'company_name',
@@ -37,12 +44,14 @@ const SupplierListPage: React.FC = () => {
       dataIndex: 'phone',
       key: 'phone',
       width: 140,
+      responsive: ['md'],
     },
     {
       title: t('supplier.productsCount'),
       dataIndex: 'products_count',
       key: 'products_count',
       width: 130,
+      responsive: ['lg'],
       align: 'center',
       render: (val: number) => val ?? 0,
     },
@@ -51,6 +60,7 @@ const SupplierListPage: React.FC = () => {
       dataIndex: 'total_payable',
       key: 'total_payable',
       width: 160,
+      responsive: ['lg'],
       align: 'right',
       render: (val: number) => formatVND(val),
     },
@@ -59,6 +69,7 @@ const SupplierListPage: React.FC = () => {
       dataIndex: 'overdue_amount',
       key: 'overdue_amount',
       width: 160,
+      responsive: ['lg'],
       align: 'right',
       render: (val: number) => (
         <span style={{ color: val ? '#ff4d4f' : undefined, fontWeight: val ? 600 : 400 }}>

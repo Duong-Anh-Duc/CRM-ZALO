@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Input, Select, Table, Tag, Space, Spin, Empty, Tooltip, Popconfirm } from 'antd';
+import { Button, Input, Select, Table, Tag, Card, Space, Spin, Empty, Tooltip, Popconfirm } from 'antd';
 import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +9,7 @@ import { productApi } from '../api';
 import { useAuthStore } from '@/stores/auth.store';
 import { Product, PlasticMaterial, Category } from '@/types';
 import { formatVND, materialLabels } from '@/utils/format';
+import { PageHeader } from '@/components/common';
 import ProductFormModal from '../components/ProductFormModal';
 
 const cardStyle: React.CSSProperties = { borderRadius: 12 };
@@ -47,7 +48,14 @@ const ProductListPage: React.FC = () => {
   const products: Product[] = data?.data ?? [];
   const total: number = data?.meta?.total ?? 0;
 
-  const columns = [
+  const columns: any[] = [
+    {
+      title: 'STT',
+      key: 'stt',
+      width: 60,
+      align: 'center' as const,
+      render: (_: unknown, __: unknown, index: number) => (page - 1) * pageSize + index + 1,
+    },
     {
       title: 'SKU',
       dataIndex: 'sku',
@@ -65,6 +73,7 @@ const ProductListPage: React.FC = () => {
       dataIndex: 'material',
       key: 'material',
       width: 100,
+      responsive: ['md'],
       render: (v: string) => (v ? materialLabels[v] ?? v : '-'),
     },
     {
@@ -72,6 +81,7 @@ const ProductListPage: React.FC = () => {
       dataIndex: 'capacity_ml',
       key: 'capacity_ml',
       width: 120,
+      responsive: ['lg'],
       align: 'right' as const,
       render: (v: number | undefined) => (v != null ? v : '-'),
     },
@@ -80,6 +90,7 @@ const ProductListPage: React.FC = () => {
       dataIndex: 'retail_price',
       key: 'retail_price',
       width: 140,
+      responsive: ['md'],
       align: 'right' as const,
       render: (v: number | undefined) => (v != null ? formatVND(v) : '-'),
     },
@@ -88,6 +99,7 @@ const ProductListPage: React.FC = () => {
       dataIndex: 'wholesale_price',
       key: 'wholesale_price',
       width: 140,
+      responsive: ['lg'],
       align: 'right' as const,
       render: (v: number | undefined) => (v != null ? formatVND(v) : '-'),
     },
@@ -155,94 +167,90 @@ const ProductListPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 16,
-        }}
-      >
-        <h2 style={{ margin: 0 }}>{t('product.management')}</h2>
-        {canManage && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            style={{ borderRadius: 8 }}
-            onClick={() => { setEditProduct(null); setModalOpen(true); }}
-          >
-            {t('product.addProduct')}
-          </Button>
+    <>
+      <Card style={{ borderRadius: 12 }}>
+        <PageHeader
+          title={t('product.management')}
+          extra={
+            canManage ? (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                style={{ borderRadius: 8 }}
+                onClick={() => { setEditProduct(null); setModalOpen(true); }}
+              >
+                {t('product.addProduct')}
+              </Button>
+            ) : undefined
+          }
+        />
+
+        {/* Filters */}
+        <Space wrap style={{ marginBottom: 16, width: '100%' }}>
+          <Input
+            placeholder={t('product.searchPlaceholder')}
+            prefix={<SearchOutlined />}
+            allowClear
+            style={{ width: 260, borderRadius: 8 }}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+          <Select
+            placeholder={t('product.material')}
+            allowClear
+            style={{ width: 150, borderRadius: 8 }}
+            options={materialOptions}
+            value={material}
+            onChange={(v) => {
+              setMaterial(v);
+              setPage(1);
+            }}
+          />
+          <Select
+            placeholder={t('product.category')}
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            style={{ width: 200, borderRadius: 8 }}
+            value={categoryId}
+            onChange={(v) => {
+              setCategoryId(v);
+              setPage(1);
+            }}
+            options={categoryOptions}
+          />
+        </Space>
+
+        {/* Table */}
+        {isLoading ? (
+          <div style={{ textAlign: 'center', padding: 80 }}>
+            <Spin size="large" tip={t('common.loading')} />
+          </div>
+        ) : (
+          <Table
+            dataSource={products}
+            columns={columns}
+            rowKey="id"
+            style={cardStyle}
+            scroll={{ x: 'max-content' }}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              showTotal: (total) => t('product.totalProducts', { count: total }),
+              onChange: (p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+            }}
+            locale={{ emptyText: <Empty description={t('product.noProducts')} /> }}
+          />
         )}
-      </div>
-
-      {/* Filters */}
-      <Space wrap style={{ marginBottom: 16, width: '100%' }}>
-        <Input
-          placeholder={t('product.searchPlaceholder')}
-          prefix={<SearchOutlined />}
-          allowClear
-          style={{ width: 260, borderRadius: 8 }}
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
-        <Select
-          placeholder={t('product.material')}
-          allowClear
-          style={{ width: 150, borderRadius: 8 }}
-          options={materialOptions}
-          value={material}
-          onChange={(v) => {
-            setMaterial(v);
-            setPage(1);
-          }}
-        />
-        <Select
-          placeholder={t('product.category')}
-          allowClear
-          showSearch
-          optionFilterProp="label"
-          style={{ width: 200, borderRadius: 8 }}
-          value={categoryId}
-          onChange={(v) => {
-            setCategoryId(v);
-            setPage(1);
-          }}
-          options={categoryOptions}
-        />
-      </Space>
-
-      {/* Table */}
-      {isLoading ? (
-        <div style={{ textAlign: 'center', padding: 80 }}>
-          <Spin size="large" tip={t('common.loading')} />
-        </div>
-      ) : (
-        <Table
-          dataSource={products}
-          columns={columns}
-          rowKey="id"
-          style={cardStyle}
-          scroll={{ x: 'max-content' }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (total) => t('product.totalProducts', { count: total }),
-            onChange: (p, ps) => {
-              setPage(p);
-              setPageSize(ps);
-            },
-          }}
-          locale={{ emptyText: <Empty description={t('product.noProducts')} /> }}
-        />
-      )}
+      </Card>
 
       <ProductFormModal
         open={modalOpen}
@@ -257,7 +265,7 @@ const ProductListPage: React.FC = () => {
           refetch();
         }}
       />
-    </div>
+    </>
   );
 };
 

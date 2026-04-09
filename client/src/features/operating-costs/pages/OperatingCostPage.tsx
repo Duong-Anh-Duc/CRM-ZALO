@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { useOperatingCosts } from '../hooks';
 import { OperatingCost } from '@/types';
 import { formatVND, formatDate } from '@/utils/format';
+import { PageHeader } from '@/components/common';
 import CostFormModal from '../components/CostFormModal';
 
 const cardStyle: React.CSSProperties = {
@@ -48,6 +49,13 @@ const OperatingCostPage: React.FC = () => {
   }));
 
   const columns = [
+    {
+      title: 'STT',
+      key: 'stt',
+      width: 60,
+      align: 'center' as const,
+      render: (_: unknown, __: unknown, index: number) => index + 1,
+    },
     {
       title: t('common.date'),
       dataIndex: 'date',
@@ -99,29 +107,31 @@ const OperatingCostPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 20 }}>
-        <Col>
-          <h2 style={{ margin: 0 }}>{t('cost.title')}</h2>
-        </Col>
-        <Col>
-          <DatePicker
-            picker="month"
-            value={selectedMonth}
-            onChange={(v) => v && setSelectedMonth(v)}
-            format="MM/YYYY"
-            style={{ marginRight: 12, borderRadius: 8 }}
-            allowClear={false}
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleOpenCreate}
-            style={{ borderRadius: 8 }}
-          >
-            {t('cost.addCost')}
-          </Button>
-        </Col>
-      </Row>
+      <Card style={{ borderRadius: 12, marginBottom: 20 }}>
+        <PageHeader
+          title={t('cost.title')}
+          extra={
+            <>
+              <DatePicker
+                picker="month"
+                value={selectedMonth}
+                onChange={(v) => v && setSelectedMonth(v)}
+                format="MM/YYYY"
+                style={{ borderRadius: 8 }}
+                allowClear={false}
+              />
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleOpenCreate}
+                style={{ borderRadius: 8 }}
+              >
+                {t('cost.addCost')}
+              </Button>
+            </>
+          }
+        />
+      </Card>
 
       {/* Monthly summary cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>

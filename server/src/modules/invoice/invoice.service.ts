@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer';
 import prisma from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
+import { t } from '../../locales';
 import { buildInvoiceHtml } from './invoice-template';
 import type { InvoiceData } from './invoice-template';
 import dayjs from 'dayjs';
@@ -74,7 +75,7 @@ export class InvoiceService {
       },
     });
 
-    if (!order) throw new AppError('Order not found', 404);
+    if (!order) throw new AppError(t('order.notFound'), 404);
 
     const vatPct = order.vat_rate === 'VAT_0' ? 0 : order.vat_rate === 'VAT_8' ? 8 : 10;
     const subtotal = Number(order.subtotal);

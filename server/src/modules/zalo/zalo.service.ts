@@ -342,7 +342,7 @@ export class ZaloService {
     });
 
     if (messages.length === 0) {
-      return { summary: 'Không có tin nhắn nào trong khoảng thời gian này.', messages_analyzed: 0 };
+      return { summary: t('zalo.noMessagesInPeriod'), messages_analyzed: 0 };
     }
 
     const reversed = [...messages].reverse();

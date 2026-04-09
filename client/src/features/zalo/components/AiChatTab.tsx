@@ -1,18 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input, Button, Card, Spin, Typography, Tag, Empty, Row, Col, Divider, Segmented, Collapse, Form } from 'antd';
 import { RobotOutlined, SendOutlined, UserOutlined, ThunderboltOutlined, FileTextOutlined, ShoppingCartOutlined, QuestionCircleOutlined, SyncOutlined, BulbOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { zaloApi } from '../api';
 import { useZaloAiChat, useZaloSyncMessages, useAiTrainingList, useCreateAiTraining, useRemoveAiTraining } from '../hooks';
 
 const { Text, Paragraph } = Typography;
-
-const PERIOD_OPTIONS = [
-  { label: 'Hôm nay', value: 'today' },
-  { label: '3 ngày', value: '3d' },
-  { label: '7 ngày', value: '7d' },
-  { label: '30 ngày', value: '30d' },
-  { label: 'Tất cả', value: 'all' },
-];
 
 function periodToHours(period: string): number {
   const now = new Date();
@@ -32,14 +25,8 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const QUICK_QUESTIONS = [
-  { icon: <ShoppingCartOutlined />, label: 'Đơn hàng mới', question: 'Có tin nhắn nào đặt hàng hoặc hỏi mua sản phẩm không?' },
-  { icon: <FileTextOutlined />, label: 'Tóm tắt hôm nay', question: 'Tóm tắt tất cả tin nhắn Zalo hôm nay' },
-  { icon: <QuestionCircleOutlined />, label: 'Cần trả lời', question: 'Tin nhắn nào từ khách hàng chưa được trả lời và cần phản hồi gấp?' },
-  { icon: <ThunderboltOutlined />, label: 'Phân tích', question: 'Phân tích xu hướng: khách hàng đang quan tâm sản phẩm gì nhiều nhất?' },
-];
-
 const AiChatTab: React.FC = () => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const syncMutation = useZaloSyncMessages();
@@ -52,6 +39,37 @@ const AiChatTab: React.FC = () => {
   const [summaryPeriod, setSummaryPeriod] = useState<string>('today');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatMutation = useZaloAiChat();
+
+  const PERIOD_OPTIONS = [
+    { label: t('zalo.today'), value: 'today' },
+    { label: t('zalo.days3'), value: '3d' },
+    { label: t('zalo.days7'), value: '7d' },
+    { label: t('zalo.days30'), value: '30d' },
+    { label: t('zalo.allTime'), value: 'all' },
+  ];
+
+  const QUICK_QUESTIONS = [
+    { icon: <ShoppingCartOutlined />, label: t('zalo.newOrders'), question: 'Có tin nhắn nào đặt hàng hoặc hỏi mua sản phẩm không?' },
+    { icon: <FileTextOutlined />, label: t('zalo.summaryToday'), question: 'Tóm tắt tất cả tin nhắn Zalo hôm nay' },
+    { icon: <QuestionCircleOutlined />, label: t('zalo.needsReply'), question: 'Tin nhắn nào từ khách hàng chưa được trả lời và cần phản hồi gấp?' },
+    { icon: <ThunderboltOutlined />, label: t('zalo.analyze'), question: 'Phân tích xu hướng: khách hàng đang quan tâm sản phẩm gì nhiều nhất?' },
+  ];
+
+  const TRAINING_CATEGORIES = [
+    { key: 'PRODUCT_ALIAS', label: t('zalo.productAlias'), color: 'blue' },
+    { key: 'ORDER_EXAMPLE', label: t('zalo.orderExample'), color: 'green' },
+    { key: 'CORRECTION', label: t('zalo.aiCorrection'), color: 'red' },
+    { key: 'BUSINESS_RULE', label: t('zalo.businessRule'), color: 'orange' },
+    { key: 'CUSTOMER_INFO', label: t('zalo.customerInfo'), color: 'purple' },
+  ];
+
+  const trainingLabels: Record<string, string> = {
+    PRODUCT_ALIAS: t('zalo.productAlias'),
+    ORDER_EXAMPLE: t('zalo.orderExample'),
+    CORRECTION: t('zalo.aiCorrection'),
+    BUSINESS_RULE: t('zalo.businessRule'),
+    CUSTOMER_INFO: t('zalo.customerInfo'),
+  };
 
   useEffect(() => {
     if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -66,10 +84,10 @@ const AiChatTab: React.FC = () => {
 
     chatMutation.mutate(question, {
       onSuccess: (res: any) => {
-        setMessages((prev) => [...prev, { role: 'ai', content: res.data?.answer || 'Không có phản hồi.', timestamp: new Date() }]);
+        setMessages((prev) => [...prev, { role: 'ai', content: res.data?.answer || t('zalo.noAiResponse'), timestamp: new Date() }]);
       },
       onError: () => {
-        setMessages((prev) => [...prev, { role: 'ai', content: 'Lỗi kết nối AI. Vui lòng thử lại.', timestamp: new Date() }]);
+        setMessages((prev) => [...prev, { role: 'ai', content: t('zalo.aiConnectionError'), timestamp: new Date() }]);
       },
     });
   };
@@ -82,7 +100,7 @@ const AiChatTab: React.FC = () => {
       const res = await zaloApi.aiSummary(hours, 200);
       setSummaryData(res.data?.data);
     } catch {
-      setSummaryData({ error: 'Không thể tải tóm tắt.' });
+      setSummaryData({ error: t('zalo.cannotLoadSummary') });
     } finally {
       setSummaryLoading(false);
     }
@@ -94,14 +112,14 @@ const AiChatTab: React.FC = () => {
       <Col xs={24} style={{ marginBottom: 12 }}>
         <Card size="small" style={{ borderRadius: 12, background: '#f6f8fa' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text type="secondary">AI phân tích dựa trên tin nhắn đã đồng bộ vào DB. Nhấn "Đồng bộ" để cập nhật tin nhắn mới nhất từ Zalo.</Text>
+            <Text type="secondary">{t('zalo.syncBanner')}</Text>
             <Button
               icon={<SyncOutlined spin={syncMutation.isPending} />}
               onClick={() => syncMutation.mutate()}
               loading={syncMutation.isPending}
               style={{ borderRadius: 8 }}
             >
-              Đồng bộ tin nhắn
+              {t('zalo.syncMessages')}
             </Button>
           </div>
         </Card>
@@ -111,13 +129,13 @@ const AiChatTab: React.FC = () => {
       <Col xs={24} md={14}>
         <Card
           size="small"
-          title={<span><RobotOutlined style={{ color: '#667eea', marginRight: 8 }} />AI Assistant - Zalo</span>}
+          title={<span><RobotOutlined style={{ color: '#667eea', marginRight: 8 }} />{t('zalo.aiAssistant')}</span>}
           style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
         >
           {/* Quick questions */}
           {messages.length === 0 && (
             <div style={{ padding: '20px 0' }}>
-              <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>Hỏi nhanh:</Text>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>{t('zalo.quickAsk')}</Text>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {QUICK_QUESTIONS.map((q, i) => (
                   <Button
@@ -181,7 +199,7 @@ const AiChatTab: React.FC = () => {
                 }}>
                   <RobotOutlined style={{ color: '#fff', fontSize: 16 }} />
                 </div>
-                <Spin size="small" /> <Text type="secondary">Đang phân tích...</Text>
+                <Spin size="small" /> <Text type="secondary">{t('zalo.aiAnalyzing')}</Text>
               </div>
             )}
             <div ref={chatEndRef} />
@@ -193,7 +211,7 @@ const AiChatTab: React.FC = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onPressEnter={() => sendMessage(input)}
-              placeholder="Hỏi AI về tin nhắn Zalo..."
+              placeholder={t('zalo.askAiPlaceholder')}
               disabled={chatMutation.isPending}
               style={{ borderRadius: 20 }}
               size="large"
@@ -214,8 +232,8 @@ const AiChatTab: React.FC = () => {
       <Col xs={24} md={10}>
         <Card
           size="small"
-          title={<span><ThunderboltOutlined style={{ color: '#faad14', marginRight: 8 }} />Tóm tắt AI</span>}
-          extra={<Button size="small" onClick={() => loadSummary()} loading={summaryLoading} style={{ borderRadius: 8 }}>Phân tích</Button>}
+          title={<span><ThunderboltOutlined style={{ color: '#faad14', marginRight: 8 }} />{t('zalo.aiSummary')}</span>}
+          extra={<Button size="small" onClick={() => loadSummary()} loading={summaryLoading} style={{ borderRadius: 8 }}>{t('zalo.analyze')}</Button>}
           style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
         >
           {/* Period selector */}
@@ -231,16 +249,16 @@ const AiChatTab: React.FC = () => {
 
           <div style={{ height: 460, overflowY: 'auto' }}>
             {summaryLoading ? (
-              <div style={{ textAlign: 'center', padding: 60 }}><Spin tip="AI đang phân tích..." /></div>
+              <div style={{ textAlign: 'center', padding: 60 }}><Spin tip={t('zalo.aiSummaryLoading')} /></div>
             ) : !summaryData ? (
-              <Empty description={`Nhấn Phân tích để AI tóm tắt tin nhắn ${summaryPeriod === 'today' ? 'hôm nay' : summaryPeriod === 'all' ? 'tất cả' : summaryPeriod.replace('d', ' ngày qua')}`} />
+              <Empty description={`${t('zalo.analyze')}...`} />
             ) : summaryData.error ? (
               <Text type="danger">{summaryData.error}</Text>
             ) : (
               <>
                 {summaryData.summary && (
                   <div style={{ marginBottom: 16 }}>
-                    <Text strong style={{ display: 'block', marginBottom: 4 }}>Tổng quan</Text>
+                    <Text strong style={{ display: 'block', marginBottom: 4 }}>{t('zalo.overview')}</Text>
                     <Paragraph style={{ margin: 0, background: '#f6f8fa', padding: 12, borderRadius: 8 }}>
                       {summaryData.summary}
                     </Paragraph>
@@ -249,7 +267,7 @@ const AiChatTab: React.FC = () => {
 
                 {summaryData.potential_orders?.length > 0 && (
                   <div style={{ marginBottom: 16 }}>
-                    <Tag color="green">Đơn hàng tiềm năng ({summaryData.potential_orders.length})</Tag>
+                    <Tag color="green">{t('zalo.potentialOrders')} ({summaryData.potential_orders.length})</Tag>
                     {summaryData.potential_orders.map((o: any, i: number) => (
                       <div key={i} style={{ background: '#f6ffed', padding: 8, borderRadius: 8, marginTop: 6, fontSize: 13 }}>
                         <Text strong>{o.customer}</Text>: {o.products} - SL: {o.quantity}
@@ -261,7 +279,7 @@ const AiChatTab: React.FC = () => {
 
                 {summaryData.quote_requests?.length > 0 && (
                   <div style={{ marginBottom: 16 }}>
-                    <Tag color="blue">Yêu cầu báo giá ({summaryData.quote_requests.length})</Tag>
+                    <Tag color="blue">{t('zalo.quoteRequests')} ({summaryData.quote_requests.length})</Tag>
                     {summaryData.quote_requests.map((q: any, i: number) => (
                       <div key={i} style={{ background: '#e6f7ff', padding: 8, borderRadius: 8, marginTop: 6, fontSize: 13 }}>
                         <Text strong>{q.customer}</Text>: {q.products}
@@ -272,7 +290,7 @@ const AiChatTab: React.FC = () => {
 
                 {summaryData.issues?.length > 0 && (
                   <div style={{ marginBottom: 16 }}>
-                    <Tag color="red">Vấn đề ({summaryData.issues.length})</Tag>
+                    <Tag color="red">{t('zalo.issues')} ({summaryData.issues.length})</Tag>
                     {summaryData.issues.map((iss: any, i: number) => (
                       <div key={i} style={{ background: '#fff2f0', padding: 8, borderRadius: 8, marginTop: 6, fontSize: 13 }}>
                         <Text strong>{iss.customer}</Text>: {iss.issue}
@@ -283,7 +301,7 @@ const AiChatTab: React.FC = () => {
 
                 {summaryData.needs_reply?.length > 0 && (
                   <div style={{ marginBottom: 16 }}>
-                    <Tag color="orange">Cần trả lời ({summaryData.needs_reply.length})</Tag>
+                    <Tag color="orange">{t('zalo.needsReply')} ({summaryData.needs_reply.length})</Tag>
                     {summaryData.needs_reply.map((nr: any, i: number) => (
                       <div key={i} style={{ background: '#fff7e6', padding: 8, borderRadius: 8, marginTop: 6, fontSize: 13 }}>
                         <Text strong>{nr.customer}</Text>: {nr.reason}
@@ -296,8 +314,8 @@ const AiChatTab: React.FC = () => {
                   <>
                     <Divider style={{ margin: '12px 0' }} />
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      Đã phân tích: {summaryData.stats.total_messages || 0} tin nhắn
-                      ({summaryData.stats.incoming || 0} nhận / {summaryData.stats.outgoing || 0} gửi)
+                      {t('zalo.analyzed')}: {summaryData.stats.total_messages || 0} {t('zalo.messages_count')}
+                      ({summaryData.stats.incoming || 0} {t('zalo.received')} / {summaryData.stats.outgoing || 0} {t('zalo.sent')})
                     </Text>
                   </>
                 )}
@@ -313,12 +331,12 @@ const AiChatTab: React.FC = () => {
           items={[{
             key: 'training',
             label: (
-              <span><BulbOutlined style={{ color: '#faad14', marginRight: 8 }} />Huấn luyện AI Agent ({trainingEntries.length} kiến thức)</span>
+              <span><BulbOutlined style={{ color: '#faad14', marginRight: 8 }} />{t('zalo.trainAiAgent')} ({trainingEntries.length} {t('zalo.knowledge')})</span>
             ),
             children: (
               <div>
                 <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-                  Thêm kiến thức để AI ngày càng thông minh hơn. AI sẽ học từ tất cả dữ liệu bên dưới.
+                  {t('zalo.trainDescription')}
                 </Text>
 
                 {/* Add new */}
@@ -332,17 +350,11 @@ const AiChatTab: React.FC = () => {
                   >
                     <Row gutter={12}>
                       <Col xs={24} md={6}>
-                        <Form.Item name="category" label="Loại" rules={[{ required: true, message: 'Chọn loại' }]}>
-                          <Input.TextArea rows={1} style={{ borderRadius: 8 }} placeholder="Chọn bên dưới" disabled />
+                        <Form.Item name="category" label={t('zalo.selectType')} rules={[{ required: true, message: t('zalo.selectType') }]}>
+                          <Input.TextArea rows={1} style={{ borderRadius: 8 }} placeholder={t('zalo.selectType')} disabled />
                         </Form.Item>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: -12, marginBottom: 12 }}>
-                          {[
-                            { key: 'PRODUCT_ALIAS', label: 'Tên SP khác', color: 'blue' },
-                            { key: 'ORDER_EXAMPLE', label: 'Ví dụ đơn hàng', color: 'green' },
-                            { key: 'CORRECTION', label: 'Sửa lỗi AI', color: 'red' },
-                            { key: 'BUSINESS_RULE', label: 'Quy tắc KD', color: 'orange' },
-                            { key: 'CUSTOMER_INFO', label: 'Thông tin KH', color: 'purple' },
-                          ].map((c) => (
+                          {TRAINING_CATEGORIES.map((c) => (
                             <Tag
                               key={c.key}
                               color={c.color}
@@ -355,18 +367,18 @@ const AiChatTab: React.FC = () => {
                         </div>
                       </Col>
                       <Col xs={24} md={6}>
-                        <Form.Item name="title" label="Tiêu đề" rules={[{ required: true, message: 'Nhập tiêu đề' }]}>
-                          <Input placeholder='VD: "chai nước suối" = chai PET 500ml' style={{ borderRadius: 8 }} />
+                        <Form.Item name="title" label={t('zalo.enterTitle')} rules={[{ required: true, message: t('zalo.enterTitle') }]}>
+                          <Input placeholder={t('zalo.enterTitle')} style={{ borderRadius: 8 }} />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={9}>
-                        <Form.Item name="content" label="Nội dung chi tiết" rules={[{ required: true, message: 'Nhập nội dung' }]}>
-                          <Input.TextArea rows={1} placeholder="VD: Khi khách nói chai nước suối, hiểu là sản phẩm chai PET 500ml, SKU: PLB-PET-2026-001" style={{ borderRadius: 8 }} />
+                        <Form.Item name="content" label={t('zalo.enterContent')} rules={[{ required: true, message: t('zalo.enterContent') }]}>
+                          <Input.TextArea rows={1} placeholder={t('zalo.enterContent')} style={{ borderRadius: 8 }} />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={3} style={{ display: 'flex', alignItems: 'end', paddingBottom: 24 }}>
                         <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={createTraining.isPending} block style={{ borderRadius: 8 }}>
-                          Thêm
+                          {t('common.add')}
                         </Button>
                       </Col>
                     </Row>
@@ -375,15 +387,14 @@ const AiChatTab: React.FC = () => {
 
                 {/* Existing entries */}
                 {trainingEntries.length === 0 ? (
-                  <Empty description="Chưa có kiến thức nào. Thêm để AI thông minh hơn!" />
+                  <Empty description={t('zalo.noKnowledge')} />
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {trainingEntries.map((e: any) => {
                       const colors: Record<string, string> = { PRODUCT_ALIAS: 'blue', ORDER_EXAMPLE: 'green', CORRECTION: 'red', BUSINESS_RULE: 'orange', CUSTOMER_INFO: 'purple' };
-                      const labels: Record<string, string> = { PRODUCT_ALIAS: 'Tên SP khác', ORDER_EXAMPLE: 'Ví dụ đơn hàng', CORRECTION: 'Sửa lỗi AI', BUSINESS_RULE: 'Quy tắc KD', CUSTOMER_INFO: 'Thông tin KH' };
                       return (
                         <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fafafa', borderRadius: 8, border: '1px solid #f0f0f0' }}>
-                          <Tag color={colors[e.category] || 'default'} style={{ borderRadius: 6, margin: 0 }}>{labels[e.category] || e.category}</Tag>
+                          <Tag color={colors[e.category] || 'default'} style={{ borderRadius: 6, margin: 0 }}>{trainingLabels[e.category] || e.category}</Tag>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <Text strong style={{ fontSize: 13 }}>{e.title}</Text>
                             <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{e.content}</Text>

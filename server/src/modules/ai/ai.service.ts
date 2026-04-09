@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { config } from '../../config';
+import { t } from '../../locales';
 import logger from '../../utils/logger';
 import prisma from '../../lib/prisma';
 import { AiTrainingService } from './ai-training.service';
@@ -136,7 +137,7 @@ export class AIService {
     try {
       if (!config.openai.apiKey) {
         logger.warn('OpenAI API key not configured, skipping AI extraction');
-        return { is_order: false, items: [], raw_summary: 'API key not set' };
+        return { is_order: false, items: [], raw_summary: t('ai.apiKeyNotSet') };
       }
 
       const customPrompts = await getCustomPrompts();
@@ -160,7 +161,7 @@ export class AIService {
 
       const content = response.choices[0]?.message?.content;
       if (!content) {
-        return { is_order: false, items: [], raw_summary: 'Empty AI response' };
+        return { is_order: false, items: [], raw_summary: t('ai.emptyResponse') };
       }
 
       const parsed = JSON.parse(content) as ExtractedOrder;
@@ -168,7 +169,7 @@ export class AIService {
       return parsed;
     } catch (err: any) {
       logger.error('AI extraction error:', err.message);
-      return { is_order: false, items: [], raw_summary: `AI error: ${err.message}` };
+      return { is_order: false, items: [], raw_summary: `${t('ai.error')}: ${err.message}` };
     }
   }
 
@@ -180,7 +181,7 @@ export class AIService {
     messages: Array<{ sender_name: string | null; content: string | null; direction: string; created_at: Date }>,
   ): Promise<string> {
     try {
-      if (!config.openai.apiKey) return 'API key chưa được cấu hình.';
+      if (!config.openai.apiKey) return t('ai.apiKeyNotConfigured');
 
       const customPrompts = await getCustomPrompts();
       const systemPrompt = customPrompts.chat || CHAT_SYSTEM_PROMPT;
@@ -206,10 +207,10 @@ export class AIService {
         ],
       });
 
-      return response.choices[0]?.message?.content || 'Không có phản hồi từ AI.';
+      return response.choices[0]?.message?.content || t('ai.noResponse');
     } catch (err: any) {
       logger.error('AI chat error:', err.message);
-      return `Lỗi AI: ${err.message}`;
+      return `${t('ai.error')}: ${err.message}`;
     }
   }
 
@@ -220,7 +221,7 @@ export class AIService {
     messages: Array<{ sender_name: string | null; content: string | null; direction: string; created_at: Date }>,
   ): Promise<Record<string, unknown>> {
     try {
-      if (!config.openai.apiKey) return { error: 'API key chưa được cấu hình.' };
+      if (!config.openai.apiKey) return { error: t('ai.apiKeyNotConfigured') };
 
       const customPrompts = await getCustomPrompts();
       const summaryPrompt = customPrompts.summary || SUMMARY_SYSTEM_PROMPT;
@@ -242,11 +243,11 @@ export class AIService {
       });
 
       const content = response.choices[0]?.message?.content;
-      if (!content) return { error: 'Không có phản hồi từ AI.' };
+      if (!content) return { error: t('ai.noResponse') };
       return JSON.parse(content);
     } catch (err: any) {
       logger.error('AI summary error:', err.message);
-      return { error: `Lỗi AI: ${err.message}` };
+      return { error: `${t('ai.error')}: ${err.message}` };
     }
   }
 }

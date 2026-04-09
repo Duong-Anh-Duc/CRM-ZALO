@@ -54,6 +54,13 @@ const SalesOrderListPage: React.FC = () => {
 
   const columns: ColumnsType<SalesOrder> = [
     {
+      title: 'STT',
+      key: 'stt',
+      width: 60,
+      align: 'center' as const,
+      render: (_: unknown, __: unknown, index: number) => (page - 1) * pageSize + index + 1,
+    },
+    {
       title: t('order.orderCode'),
       dataIndex: 'order_code',
       key: 'order_code',
@@ -70,6 +77,7 @@ const SalesOrderListPage: React.FC = () => {
       dataIndex: 'order_date',
       key: 'order_date',
       width: 120,
+      responsive: ['md'],
       render: (val: string) => formatDate(val),
     },
     {
@@ -92,6 +100,7 @@ const SalesOrderListPage: React.FC = () => {
       dataIndex: 'expected_delivery',
       key: 'expected_delivery',
       width: 140,
+      responsive: ['md'],
       render: (val: string) => formatDate(val),
     },
     {
@@ -152,7 +161,7 @@ const SalesOrderListPage: React.FC = () => {
           allowClear
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={{ width: 240, borderRadius: 8 }}
+          style={{ width: '100%', maxWidth: 400, borderRadius: 8 }}
         />
         <Select
           value={status}

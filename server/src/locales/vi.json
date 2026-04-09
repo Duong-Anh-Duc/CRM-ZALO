@@ -27,6 +27,7 @@
     "deleted": "Đã ẩn nhà cung cấp"
   },
   "order": {
+    "notFound": "Không tìm thấy đơn hàng",
     "salesNotFound": "Không tìm thấy đơn hàng",
     "purchaseNotFound": "Không tìm thấy đơn mua hàng",
     "invalidStatus": "Trạng thái không hợp lệ"
@@ -86,7 +87,9 @@
     "categoryNameRequired": "Vui lòng nhập tên danh mục",
     "statusRequired": "Vui lòng chọn trạng thái",
     "idRequired": "ID không được để trống",
-    "invalidId": "ID không hợp lệ"
+    "invalidId": "ID không hợp lệ",
+    "questionRequired": "Câu hỏi là bắt buộc",
+    "trainingFieldsRequired": "Danh mục, tiêu đề, nội dung là bắt buộc"
   },
   "upload": {
     "invalidFileType": "Định dạng file không hỗ trợ. Chỉ chấp nhận JPG, PNG, WebP",
@@ -96,10 +99,20 @@
     "imageNotFound": "Không tìm thấy ảnh",
     "deleteSuccess": "Đã xóa ảnh"
   },
+  "ai": {
+    "apiKeyNotSet": "API key chưa được thiết lập",
+    "emptyResponse": "Phản hồi AI trống",
+    "apiKeyNotConfigured": "API key chưa được cấu hình.",
+    "noResponse": "Không có phản hồi từ AI.",
+    "error": "Lỗi AI"
+  },
   "zalo": {
     "configSaved": "Đã lưu cấu hình Zalo",
     "configNotFound": "Chưa cấu hình Zalo",
-    "webhookReceived": "Đã nhận webhook"
+    "webhookReceived": "Đã nhận webhook",
+    "noMessagesInPeriod": "Không có tin nhắn nào trong khoảng thời gian này.",
+    "notAnOrderMessage": "Không phải tin nhắn đặt hàng",
+    "noMatchingProducts": "Không tìm thấy sản phẩm phù hợp"
   },
   "errors": {
     "serverError": "Lỗi hệ thống. Vui lòng thử lại sau.",
