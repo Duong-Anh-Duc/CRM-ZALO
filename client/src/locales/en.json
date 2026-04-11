@@ -50,6 +50,7 @@
     "suppliers": "Suppliers",
     "salesOrders": "Sales Orders",
     "purchaseOrders": "Purchase Orders",
+    "invoices": "Invoices",
     "receivables": "Receivables",
     "payables": "Payables",
     "operatingCosts": "Operating Costs",
@@ -380,6 +381,7 @@
     "createPurchaseOrder": "Create Purchase Order"
   },
   "salesStatusLabels": {
+    "PENDING": "Pending",
     "NEW": "New",
     "CONFIRMED": "Confirmed",
     "PREPARING": "Preparing",
@@ -388,6 +390,7 @@
     "CANCELLED": "Cancelled"
   },
   "purchaseStatusLabels": {
+    "PENDING": "Pending",
     "NEW": "New",
     "CONFIRMED": "Confirmed",
     "PROCESSING": "Processing",
@@ -522,6 +525,44 @@
     "productSalesFileName": "Sales_by_Product",
     "productSalesSheet": "Products"
   },
+  "invoice": {
+    "title": "Invoice Management",
+    "number": "Invoice No.",
+    "orderCode": "Order Code",
+    "buyer": "Buyer",
+    "total": "Total",
+    "date": "Invoice Date",
+    "status": "Status",
+    "preview": "Invoice Preview",
+    "editDraft": "Edit Draft Invoice",
+    "finalize": "Finalize",
+    "sellerInfo": "Seller Information",
+    "buyerInfo": "Buyer Information",
+    "companyName": "Company Name",
+    "taxCode": "Tax Code",
+    "address": "Address",
+    "phone": "Phone",
+    "representative": "Representative",
+    "position": "Position",
+    "contactName": "Contact Name",
+    "paymentMethod": "Payment Method",
+    "items": "Items",
+    "itemName": "Item Name",
+    "unit": "Unit",
+    "quantity": "Quantity",
+    "unitPrice": "Unit Price",
+    "amount": "Amount",
+    "vatRate": "VAT Rate",
+    "notes": "Notes",
+    "draftCreated": "Draft invoice created",
+    "updated": "Invoice updated",
+    "finalized": "Invoice finalized",
+    "cancelled": "Invoice cancelled",
+    "searchPlaceholder": "Search by company, tax code, order...",
+    "statusDraft": "Draft",
+    "statusFinal": "Final",
+    "statusCancelled": "Cancelled"
+  },
   "alert": {
     "title": "Alerts & Reminders",
     "actionSuccess": "Alert processed successfully",
@@ -544,7 +585,8 @@
     "typeCritical": "Critical",
     "typeEscalation": "Escalation",
     "messageTemplateWarning": "Dear Partner,\n\nWe noticed that the order related to \"{{title}}\" has an issue that needs attention.\n\n{{message}}\n\nPlease confirm and respond as soon as possible.\n\nBest regards,\nTECHLA AI COMPANY LIMITED",
-    "messageTemplateDefault": "Dear Partner,\n\nThis is a notification regarding: {{title}}.\n\n{{message}}\n\nPlease contact us if you need further assistance.\n\nBest regards,\nTECHLA AI COMPANY LIMITED"
+    "messageTemplateDefault": "Dear Partner,\n\nThis is a notification regarding: {{title}}.\n\n{{message}}\n\nPlease contact us if you need further assistance.\n\nBest regards,\nTECHLA AI COMPANY LIMITED",
+    "viewAll": "View all notifications"
   },
   "validation": {
     "emailRequired": "Please enter email",
@@ -662,6 +704,7 @@
     "selectConversation": "Select a conversation to view messages",
     "messageDeleted": "Message has been recalled",
     "aiAssistant": "AI Assistant - Zalo",
+    "clearChat": "Clear history",
     "syncBanner": "AI analyzes based on synced messages in DB. Click \"Sync\" to update the latest messages from Zalo.",
     "quickAsk": "Quick ask:",
     "newOrders": "New Orders",

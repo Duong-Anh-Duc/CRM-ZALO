@@ -123,7 +123,7 @@ const AlertsPage: React.FC = () => {
                 style={{
                   ...cardStyle,
                   marginBottom: 12,
-                  borderLeft: `4px solid ${cfg.color === 'gold' ? '#faad14' : cfg.color === 'orange' ? '#fa8c16' : cfg.color === 'red' ? '#f5222d' : '#722ed1'}`,
+                  border: `1px solid ${cfg.color === 'gold' ? '#faad14' : cfg.color === 'orange' ? '#fa8c16' : cfg.color === 'red' ? '#f5222d' : '#722ed1'}`,
                   opacity: alert.is_read ? 0.7 : 1,
                 }}
                 size="small"

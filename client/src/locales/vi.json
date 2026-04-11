@@ -50,6 +50,7 @@
     "suppliers": "Nhà cung cấp",
     "salesOrders": "Đơn bán hàng",
     "purchaseOrders": "Đơn mua hàng",
+    "invoices": "Hoá đơn",
     "receivables": "Công nợ phải thu",
     "payables": "Công nợ phải trả",
     "operatingCosts": "Chi phí vận hành",
@@ -380,6 +381,7 @@
     "createPurchaseOrder": "Tạo đơn mua hàng"
   },
   "salesStatusLabels": {
+    "PENDING": "Chờ duyệt",
     "NEW": "Mới",
     "CONFIRMED": "Đã xác nhận",
     "PREPARING": "Đang chuẩn bị",
@@ -388,6 +390,7 @@
     "CANCELLED": "Đã hủy"
   },
   "purchaseStatusLabels": {
+    "PENDING": "Chờ duyệt",
     "NEW": "Mới",
     "CONFIRMED": "Đã xác nhận",
     "PROCESSING": "Đang xử lý",
@@ -522,6 +525,44 @@
     "productSalesFileName": "Ban_hang_theo_SP",
     "productSalesSheet": "Sản phẩm"
   },
+  "invoice": {
+    "title": "Quản lý hoá đơn",
+    "number": "Số hoá đơn",
+    "orderCode": "Mã đơn hàng",
+    "buyer": "Người mua",
+    "total": "Tổng tiền",
+    "date": "Ngày hoá đơn",
+    "status": "Trạng thái",
+    "preview": "Xem trước hoá đơn",
+    "editDraft": "Chỉnh sửa hoá đơn nháp",
+    "finalize": "Xuất chính thức",
+    "sellerInfo": "Thông tin bên bán",
+    "buyerInfo": "Thông tin bên mua",
+    "companyName": "Tên công ty",
+    "taxCode": "Mã số thuế",
+    "address": "Địa chỉ",
+    "phone": "Điện thoại",
+    "representative": "Người đại diện",
+    "position": "Chức vụ",
+    "contactName": "Người liên hệ",
+    "paymentMethod": "Hình thức thanh toán",
+    "items": "Danh sách hàng hoá",
+    "itemName": "Tên hàng hoá",
+    "unit": "ĐVT",
+    "quantity": "Số lượng",
+    "unitPrice": "Đơn giá",
+    "amount": "Thành tiền",
+    "vatRate": "Thuế suất",
+    "notes": "Ghi chú",
+    "draftCreated": "Đã tạo hoá đơn nháp",
+    "updated": "Đã cập nhật hoá đơn",
+    "finalized": "Đã xuất hoá đơn chính thức",
+    "cancelled": "Đã huỷ hoá đơn",
+    "searchPlaceholder": "Tìm theo công ty, MST, mã đơn...",
+    "statusDraft": "Nháp",
+    "statusFinal": "Chính thức",
+    "statusCancelled": "Đã huỷ"
+  },
   "alert": {
     "title": "Thông báo & Nhắc nhở",
     "actionSuccess": "Xử lý cảnh báo thành công",
@@ -544,7 +585,8 @@
     "typeCritical": "Nghiêm trọng",
     "typeEscalation": "Leo thang",
     "messageTemplateWarning": "Kính gửi Quý đối tác,\n\nChúng tôi nhận thấy đơn hàng liên quan đến \"{{title}}\" đang có vấn đề cần xử lý.\n\n{{message}}\n\nVui lòng xác nhận và phản hồi sớm nhất có thể.\n\nTrân trọng,\nCÔNG TY TNHH TECHLA AI",
-    "messageTemplateDefault": "Kính gửi Quý đối tác,\n\nĐây là thông báo liên quan đến: {{title}}.\n\n{{message}}\n\nVui lòng liên hệ nếu cần hỗ trợ thêm.\n\nTrân trọng,\nCÔNG TY TNHH TECHLA AI"
+    "messageTemplateDefault": "Kính gửi Quý đối tác,\n\nĐây là thông báo liên quan đến: {{title}}.\n\n{{message}}\n\nVui lòng liên hệ nếu cần hỗ trợ thêm.\n\nTrân trọng,\nCÔNG TY TNHH TECHLA AI",
+    "viewAll": "Xem tất cả thông báo"
   },
   "validation": {
     "emailRequired": "Vui lòng nhập email",
@@ -662,6 +704,7 @@
     "selectConversation": "Chọn cuộc trò chuyện để xem tin nhắn",
     "messageDeleted": "Tin nhắn đã bị gỡ",
     "aiAssistant": "AI Assistant - Zalo",
+    "clearChat": "Xóa lịch sử",
     "syncBanner": "AI phân tích dựa trên tin nhắn đã đồng bộ vào DB. Nhấn \"Đồng bộ\" để cập nhật tin nhắn mới nhất từ Zalo.",
     "quickAsk": "Hỏi nhanh:",
     "newOrders": "Đơn hàng mới",

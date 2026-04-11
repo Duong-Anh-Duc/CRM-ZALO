@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../types';
 import { ZaloService } from './zalo.service';
+import { ZaloOrderService } from './zalo-order.service';
 import { AiTrainingService } from '../ai/ai-training.service';
 import { sendSuccess, sendPaginated } from '../../utils/response';
 import { t } from '../../locales';
@@ -40,7 +41,7 @@ export class ZaloController {
   static async getThreads(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       res.set('Cache-Control', 'no-store');
-      const data = await ZaloService.getThreads(Number(req.query.limit) || 50, req.query.type as string);
+      const data = await ZaloService.getThreads(Number(req.query.limit) || undefined, req.query.type as string);
       res.json({ success: true, data });
     } catch (err) { next(err); }
   }
@@ -48,7 +49,7 @@ export class ZaloController {
   static async getThreadMessages(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       res.set('Cache-Control', 'no-store');
-      const data = await ZaloService.getMessagesByContact(req.query.contact_pid as string, Number(req.query.limit) || 50);
+      const data = await ZaloService.getMessagesByContact(req.query.contact_pid as string, Number(req.query.limit) || undefined);
       res.json({ success: true, data });
     } catch (err) { next(err); }
   }
@@ -69,11 +70,45 @@ export class ZaloController {
     try { sendSuccess(res, await ZaloService.syncMessages()); } catch (err) { next(err); }
   }
 
+  // ──── Order Suggestions ────
+
+  static async listOrderSuggestions(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await ZaloOrderService.list(req.query.status as string)); } catch (err) { next(err); }
+  }
+
+  static async getOrderSuggestionCount(_req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, { count: await ZaloOrderService.getPendingCount() }); } catch (err) { next(err); }
+  }
+
+  static async approveOrderSuggestion(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await ZaloOrderService.approve(req.params.id as string)); } catch (err) { next(err); }
+  }
+
+  static async rejectOrderSuggestion(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await ZaloOrderService.reject(req.params.id as string, req.body.reason)); } catch (err) { next(err); }
+  }
+
   static async aiChat(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { question, limit } = req.body;
+      const userId = req.user?.userId;
       if (!question) return res.status(400).json({ success: false, message: t('validation.questionRequired') });
-      sendSuccess(res, await ZaloService.aiChat(question, limit || 100));
+      sendSuccess(res, await ZaloService.aiChat(question, limit || 100, userId));
+    } catch (err) { next(err); }
+  }
+
+  static async getChatHistory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      const limit = Number(req.query.limit) || 200;
+      sendSuccess(res, await ZaloService.getChatHistory(userId!, limit));
+    } catch (err) { next(err); }
+  }
+
+  static async clearChatHistory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.userId;
+      sendSuccess(res, await ZaloService.clearChatHistory(userId!));
     } catch (err) { next(err); }
   }
 
@@ -98,7 +133,7 @@ export class ZaloController {
     try {
       const { category, title, content } = req.body;
       if (!category || !title || !content) return res.status(400).json({ success: false, message: t('validation.trainingFieldsRequired') });
-      sendSuccess(res, await AiTrainingService.create({ ...req.body, created_by: (req.user as any)?.id }));
+      sendSuccess(res, await AiTrainingService.create({ ...req.body, created_by: req.user?.userId }));
     } catch (err) { next(err); }
   }
 

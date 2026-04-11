@@ -5,12 +5,15 @@ import { config } from '../../config';
 import { t } from '../../locales';
 import dayjs from 'dayjs';
 import { delCache } from '../../lib/redis';
+import { InvoiceService } from '../invoice/invoice.service';
+import logger from '../../utils/logger';
 
 interface CreateSalesOrderInput {
   customer_id: string;
   expected_delivery?: string;
   notes?: string;
   vat_rate: VATRate;
+  status?: SalesOrderStatus;
   items: Array<{
     product_id?: string;
     combo_id?: string;
@@ -106,6 +109,7 @@ export class SalesOrderService {
       data: {
         order_code: orderCode,
         customer_id: input.customer_id,
+        status: input.status || 'NEW',
         expected_delivery: input.expected_delivery ? new Date(input.expected_delivery) : null,
         notes: input.notes,
         subtotal,
@@ -132,7 +136,7 @@ export class SalesOrderService {
         include: { customer: true, items: true },
       });
 
-      if (status === 'CONFIRMED' && order.status === 'NEW') {
+      if (status === 'CONFIRMED' && (order.status === 'NEW' || order.status === 'PENDING')) {
         const dueDays = config.defaultReceivableDueDays;
         await tx.receivable.create({
           data: {
@@ -148,6 +152,13 @@ export class SalesOrderService {
 
       return result;
     });
+
+    // Auto-create draft invoice when confirmed
+    if (status === 'CONFIRMED') {
+      InvoiceService.createDraftFromOrder(id).catch((err) => {
+        logger.warn(`Auto invoice draft failed for ${id}: ${err.message}`);
+      });
+    }
 
     await delCache('cache:/api/sales-orders*', 'cache:/api/dashboard*', 'cache:/api/receivables*');
     return updated;

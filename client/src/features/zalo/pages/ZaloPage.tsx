@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Tabs, Card, Row, Col, Statistic, Space, Typography, Button, Empty, Spin, Avatar, Badge, } from 'antd';
-import { MessageOutlined, WechatOutlined, ArrowLeftOutlined, UserOutlined, RobotOutlined } from '@ant-design/icons';
+import { MessageOutlined, WechatOutlined, ArrowLeftOutlined, UserOutlined, RobotOutlined, SyncOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useZaloThreads, useZaloThreadMessages } from '../hooks';
+import { useZaloThreads, useZaloThreadMessages, useZaloSyncMessages } from '../hooks';
 import { PageHeader } from '@/components/common';
 import AiChatTab from '../components/AiChatTab';
 import dayjs from 'dayjs';
@@ -40,6 +40,7 @@ const ChatTab: React.FC = () => {
   // Also load ALL threads for stats (no type filter)
   const { data: allThreadsData } = useZaloThreads();
   const allThreads = (allThreadsData?.data ?? []) as any[];
+  const syncMutation = useZaloSyncMessages();
 
   dayjs.locale(i18n.language === 'en' ? 'en' : 'vi');
 
@@ -51,7 +52,7 @@ const ChatTab: React.FC = () => {
   const renderChat = () => {
     const sorted = [...messages].reverse();
     return (
-      <div style={{ height: 500, overflowY: 'auto', padding: '8px 0' }}>
+      <div style={{ height: 'min(500px, 60vh)', overflowY: 'auto', padding: '8px 0' }}>
         {msgLoading ? <div style={{ textAlign: 'center', padding: 60 }}><Spin /></div> :
          sorted.length === 0 ? <Empty description={t('zalo.noMessages')} /> :
          sorted.map((msg: any) => {
@@ -112,7 +113,36 @@ const ChatTab: React.FC = () => {
   };
 
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
+      {/* Full-screen sync overlay */}
+      {syncMutation.isPending && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(255,255,255,0.85)', zIndex: 9999,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(4px)',
+        }}>
+          <Spin size="large" />
+          <Typography.Text strong style={{ marginTop: 16, fontSize: 16 }}>{t('zalo.syncBanner')}</Typography.Text>
+          <Typography.Text type="secondary" style={{ marginTop: 4 }}>{t('zalo.syncMessages')}...</Typography.Text>
+        </div>
+      )}
+
+      {/* Sync banner */}
+      <Card size="small" style={{ borderRadius: 12, background: '#f6f8fa', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography.Text type="secondary">{t('zalo.syncBanner')}</Typography.Text>
+          <Button
+            icon={<SyncOutlined spin={syncMutation.isPending} />}
+            onClick={() => syncMutation.mutate()}
+            loading={syncMutation.isPending}
+            style={{ borderRadius: 8 }}
+          >
+            {t('zalo.syncMessages')}
+          </Button>
+        </div>
+      </Card>
+
       {/* Stats */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={8}>
@@ -151,7 +181,7 @@ const ChatTab: React.FC = () => {
               </Space>
             }
           >
-            <div style={{ height: 500, overflowY: 'auto' }}>
+            <div style={{ height: 'min(500px, 60vh)', overflowY: 'auto' }}>
               {threadsLoading ? <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div> :
                threads.length === 0 ? <Empty description={t('zalo.noConversations')} /> :
                threads.map((thread: any) => {

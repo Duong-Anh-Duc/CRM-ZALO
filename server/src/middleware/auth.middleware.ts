@@ -11,7 +11,8 @@ export const authenticate = (
 ): void => {
   const token =
     req.cookies?.token ||
-    req.headers.authorization?.replace('Bearer ', '');
+    req.headers.authorization?.replace('Bearer ', '') ||
+    (req.query.token as string); // Support token in query for PDF iframe
 
   if (!token) {
     res.status(401).json({ success: false, message: t('auth.notLoggedIn') });

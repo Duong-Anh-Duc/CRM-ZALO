@@ -1,4 +1,5 @@
 export const statusColors: Record<string, string> = {
+  PENDING: 'gold',
   NEW: 'blue',
   CONFIRMED: 'cyan',
   PREPARING: 'orange',

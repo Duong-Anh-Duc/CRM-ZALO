@@ -24,6 +24,7 @@ const SalesOrderListPage: React.FC = () => {
 
   const statusOptions = [
     { label: t('common.all'), value: '' },
+    { label: t('salesStatusLabels.PENDING'), value: 'PENDING' },
     { label: t('salesStatusLabels.NEW'), value: 'NEW' },
     { label: t('salesStatusLabels.CONFIRMED'), value: 'CONFIRMED' },
     { label: t('salesStatusLabels.PREPARING'), value: 'PREPARING' },
@@ -43,6 +44,7 @@ const SalesOrderListPage: React.FC = () => {
   const statusMutation = useUpdateSalesOrderStatus();
 
   const NEXT_STATUS: Record<string, string[]> = {
+    PENDING: ['NEW', 'CANCELLED'],
     NEW: ['CONFIRMED', 'CANCELLED'],
     CONFIRMED: ['PREPARING', 'CANCELLED'],
     PREPARING: ['SHIPPING', 'CANCELLED'],

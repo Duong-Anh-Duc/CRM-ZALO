@@ -5,6 +5,11 @@ import logger from '../../utils/logger';
 import axios from 'axios';
 import { ZaloOrderService } from './zalo-order.service';
 import { AIService } from '../ai/ai.service';
+import { SalesOrderService } from '../sales-order/sales-order.service';
+import { PurchaseOrderService } from '../purchase-order/purchase-order.service';
+import { InvoiceService } from '../invoice/invoice.service';
+import { VATRate } from '@prisma/client';
+import dayjs from 'dayjs';
 
 export class ZaloService {
   // ──── Config ────
@@ -27,55 +32,169 @@ export class ZaloService {
     return prisma.zaloConfig.create({ data: data as any });
   }
 
-  // ──── Helper: call Func.vn API ────
+  // ──── Helper: call Func.vn API (with retry on 429) ────
 
-  private static async callFunc(url: string, token: string, body: Record<string, unknown>) {
-    try {
-      const response = await axios.post(url, body, {
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        timeout: 30000,
-      });
-      return response.data;
-    } catch (err: any) {
-      const msg = err.response?.data?.error?.message || err.response?.data?.message || err.message;
-      logger.error(`Func.vn API error: ${msg}`, { url, status: err.response?.status });
-      throw new AppError(`Func.vn: ${msg}`, err.response?.status || 500);
+  private static async callFunc(url: string, token: string, body: Record<string, unknown>, retries = 3) {
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const response = await axios.post(url, body, {
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          timeout: 30000,
+        });
+        return response.data;
+      } catch (err: any) {
+        if (err.response?.status === 429 && attempt < retries - 1) {
+          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+          continue;
+        }
+        const msg = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+        logger.error(`Func.vn API error: ${msg}`, { url, status: err.response?.status });
+        throw new AppError(`Func.vn: ${msg}`, err.response?.status || 500);
+      }
     }
   }
 
-  // ──── 1. FUNC_GET_THREADS ────
+  private static delay(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
-  static async getThreads(limit: number = 50, type?: string) {
+  // ──── 1. FUNC_GET_THREADS (paginated — fetches ALL) ────
+
+  private static async fetchAllThreads(cfg: any) {
+    let allThreads: any[] = [];
+    let cursor: string | undefined;
+
+    while (true) {
+      const body: Record<string, unknown> = { limit: 100 };
+      if (cursor) body.after_last_content_at = cursor;
+
+      const result = await this.callFunc(cfg.get_threads_url, cfg.get_threads_token, body);
+      const batch = result?.data || [];
+      if (batch.length === 0) break;
+
+      allThreads = allThreads.concat(batch);
+      if (batch.length < 100) break;
+
+      const oldest = batch[batch.length - 1];
+      const nextCursor = oldest.last_content_at || oldest.updated_at || oldest.created_at;
+      if (!nextCursor || nextCursor === cursor) break;
+      cursor = nextCursor;
+    }
+
+    return allThreads;
+  }
+
+  // Enrich from local DB only — zero extra API calls
+  private static async enrichThreadsFromDB(threads: any[]) {
+    const withContent = threads.filter((th: any) => th.last_content);
+    const noContent = threads.filter((th: any) => !th.last_content);
+
+    if (noContent.length === 0) return withContent;
+
+    // Personal: only count DM messages (group_id is null)
+    const dbPersonal = await prisma.zaloMessage.groupBy({
+      by: ['sender_id'],
+      where: { group_id: null, msg_type: { not: 'control' }, content: { not: '' } },
+      _max: { content: true, created_at: true },
+    });
+    // Group: match by group_id
+    const dbGroups = await prisma.zaloMessage.groupBy({
+      by: ['group_id'],
+      where: { group_id: { not: null }, msg_type: { not: 'control' }, content: { not: '' } },
+      _max: { content: true, created_at: true },
+    });
+
+    const personalLookup = new Map<string, { content: string; date: string }>();
+    for (const s of dbPersonal) {
+      if (s.sender_id) personalLookup.set(s.sender_id, { content: s._max.content || '[Tin nhắn]', date: s._max.created_at?.toISOString() || '' });
+    }
+    const groupLookup = new Map<string, { content: string; date: string }>();
+    for (const g of dbGroups) {
+      if (g.group_id) groupLookup.set(g.group_id, { content: g._max.content || '[Tin nhắn]', date: g._max.created_at?.toISOString() || '' });
+    }
+
+    const discovered: any[] = [];
+    for (const th of noContent) {
+      const isGroup = th.type === 'GROUP_MESSAGING';
+      const lookup = isGroup ? groupLookup : personalLookup;
+      const match = lookup.get(th.pid) || lookup.get(th.origin_id);
+      if (match) {
+        th.last_content = match.content;
+        th.last_content_at = match.date;
+        discovered.push(th);
+      }
+    }
+
+    return [...withContent, ...discovered];
+  }
+
+  static async getThreads(limit?: number, type?: string) {
     const cfg = await this.getActiveConfig();
     if (!cfg.get_threads_url || !cfg.get_threads_token) throw new AppError(t('zalo.configNotFound'), 400);
 
-    const result = await this.callFunc(cfg.get_threads_url, cfg.get_threads_token, { limit });
-    let threads = result?.data || [];
+    let allThreads = await this.fetchAllThreads(cfg);
 
+    // Filter by type (Func.vn is_group param is unreliable)
     if (type === 'personal') {
-      threads = threads.filter((th: any) => th.type === 'PRIVATE_MESSAGING' && th.last_content);
+      allThreads = allThreads.filter((th: any) => th.type === 'PRIVATE_MESSAGING');
     } else if (type === 'group') {
-      threads = threads.filter((th: any) => th.type === 'GROUP_MESSAGING');
+      allThreads = allThreads.filter((th: any) => th.type === 'GROUP_MESSAGING');
+    }
+
+    // Show threads with last_content + threads with messages in local DB
+    allThreads = await this.enrichThreadsFromDB(allThreads);
+
+    if (limit && allThreads.length > limit) {
+      allThreads = allThreads.slice(0, limit);
     }
 
     // Sort by last_content_at descending
-    threads.sort((a: any, b: any) => {
+    allThreads.sort((a: any, b: any) => {
       const ta = a.last_content_at || a.updated_at || a.created_at;
       const tb = b.last_content_at || b.updated_at || b.created_at;
       return new Date(tb).getTime() - new Date(ta).getTime();
     });
 
-    return threads;
+    return allThreads;
   }
 
-  // ──── 2. FUNC_GET_MESSAGES ────
+  // ──── 2. FUNC_GET_MESSAGES (paginated — fetches ALL) ────
 
-  static async getMessagesByContact(contact_pid: string, limit: number = 50) {
+  static async getMessagesByContact(contact_pid: string, limit?: number) {
     const cfg = await this.getActiveConfig();
     if (!cfg.get_messages_url || !cfg.get_messages_token) throw new AppError(t('zalo.configNotFound'), 400);
 
-    const result = await this.callFunc(cfg.get_messages_url, cfg.get_messages_token, { contact_pid, limit });
-    return result?.data || [];
+    const accountPid = cfg.account_token ? undefined : undefined; // resolved below
+    let allMessages: any[] = [];
+    let beforeSentAt: number | undefined;
+
+    // Paginate through all messages using before_sent_at
+    while (true) {
+      const body: Record<string, unknown> = { contact_pid, limit: 100 };
+      if (beforeSentAt) body.before_sent_at = beforeSentAt;
+
+      const result = await this.callFunc(cfg.get_messages_url, cfg.get_messages_token, body);
+      const batch = result?.data || [];
+      if (batch.length === 0) break;
+
+      // Filter: only keep messages belonging to this conversation
+      const filtered = batch.filter((msg: any) =>
+        msg.contact_pid === contact_pid ||
+        msg.sender_pid === contact_pid ||
+        msg.receiver_pid === contact_pid,
+      );
+      allMessages = allMessages.concat(filtered);
+
+      // Stop if we got less than 100 (last page) or reached requested limit
+      if (batch.length < 100) break;
+      if (limit && allMessages.length >= limit) { allMessages = allMessages.slice(0, limit); break; }
+
+      // Use oldest message's sent_at as cursor
+      const oldest = batch[batch.length - 1];
+      const nextCursor = oldest.sent_at;
+      if (!nextCursor || nextCursor === beforeSentAt) break;
+      beforeSentAt = nextCursor;
+    }
+
+    return allMessages;
   }
 
   // ──── 3. GET_GROUP_INFO ────
@@ -96,7 +215,7 @@ export class ZaloService {
     const cfg = await this.getActiveConfig();
     if (!cfg.get_user_info_url || !cfg.get_user_info_token) throw new AppError(t('zalo.configNotFound'), 400);
 
-    const result = await this.callFunc(cfg.get_user_info_url, cfg.get_user_info_token, { user_id, phone_number: '' });
+    const result = await this.callFunc(cfg.get_user_info_url, cfg.get_user_info_token, { user_id });
     const profiles = result?.data?.data?.changed_profiles || {};
     const info = Object.values(profiles)[0] || null;
     return info;
@@ -108,7 +227,7 @@ export class ZaloService {
     const cfg = await this.getActiveConfig();
     if (!cfg.get_user_extra_url || !cfg.get_user_extra_token) throw new AppError(t('zalo.configNotFound'), 400);
 
-    const result = await this.callFunc(cfg.get_user_extra_url, cfg.get_user_extra_token, { user_id, phone_number: '' });
+    const result = await this.callFunc(cfg.get_user_extra_url, cfg.get_user_extra_token, { user_id });
     return result?.data || null;
   }
 
@@ -144,7 +263,7 @@ export class ZaloService {
         await prisma.zaloMessage.createMany({ data: records });
         logger.info(`Zalo webhook: saved ${records.length} ${direction} messages (${event})`);
 
-        // Auto-create orders from incoming messages (fire-and-forget)
+        // Create order suggestions from incoming messages (fire-and-forget)
         if (direction === 'INCOMING') {
           for (const msg of msgs) {
             const msgContent = msg.content || msg.text || '';
@@ -154,11 +273,11 @@ export class ZaloService {
                 msg.dName || msg.senderName || '',
                 msgContent,
               ).then((result) => {
-                if (result.created) {
-                  logger.info(`Zalo auto-order: ${result.order_code} created from message`);
+                if (result.suggested) {
+                  logger.info(`Zalo order suggestion created from ${msg.dName || msg.senderName}`);
                 }
               }).catch((err) => {
-                logger.error('Zalo auto-order background error:', err);
+                logger.error('Zalo order suggestion background error:', err);
               });
             }
           }
@@ -243,7 +362,7 @@ export class ZaloService {
     return { total_messages: total, today_messages: today };
   }
 
-  // ──── Sync messages from Func.vn → DB ────
+  // ──── Sync ALL messages from Func.vn → DB (sequential, rate-limit safe) ────
 
   static async syncMessages() {
     const cfg = await this.getActiveConfig();
@@ -251,32 +370,52 @@ export class ZaloService {
       throw new AppError(t('zalo.configNotFound'), 400);
     }
 
-    // 1. Fetch all threads (personal + group)
-    const threadsResult = await this.callFunc(cfg.get_threads_url, cfg.get_threads_token!, { limit: 100 });
-    const threads = (threadsResult?.data || []).filter(
-      (th: any) => th.last_content,
-    );
+    // 1. Fetch ALL threads directly (no enrich)
+    const allThreads = await this.fetchAllThreads(cfg);
 
     let totalSynced = 0;
     let totalSkipped = 0;
+    let threadsWithMsgs = 0;
 
-    // 2. For each thread, fetch messages and save to DB
-    for (const thread of threads) {
+    // 2. For each thread, fetch ALL messages with delay between threads
+    for (const thread of allThreads) {
       try {
-        const msgsResult = await this.callFunc(cfg.get_messages_url, cfg.get_messages_token!, {
-          contact_pid: thread.pid,
-          limit: 100,
-        });
-        const msgs = msgsResult?.data || [];
+        // Fetch all messages for this thread (paginated, with delay between pages)
+        let allMsgs: any[] = [];
+        let beforeSentAt: number | undefined;
 
-        for (const msg of msgs) {
+        while (true) {
+          const body: Record<string, unknown> = { contact_pid: thread.pid, limit: 100 };
+          if (beforeSentAt) body.before_sent_at = beforeSentAt;
+
+          const result = await this.callFunc(cfg.get_messages_url, cfg.get_messages_token!, body);
+          const batch = result?.data || [];
+          if (batch.length === 0) break;
+
+          allMsgs = allMsgs.concat(batch);
+          if (batch.length < 100) break;
+
+          const oldest = batch[batch.length - 1];
+          const nc = oldest.sent_at;
+          if (!nc || nc === beforeSentAt) break;
+          beforeSentAt = nc;
+
+          await this.delay(500); // delay between pages
+        }
+
+        if (allMsgs.length === 0) {
+          await this.delay(200); // small delay even for empty threads
+          continue;
+        }
+
+        threadsWithMsgs++;
+
+        for (const msg of allMsgs) {
           const msgId = msg.origin?.msgId || msg.id || '';
           const content = msg.text || msg.content || '';
 
-          // Skip empty, sticker-only, or control messages
           if (!content && msg.type !== 'TEXT') continue;
 
-          // Check if already exists by msg_id
           if (msgId) {
             const exists = await prisma.zaloMessage.findFirst({ where: { msg_id: msgId } });
             if (exists) { totalSkipped++; continue; }
@@ -306,18 +445,21 @@ export class ZaloService {
           });
           totalSynced++;
         }
+
+        await this.delay(500); // delay between threads
       } catch (err: any) {
         logger.warn(`Sync error for thread ${thread.name}: ${err.message}`);
+        await this.delay(2000); // longer delay on error (likely 429)
       }
     }
 
-    logger.info(`Zalo sync complete: ${totalSynced} new, ${totalSkipped} skipped, ${threads.length} threads`);
-    return { synced: totalSynced, skipped: totalSkipped, threads_processed: threads.length };
+    logger.info(`Zalo sync complete: ${totalSynced} new, ${totalSkipped} skipped, ${threadsWithMsgs}/${allThreads.length} threads had messages`);
+    return { synced: totalSynced, skipped: totalSkipped, threads_processed: allThreads.length, threads_with_messages: threadsWithMsgs };
   }
 
   // ──── AI Chat ────
 
-  static async aiChat(question: string, limit: number = 100) {
+  static async aiChat(question: string, limit: number = 100, userId?: string) {
     const messages = await prisma.zaloMessage.findMany({
       where: { msg_type: { not: 'control' } },
       orderBy: { created_at: 'desc' },
@@ -326,8 +468,431 @@ export class ZaloService {
     });
 
     const reversed = [...messages].reverse();
-    const answer = await AIService.chatAboutMessages(question, reversed);
+    let answer = await AIService.chatAboutMessages(question, reversed);
+
+    // Execute actions if AI returned any
+    const actionResults = await this.executeAiActions(answer);
+    if (actionResults.length > 0) {
+      // Strip actions block from visible answer
+      answer = answer.replace(/<!--ACTIONS[\s\S]*?ACTIONS-->/g, '').trim();
+      const resultText = actionResults.map((r) => `${r.success ? '✓' : '✗'} ${r.message}`).join('\n');
+      answer += `\n\nKết quả thực thi:\n${resultText}`;
+    }
+
+    // Save to DB
+    if (userId) {
+      await prisma.aiChatMessage.createMany({
+        data: [
+          { user_id: userId, role: 'user', content: question },
+          { user_id: userId, role: 'ai', content: answer },
+        ],
+      });
+    }
+
     return { question, answer, messages_analyzed: messages.length };
+  }
+
+  // Parse and execute AI actions
+  private static async executeAiActions(answer: string): Promise<Array<{ success: boolean; message: string }>> {
+    const match = answer.match(/<!--ACTIONS\s*([\s\S]*?)\s*ACTIONS-->/);
+    if (!match) return [];
+
+    let actions: any[];
+    try {
+      actions = JSON.parse(match[1]);
+    } catch {
+      logger.warn('AI returned invalid actions JSON');
+      return [];
+    }
+
+    const results: Array<{ success: boolean; message: string }> = [];
+
+    for (const action of actions) {
+      try {
+        if (action.type === 'create_customer') {
+          const d = action.data;
+          // Check if customer already exists by company_name OR contact_name
+          const searchName = d.company_name || d.contact_name || '';
+          const existing = await prisma.customer.findFirst({
+            where: {
+              is_active: true,
+              OR: [
+                { company_name: { contains: searchName, mode: 'insensitive' as const } },
+                { contact_name: { contains: searchName, mode: 'insensitive' as const } },
+                ...(d.contact_name ? [{ contact_name: { contains: d.contact_name, mode: 'insensitive' as const } }] : []),
+              ],
+            },
+          });
+          if (existing) {
+            results.push({ success: true, message: `Khách hàng "${existing.company_name}" đã tồn tại` });
+            continue;
+          }
+          const customer = await prisma.customer.create({
+            data: {
+              company_name: d.company_name || d.contact_name,
+              contact_name: d.contact_name || d.company_name,
+              phone: d.phone || '',
+              email: d.email || '',
+              tax_code: d.tax_code || '',
+              address: d.address || '',
+              customer_type: d.customer_type === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL',
+            },
+          });
+          results.push({ success: true, message: `Đã tạo khách hàng "${customer.company_name}"` });
+
+        } else if (action.type === 'create_order_suggestion') {
+          const d = action.data;
+          // Match products
+          const products = await prisma.product.findMany({ where: { is_active: true }, select: { id: true, name: true, sku: true, wholesale_price: true } });
+          const matchedItems: any[] = [];
+          for (const item of (d.items || [])) {
+            const search = item.product_name.toLowerCase();
+            const matched = products.find((p) =>
+              p.name.toLowerCase().includes(search) || search.includes(p.name.toLowerCase()) ||
+              p.sku.toLowerCase() === search,
+            );
+            if (matched) {
+              matchedItems.push({
+                product_id: matched.id,
+                product_name: matched.name,
+                quantity: item.quantity,
+                unit_price: item.unit_price || Number(matched.wholesale_price) || 0,
+              });
+            }
+          }
+
+          await prisma.orderSuggestion.create({
+            data: {
+              sender_id: '',
+              sender_name: d.sender_name || d.customer_name || '',
+              message: d.message || '',
+              ai_summary: `AI tạo theo yêu cầu`,
+              customer_name: d.customer_name || '',
+              customer_phone: d.customer_phone || null,
+              delivery_note: d.delivery_note || null,
+              extracted_items: d.items || [],
+              matched_items: matchedItems,
+              status: 'PENDING',
+            },
+          });
+          results.push({ success: true, message: `Đã tạo đề xuất đơn hàng cho "${d.customer_name}" (${matchedItems.length} SP khớp) — chờ duyệt` });
+
+        } else if (action.type === 'update_customer') {
+          const d = action.data;
+          const customer = await prisma.customer.findFirst({
+            where: { company_name: { contains: d.customer_name, mode: 'insensitive' }, is_active: true },
+          });
+          if (!customer) { results.push({ success: false, message: `Không tìm thấy khách hàng "${d.customer_name}"` }); continue; }
+
+          const updates: any = {};
+          if (d.updates?.tax_code) updates.tax_code = d.updates.tax_code;
+          if (d.updates?.address) updates.address = d.updates.address;
+          if (d.updates?.phone) updates.phone = d.updates.phone;
+          if (d.updates?.email) updates.email = d.updates.email;
+          if (d.updates?.contact_name) updates.contact_name = d.updates.contact_name;
+          if (d.updates?.company_name) updates.company_name = d.updates.company_name;
+
+          if (Object.keys(updates).length === 0) { results.push({ success: false, message: 'Không có thông tin cần cập nhật' }); continue; }
+
+          await prisma.customer.update({ where: { id: customer.id }, data: updates });
+          const fields = Object.keys(updates).join(', ');
+          results.push({ success: true, message: `Đã cập nhật ${fields} cho khách hàng "${customer.company_name}"` });
+
+        } else if (action.type === 'update_sales_order') {
+          const d = action.data;
+          const order = await prisma.salesOrder.findFirst({
+            where: { order_code: { contains: d.order_code, mode: 'insensitive' } },
+          });
+          if (!order) { results.push({ success: false, message: `Không tìm thấy đơn hàng "${d.order_code}"` }); continue; }
+
+          const updates: any = {};
+          if (d.updates?.notes) updates.notes = d.updates.notes;
+          if (d.updates?.expected_delivery) updates.expected_delivery = new Date(d.updates.expected_delivery);
+
+          if (Object.keys(updates).length === 0) { results.push({ success: false, message: 'Không có thông tin cần cập nhật' }); continue; }
+
+          await prisma.salesOrder.update({ where: { id: order.id }, data: updates });
+          results.push({ success: true, message: `Đã cập nhật đơn hàng ${order.order_code}` });
+
+        } else if (action.type === 'create_sales_order') {
+          const d = action.data;
+          // Resolve customer (search by company_name AND contact_name)
+          let customerId: string | null = null;
+          if (d.customer_name) {
+            const existing = await prisma.customer.findFirst({
+              where: {
+                is_active: true,
+                OR: [
+                  { company_name: { contains: d.customer_name, mode: 'insensitive' as const } },
+                  { contact_name: { contains: d.customer_name, mode: 'insensitive' as const } },
+                ],
+              },
+            });
+            if (existing) {
+              customerId = existing.id;
+            } else {
+              const newCust = await prisma.customer.create({
+                data: {
+                  company_name: d.customer_name,
+                  contact_name: d.contact_name || d.customer_name,
+                  phone: d.phone || '',
+                  tax_code: d.tax_code || '',
+                  address: d.address || '',
+                  customer_type: 'RETAIL',
+                },
+              });
+              customerId = newCust.id;
+              results.push({ success: true, message: `Đã tạo khách hàng "${newCust.company_name}"` });
+            }
+          }
+          if (!customerId) { results.push({ success: false, message: 'Thiếu thông tin khách hàng' }); continue; }
+
+          // Match products
+          const products = await prisma.product.findMany({ where: { is_active: true }, select: { id: true, name: true, sku: true, wholesale_price: true, retail_price: true } });
+          const orderItems: any[] = [];
+          for (const item of (d.items || [])) {
+            const search = (item.product_name || '').toLowerCase();
+            const matched = products.find((p) =>
+              p.name.toLowerCase().includes(search) || search.includes(p.name.toLowerCase()) || p.sku.toLowerCase() === search,
+            );
+            if (matched) {
+              orderItems.push({
+                product_id: matched.id,
+                quantity: item.quantity,
+                unit_price: item.unit_price || Number(matched.wholesale_price) || Number(matched.retail_price) || 0,
+              });
+            }
+          }
+          if (orderItems.length === 0) { results.push({ success: false, message: 'Không khớp được sản phẩm nào' }); continue; }
+
+          const so = await SalesOrderService.create({
+            customer_id: customerId,
+            status: 'PENDING' as any,
+            vat_rate: (d.vat_rate || 'VAT_10') as VATRate,
+            expected_delivery: d.delivery_date || dayjs().add(7, 'day').format('YYYY-MM-DD'),
+            notes: d.notes || `[AI] ${d.customer_name}`,
+            items: orderItems,
+          });
+          results.push({ success: true, message: `Đã tạo đơn bán ${so.order_code} (chờ duyệt) — ${orderItems.length} SP, tổng ${so.grand_total.toLocaleString()}đ` });
+
+        } else if (action.type === 'create_purchase_order') {
+          const d = action.data;
+          // Find supplier
+          let supplierId: string | null = null;
+          if (d.supplier_name) {
+            const supplier = await prisma.supplier.findFirst({
+              where: { company_name: { contains: d.supplier_name, mode: 'insensitive' }, is_active: true },
+            });
+            if (supplier) supplierId = supplier.id;
+          }
+          if (!supplierId) { results.push({ success: false, message: `Không tìm thấy NCC "${d.supplier_name}"` }); continue; }
+
+          // Match products with supplier prices
+          const supplierPrices = await prisma.supplierPrice.findMany({
+            where: { supplier_id: supplierId },
+            include: { product: { select: { id: true, name: true, sku: true } } },
+          });
+          const poItems: any[] = [];
+          for (const item of (d.items || [])) {
+            const search = (item.product_name || '').toLowerCase();
+            const matched = supplierPrices.find((sp) =>
+              sp.product.name.toLowerCase().includes(search) || search.includes(sp.product.name.toLowerCase()),
+            );
+            if (matched) {
+              poItems.push({
+                product_id: matched.product_id,
+                quantity: item.quantity,
+                unit_price: item.unit_price || matched.purchase_price,
+              });
+            }
+          }
+          if (poItems.length === 0) { results.push({ success: false, message: 'Không khớp được sản phẩm nào với NCC' }); continue; }
+
+          const po = await PurchaseOrderService.create({
+            supplier_id: supplierId,
+            status: 'PENDING' as any,
+            expected_delivery: d.delivery_date || dayjs().add(7, 'day').format('YYYY-MM-DD'),
+            notes: d.notes || `[AI] Mua cho ${d.supplier_name}`,
+            items: poItems,
+          });
+          results.push({ success: true, message: `Đã tạo đơn mua ${po.order_code} (chờ duyệt) từ "${d.supplier_name}" — ${poItems.length} SP, tổng ${po.total.toLocaleString()}đ` });
+
+        } else if (action.type === 'delete_customer') {
+          const d = action.data;
+          const customer = await prisma.customer.findFirst({ where: { company_name: { contains: d.customer_name, mode: 'insensitive' }, is_active: true } });
+          if (!customer) { results.push({ success: false, message: `Không tìm thấy khách hàng "${d.customer_name}"` }); continue; }
+          await prisma.customer.update({ where: { id: customer.id }, data: { is_active: false } });
+          results.push({ success: true, message: `Đã xoá khách hàng "${customer.company_name}"` });
+
+        } else if (action.type === 'create_supplier') {
+          const d = action.data;
+          const existing = await prisma.supplier.findFirst({ where: { company_name: { contains: d.company_name, mode: 'insensitive' }, is_active: true } });
+          if (existing) { results.push({ success: true, message: `NCC "${d.company_name}" đã tồn tại` }); continue; }
+          const supplier = await prisma.supplier.create({
+            data: {
+              company_name: d.company_name, contact_name: d.contact_name || '', phone: d.phone || '',
+              email: d.email || '', tax_code: d.tax_code || '', address: d.address || '',
+              payment_terms: d.payment_terms || 'NET_30',
+            },
+          });
+          results.push({ success: true, message: `Đã tạo NCC "${supplier.company_name}"` });
+
+        } else if (action.type === 'update_supplier') {
+          const d = action.data;
+          const supplier = await prisma.supplier.findFirst({ where: { company_name: { contains: d.supplier_name, mode: 'insensitive' }, is_active: true } });
+          if (!supplier) { results.push({ success: false, message: `Không tìm thấy NCC "${d.supplier_name}"` }); continue; }
+          const u = d.updates || {};
+          const updates: any = {};
+          for (const k of ['company_name', 'contact_name', 'phone', 'email', 'tax_code', 'address', 'payment_terms']) {
+            if (u[k] !== undefined) updates[k] = u[k];
+          }
+          if (Object.keys(updates).length === 0) { results.push({ success: false, message: 'Không có thông tin cần cập nhật' }); continue; }
+          await prisma.supplier.update({ where: { id: supplier.id }, data: updates });
+          results.push({ success: true, message: `Đã cập nhật NCC "${supplier.company_name}"` });
+
+        } else if (action.type === 'update_order_status') {
+          const d = action.data;
+          const code = d.order_code || '';
+          if (code.startsWith('SO')) {
+            const order = await prisma.salesOrder.findFirst({ where: { order_code: code } });
+            if (!order) { results.push({ success: false, message: `Không tìm thấy ${code}` }); continue; }
+            await SalesOrderService.updateStatus(order.id, d.status);
+            results.push({ success: true, message: `Đã chuyển ${code} sang ${d.status}` });
+          } else if (code.startsWith('PO')) {
+            const order = await prisma.purchaseOrder.findFirst({ where: { order_code: code } });
+            if (!order) { results.push({ success: false, message: `Không tìm thấy ${code}` }); continue; }
+            await PurchaseOrderService.updateStatus(order.id, d.status);
+            results.push({ success: true, message: `Đã chuyển ${code} sang ${d.status}` });
+          } else {
+            results.push({ success: false, message: `Mã đơn không hợp lệ: ${code}` });
+          }
+
+        } else if (action.type === 'update_purchase_order') {
+          const d = action.data;
+          const order = await prisma.purchaseOrder.findFirst({ where: { order_code: { contains: d.order_code, mode: 'insensitive' } } });
+          if (!order) { results.push({ success: false, message: `Không tìm thấy ${d.order_code}` }); continue; }
+          const updates: any = {};
+          if (d.updates?.notes) updates.notes = d.updates.notes;
+          if (d.updates?.expected_delivery) updates.expected_delivery = new Date(d.updates.expected_delivery);
+          await prisma.purchaseOrder.update({ where: { id: order.id }, data: updates });
+          results.push({ success: true, message: `Đã cập nhật ${order.order_code}` });
+
+        } else if (action.type === 'create_invoice') {
+          const d = action.data;
+          const so = await prisma.salesOrder.findFirst({ where: { order_code: { contains: d.order_code, mode: 'insensitive' } } });
+          if (!so) { results.push({ success: false, message: `Không tìm thấy đơn "${d.order_code}"` }); continue; }
+          const invoice = await InvoiceService.createDraftFromOrder(so.id);
+          results.push({ success: true, message: `Đã tạo hoá đơn nháp #${invoice.invoice_number} cho ${so.order_code}` });
+
+        } else if (action.type === 'finalize_invoice') {
+          const d = action.data;
+          const so = await prisma.salesOrder.findFirst({ where: { order_code: { contains: d.order_code, mode: 'insensitive' } } });
+          if (!so) { results.push({ success: false, message: `Không tìm thấy đơn "${d.order_code}"` }); continue; }
+          const invoice = await prisma.invoice.findFirst({ where: { sales_order_id: so.id, status: 'DRAFT' } });
+          if (!invoice) { results.push({ success: false, message: `Không có hoá đơn nháp cho ${d.order_code}` }); continue; }
+          await InvoiceService.finalize(invoice.id);
+          results.push({ success: true, message: `Đã xuất chính thức hoá đơn #${invoice.invoice_number}` });
+
+        } else if (action.type === 'record_payment') {
+          const d = action.data;
+          const code = d.order_code || '';
+          if (d.type === 'receivable') {
+            const rec = await prisma.receivable.findFirst({ where: { sales_order: { order_code: code } }, include: { sales_order: true } });
+            if (!rec) { results.push({ success: false, message: `Không tìm thấy công nợ cho ${code}` }); continue; }
+            await prisma.$transaction(async (tx) => {
+              await tx.receivablePayment.create({ data: { receivable_id: rec.id, amount: d.amount, payment_date: new Date(), method: d.method || 'BANK_TRANSFER', reference: d.reference || '' } });
+              const newPaid = Number(rec.paid_amount) + d.amount;
+              const newRemaining = Number(rec.original_amount) - newPaid;
+              await tx.receivable.update({ where: { id: rec.id }, data: { paid_amount: newPaid, remaining: Math.max(0, newRemaining), status: newRemaining <= 0 ? 'PAID' : 'PARTIAL' } });
+            });
+            results.push({ success: true, message: `Đã ghi nhận thanh toán ${d.amount.toLocaleString()}đ cho ${code}` });
+          } else {
+            const pay = await prisma.payable.findFirst({ where: { purchase_order: { order_code: code } }, include: { purchase_order: true } });
+            if (!pay) { results.push({ success: false, message: `Không tìm thấy công nợ cho ${code}` }); continue; }
+            await prisma.$transaction(async (tx) => {
+              await tx.payablePayment.create({ data: { payable_id: pay.id, amount: d.amount, payment_date: new Date(), method: d.method || 'BANK_TRANSFER', reference: d.reference || '' } });
+              const newPaid = Number(pay.paid_amount) + d.amount;
+              const newRemaining = Number(pay.original_amount) - newPaid;
+              await tx.payable.update({ where: { id: pay.id }, data: { paid_amount: newPaid, remaining: Math.max(0, newRemaining), status: newRemaining <= 0 ? 'PAID' : 'PARTIAL' } });
+            });
+            results.push({ success: true, message: `Đã ghi nhận thanh toán ${d.amount.toLocaleString()}đ cho ${code}` });
+          }
+
+        } else if (action.type === 'create_product') {
+          const d = action.data;
+          const existing = await prisma.product.findFirst({ where: { name: { contains: d.name, mode: 'insensitive' }, is_active: true } });
+          if (existing) { results.push({ success: true, message: `Sản phẩm "${d.name}" đã tồn tại` }); continue; }
+          let categoryId = null;
+          if (d.category_name) {
+            const cat = await prisma.category.findFirst({ where: { name: { contains: d.category_name, mode: 'insensitive' } } });
+            if (cat) categoryId = cat.id;
+            else {
+              const newCat = await prisma.category.create({ data: { name: d.category_name } });
+              categoryId = newCat.id;
+            }
+          }
+          const sku = d.sku || `SP-${Date.now().toString(36).toUpperCase()}`;
+          const product = await prisma.product.create({
+            data: {
+              sku, name: d.name, category_id: categoryId, description: d.description || '',
+              material: d.material || null, retail_price: d.retail_price || null,
+              wholesale_price: d.wholesale_price || null, moq: d.moq || null,
+            },
+          });
+          results.push({ success: true, message: `Đã tạo sản phẩm "${product.name}" (SKU: ${product.sku})` });
+
+        } else if (action.type === 'update_product') {
+          const d = action.data;
+          const product = await prisma.product.findFirst({ where: { name: { contains: d.product_name, mode: 'insensitive' }, is_active: true } });
+          if (!product) { results.push({ success: false, message: `Không tìm thấy SP "${d.product_name}"` }); continue; }
+          const u = d.updates || {};
+          const updates: any = {};
+          for (const k of ['retail_price', 'wholesale_price', 'moq', 'description', 'name']) {
+            if (u[k] !== undefined) updates[k] = u[k];
+          }
+          await prisma.product.update({ where: { id: product.id }, data: updates });
+          results.push({ success: true, message: `Đã cập nhật SP "${product.name}"` });
+
+        } else if (action.type === 'update_supplier_price') {
+          const d = action.data;
+          const supplier = await prisma.supplier.findFirst({ where: { company_name: { contains: d.supplier_name, mode: 'insensitive' }, is_active: true } });
+          const product = await prisma.product.findFirst({ where: { name: { contains: d.product_name, mode: 'insensitive' }, is_active: true } });
+          if (!supplier || !product) { results.push({ success: false, message: `Không tìm thấy NCC/SP` }); continue; }
+          const u = d.updates || {};
+          await prisma.supplierPrice.upsert({
+            where: { supplier_id_product_id: { supplier_id: supplier.id, product_id: product.id } },
+            update: { ...(u.purchase_price && { purchase_price: u.purchase_price }), ...(u.moq && { moq: u.moq }), ...(u.lead_time_days && { lead_time_days: u.lead_time_days }), ...(u.stock_quantity !== undefined && { stock_quantity: u.stock_quantity }) },
+            create: { supplier_id: supplier.id, product_id: product.id, purchase_price: u.purchase_price || 0, moq: u.moq, lead_time_days: u.lead_time_days, stock_quantity: u.stock_quantity || 0 },
+          });
+          results.push({ success: true, message: `Đã cập nhật giá NCC "${supplier.company_name}" cho "${product.name}"` });
+
+        } else if (action.type === 'get_report') {
+          const d = action.data;
+          // Reports are informational — just confirm what was requested
+          results.push({ success: true, message: `Báo cáo ${d.type} từ ${d.from_date || 'đầu'} đến ${d.to_date || 'nay'} — anh vui lòng xem trên trang Báo cáo` });
+
+        } else {
+          results.push({ success: false, message: `Action không hỗ trợ: ${action.type}` });
+        }
+      } catch (err: any) {
+        results.push({ success: false, message: `Lỗi ${action.type}: ${err.message}` });
+      }
+    }
+
+    return results;
+  }
+
+  static async getChatHistory(userId: string, limit: number = 200) {
+    return prisma.aiChatMessage.findMany({
+      where: { user_id: userId },
+      orderBy: { created_at: 'asc' },
+      take: limit,
+    });
+  }
+
+  static async clearChatHistory(userId: string) {
+    const { count } = await prisma.aiChatMessage.deleteMany({ where: { user_id: userId } });
+    return { deleted: count };
   }
 
   // ──── AI Summary ────

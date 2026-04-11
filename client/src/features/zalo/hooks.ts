@@ -20,7 +20,7 @@ export function useSaveZaloConfig() {
 export function useZaloThreads(type?: string) {
   return useQuery({
     queryKey: ['zalo-threads', type],
-    queryFn: () => zaloApi.getThreads({ limit: 100, type }).then(r => r.data),
+    queryFn: () => zaloApi.getThreads({ type }).then(r => r.data),
     staleTime: 0,
     refetchInterval: 15000,
   });
@@ -29,7 +29,7 @@ export function useZaloThreads(type?: string) {
 export function useZaloThreadMessages(contact_pid?: string) {
   return useQuery({
     queryKey: ['zalo-thread-messages', contact_pid],
-    queryFn: () => zaloApi.getThreadMessages(contact_pid!, 50).then(r => r.data),
+    queryFn: () => zaloApi.getThreadMessages(contact_pid!).then(r => r.data),
     enabled: !!contact_pid,
     staleTime: 0,
     refetchInterval: 10000,

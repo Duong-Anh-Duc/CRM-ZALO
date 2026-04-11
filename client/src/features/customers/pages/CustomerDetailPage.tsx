@@ -80,7 +80,7 @@ const CustomerDetailPage: React.FC = () => {
       key: 'info',
       label: t('customer.info'),
       children: (
-        <Descriptions bordered column={2} size="small" style={{ borderRadius: 8 }}>
+        <Descriptions bordered column={{ xs: 1, md: 2 }} size="small" style={{ borderRadius: 8 }}>
           <Descriptions.Item label={t('customer.companyName')}>{customer.company_name}</Descriptions.Item>
           <Descriptions.Item label={t('customer.taxCode')}>{customer.tax_code ?? '—'}</Descriptions.Item>
           <Descriptions.Item label={t('customer.address')} span={2}>{customer.address ?? '—'}</Descriptions.Item>

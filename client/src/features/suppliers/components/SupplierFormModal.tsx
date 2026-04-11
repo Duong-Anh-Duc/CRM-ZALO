@@ -69,7 +69,7 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
       confirmLoading={loading}
       destroyOnClose
       styles={{ body: { borderRadius: 12 } }}
-      width={600}
+      width={window.innerWidth < 640 ? '95vw' : 600}
     >
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
         <Form.Item

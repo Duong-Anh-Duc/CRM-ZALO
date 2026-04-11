@@ -1,4 +1,4 @@
-interface InvoiceData {
+export interface InvoiceData {
   serial: string;
   number: number;
   date: string;
@@ -274,4 +274,3 @@ table.itbl tbody tr:last-child td { border-bottom: 1px solid #222; }
 </body></html>`;
 }
 
-export type { InvoiceData };

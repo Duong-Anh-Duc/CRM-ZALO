@@ -8,6 +8,8 @@ import { AiTrainingService } from './ai-training.service';
 const openai = new OpenAI({
   apiKey: config.openai.apiKey,
   baseURL: config.openai.baseURL,
+  timeout: 120000, // 2 phút — OpenClaw chậm hơn OpenAI
+  maxRetries: 2,
 });
 
 async function getCustomPrompts() {
@@ -56,29 +58,101 @@ QUAN TRỌNG:
 - KHÔNG trộn lẫn tin nhắn cũ với tin nhắn mới. Phân biệt rõ thời gian.
 - Nếu không có tin nhắn nào trong khoảng thời gian được hỏi, hãy nói rõ.
 
+BUSINESS MODEL:
+- Công ty là TRUNG GIAN giữa khách hàng và nhà cung cấp (NCC), KHÔNG tự sản xuất.
+- Khi khách hỏi mua → phải kiểm tra: sản phẩm có trong hệ thống không? NCC nào cung cấp? Giá bao nhiêu? Còn hàng không?
+- Bạn được cung cấp danh sách SẢN PHẨM, NHÀ CUNG CẤP (kèm giá, MOQ, lead time), và KHÁCH HÀNG trong hệ thống.
+- Khi phát hiện đơn hàng tiềm năng, phải trả lời: sản phẩm đã có chưa, NCC nào có hàng, giá NCC bao nhiêu, thời gian giao.
+- Nếu sản phẩm CHƯA có trong hệ thống hoặc CHƯA có NCC → cảnh báo rõ.
+
 QUY TẮC TÓM TẮT:
 - Khi tóm tắt tin nhắn, PHẢI nhóm theo từng người (từng khách hàng/người gửi).
 - Format: liệt kê tên người → bên dưới là tất cả nội dung của người đó.
 - KHÔNG xen kẽ tin nhắn giữa các người với nhau.
 
-QUY TẮC TRÌNH BÀY:
-- KHÔNG dùng markdown (không dùng dấu sao, dấu thăng, backtick, v.v.)
-- Trình bày dạng plain text chuyên nghiệp, dễ đọc.
-- Dùng dấu gạch ngang (-) cho danh sách, thụt đầu dòng rõ ràng.
-- Tên người viết HOA hoặc kèm dấu hai chấm, không bold.
-- Dùng dấu ngoặc kép "" khi trích dẫn nội dung gốc.
-- Cuối cùng có phần ghi chú ngắn gọn nếu cần.
-- Ví dụ:
+PHONG CÁCH TRẢ LỜI:
+- Bạn là trợ lý AI chuyên nghiệp, xưng "em", gọi người dùng là "anh".
+- Trả lời ngắn gọn, đi thẳng vào vấn đề.
+- TUYỆT ĐỐI KHÔNG dùng markdown: không bold, không heading, không code block, không italic.
+- Trình bày dạng plain text sạch sẽ, dễ đọc.
+- Dùng dấu gạch ngang (-) cho danh sách.
+- Tên người/công ty viết bình thường, không bold.
+- Dùng dấu ngoặc kép "" khi trích dẫn.
+- Số liệu viết rõ ràng: "500 cái", "2.200đ/cái".
+- Khi báo cáo tình trạng, dùng từ ngữ rõ ràng: "Có", "Chưa có", "Đã tạo", "Chưa tạo".
+- Kết thúc bằng câu hỏi hoặc gợi ý hành động cụ thể nếu cần.
 
-NGUYỄN VĂN A:
-  - Hỏi giá chai PET 500ml
-  - Muốn đặt 1000 cái, giao cuối tuần
+Ví dụ cách trả lời đúng:
 
-TRẦN THỊ B:
-  - Hỏi tiến độ đơn hàng SO-20260407-001
-  - Xác nhận địa chỉ giao hàng mới
+Anh ơi, hiện tại hệ thống ghi nhận:
 
-Ghi chú: Không có đơn hàng mới phát sinh hôm nay.`;
+Khách hàng: Trần Trung Kiên (Công ty TNHH TECHLA AI)
+  - Đặt 500 chai PET 500ml
+  - Đặt 300 nắp PCO28
+  - Yêu cầu giao tuần sau
+
+Kiểm tra sản phẩm:
+  - Chai PET 500ml: Có trong hệ thống, NCC Nhựa Sài Gòn còn 5.000 cái, giá 2.200đ
+  - Nắp PCO28: Có trong hệ thống, NCC Nhựa Sài Gòn còn 10.000 cái, giá 400đ
+
+Trạng thái đơn hàng: Chưa tạo đơn bán và đơn mua.
+
+Anh có muốn em tạo đơn bán và đơn mua cho đơn hàng này không?
+
+HÀNH ĐỘNG (ACTIONS):
+Khi người dùng yêu cầu, thêm block JSON vào CUỐI câu trả lời:
+
+<!--ACTIONS
+[{"type": "action_type", "data": {...}}]
+ACTIONS-->
+
+DANH SACH ACTIONS:
+
+-- KHACH HANG --
+create_customer: {"company_name","contact_name","phone","email","tax_code","address","customer_type":"RETAIL/WHOLESALE/DISTRIBUTOR/OEM"}
+update_customer: {"customer_name":"tên hiện tại","updates":{"company_name","contact_name","phone","email","tax_code","address","customer_type","debt_limit"}}
+delete_customer: {"customer_name":"tên KH"}
+
+-- NHA CUNG CAP --
+create_supplier: {"company_name","contact_name","phone","email","tax_code","address","payment_terms":"NET_30/NET_60/NET_90/IMMEDIATE"}
+update_supplier: {"supplier_name":"tên hiện tại","updates":{"company_name","contact_name","phone","email","tax_code","address","payment_terms"}}
+
+-- DON BAN HANG (tao ra status PENDING) --
+create_sales_order: {"customer_name","vat_rate":"VAT_10","delivery_date":"YYYY-MM-DD","notes","items":[{"product_name","quantity","unit_price"}]}
+update_sales_order: {"order_code":"SO-xxx","updates":{"notes","expected_delivery":"YYYY-MM-DD"}}
+update_order_status: {"order_code":"SO-xxx hoac PO-xxx","status":"NEW/CONFIRMED/CANCELLED/COMPLETED"}
+
+-- DON MUA HANG (tao ra status PENDING) --
+create_purchase_order: {"supplier_name","delivery_date":"YYYY-MM-DD","notes","items":[{"product_name","quantity","unit_price"}]}
+update_purchase_order: {"order_code":"PO-xxx","updates":{"notes","expected_delivery":"YYYY-MM-DD"}}
+
+-- HOA DON --
+create_invoice: {"order_code":"SO-xxx"}
+finalize_invoice: {"order_code":"SO-xxx"}
+
+-- THANH TOAN / CONG NO --
+record_payment: {"type":"receivable/payable","order_code":"SO-xxx hoac PO-xxx","amount":1000000,"method":"CASH/BANK_TRANSFER","reference":"so tham chieu"}
+
+-- SAN PHAM --
+create_product: {"name","sku","category_name","material":"PET/HDPE/PP","retail_price","wholesale_price","moq","description"}
+update_product: {"product_name":"tên hiện tại","updates":{"retail_price","wholesale_price","moq","description"}}
+
+-- GIA NCC --
+update_supplier_price: {"supplier_name","product_name","updates":{"purchase_price","moq","lead_time_days","stock_quantity"}}
+
+-- BAO CAO --
+get_report: {"type":"pnl/debt_aging/product_sales","from_date":"YYYY-MM-DD","to_date":"YYYY-MM-DD"}
+
+LUU Y: Thong tin san pham, NCC, khach hang, don hang, hoa don da co san trong context. KHONG can tao action de "get" hay "check" — chi can doc context va tra loi.
+
+QUY TẮC TUYỆT ĐỐI VỀ ACTIONS:
+- KHÔNG BAO GIỜ tự thêm actions block nếu người dùng CHƯA XÁC NHẬN.
+- Khi phát hiện đơn hàng tiềm năng → CHỈ BÁO CÁO thông tin + HỎI "anh có muốn em tạo không?" → DỪNG, KHÔNG thêm actions.
+- CHỈ thêm actions block khi người dùng trả lời RÕ RÀNG: "tạo đi", "ok tạo", "làm đi", "có", "tạo khách hàng", "tạo đơn hàng".
+- Nếu người dùng chỉ hỏi thông tin (ví dụ: "có đơn hàng nào chưa?", "kiểm tra giúp") → KHÔNG thêm actions, chỉ trả lời text.
+- Nếu thiếu thông tin → HỎI LẠI, không đoán.
+- Actions block luôn ở CUỐI câu trả lời, sau phần text.`;
+
 
 const SUMMARY_SYSTEM_PROMPT = `Bạn là trợ lý AI phân tích tin nhắn Zalo cho CRM bao bì nhựa.
 
@@ -120,6 +194,168 @@ Trả về JSON duy nhất, không giải thích thêm:
   "delivery_note": "ghi chú giao hàng nếu có",
   "raw_summary": "tóm tắt ngắn gọn nội dung tin nhắn"
 }`;
+
+// ──── Message compression helpers ────
+
+type MsgRow = { sender_name: string | null; content: string | null; direction: string; created_at: Date };
+
+function isNoise(content: string): boolean {
+  if (!content || content.length < 2) return true;
+  const c = content.trim().toLowerCase();
+  // Attachments, stickers, empty
+  if (c === '[attach]' || c.startsWith('[^') || c === '[sticker]') return true;
+  // OTP / verification
+  if (/mã (xác thực|otp|xác nhận)/i.test(c)) return true;
+  if (/\b\d{4,6}\b/.test(c) && c.length < 30) return true;
+  // Spam / ads
+  if (/voucher|khuyến mại|ưu đãi|nạp thẻ|vay nhanh|tặng riêng/i.test(c) && c.length > 50) return true;
+  return false;
+}
+
+function compressMessages(messages: MsgRow[]): string {
+  // Filter noise
+  const clean = messages.filter((m) => !isNoise(m.content || ''));
+
+  // Compact format: "HH:mm Tên: nội dung" (no date if same day, no direction label)
+  let lastDate = '';
+  const lines: string[] = [];
+
+  for (const m of clean) {
+    const d = new Date(m.created_at);
+    const date = d.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const time = d.toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' });
+    const name = m.sender_name || (m.direction === 'OUTGOING' ? 'Tôi' : '?');
+    const content = (m.content || '').substring(0, 200); // truncate long messages
+
+    if (date !== lastDate) {
+      lines.push(`--- ${date} ---`);
+      lastDate = date;
+    }
+    const dir = m.direction === 'OUTGOING' ? '→' : '←';
+    lines.push(`${time} ${dir} ${name}: ${content}`);
+  }
+
+  return lines.join('\n');
+}
+
+// Build product + supplier context for AI
+async function buildBusinessContext(): Promise<string> {
+  try {
+    const [products, supplierPrices, customers] = await Promise.all([
+      prisma.product.findMany({
+        where: { is_active: true },
+        select: { id: true, name: true, sku: true, retail_price: true, wholesale_price: true },
+        take: 200,
+      }),
+      prisma.supplierPrice.findMany({
+        include: {
+          supplier: { select: { company_name: true, phone: true, is_active: true } },
+          product: { select: { name: true, sku: true } },
+        },
+      }),
+      prisma.customer.findMany({
+        where: { is_active: true },
+        select: { company_name: true, contact_name: true, phone: true, zalo_user_id: true },
+        take: 200,
+      }),
+    ]);
+
+    const lines: string[] = [];
+
+    // Products
+    if (products.length > 0) {
+      lines.push(`\n--- SẢN PHẨM TRONG HỆ THỐNG (${products.length}) ---`);
+      for (const p of products) {
+        const prices = [];
+        if (p.retail_price) prices.push(`lẻ: ${p.retail_price}`);
+        if (p.wholesale_price) prices.push(`sỉ: ${p.wholesale_price}`);
+        lines.push(`- ${p.name} (SKU: ${p.sku}, ${prices.join(', ') || 'chưa có giá'})`);
+
+        // Suppliers for this product
+        const sp = supplierPrices.filter((s) => s.product?.sku === p.sku && s.supplier?.is_active);
+        if (sp.length > 0) {
+          for (const s of sp) {
+            lines.push(`  → NCC: ${s.supplier.company_name} | Giá: ${s.purchase_price} | Tồn kho: ${s.stock_quantity} | MOQ: ${s.moq || 'N/A'} | Lead: ${s.lead_time_days || '?'} ngày${s.is_preferred ? ' ⭐' : ''}`);
+          }
+        } else {
+          lines.push('  → Chưa có NCC nào cung cấp');
+        }
+      }
+    }
+
+    // Customers
+    if (customers.length > 0) {
+      lines.push(`\n--- KHÁCH HÀNG (${customers.length}) ---`);
+      for (const c of customers) {
+        lines.push(`- ${c.company_name}${c.contact_name ? ' (' + c.contact_name + ')' : ''} | SĐT: ${c.phone || 'N/A'}`);
+      }
+    } else {
+      lines.push('\n--- KHÁCH HÀNG: Chưa có khách hàng nào ---');
+    }
+
+    // Recent orders (last 30 days)
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [salesOrders, purchaseOrders, pendingSuggestions] = await Promise.all([
+      prisma.salesOrder.findMany({
+        where: { created_at: { gte: since } },
+        include: {
+          customer: { select: { company_name: true } },
+          items: { include: { product: { select: { name: true } } } },
+        },
+        orderBy: { created_at: 'desc' },
+        take: 20,
+      }),
+      prisma.purchaseOrder.findMany({
+        where: { created_at: { gte: since } },
+        include: {
+          supplier: { select: { company_name: true } },
+          items: { include: { product: { select: { name: true } } } },
+        },
+        orderBy: { created_at: 'desc' },
+        take: 20,
+      }),
+      prisma.orderSuggestion.findMany({
+        where: { status: 'PENDING' },
+        orderBy: { created_at: 'desc' },
+      }),
+    ]);
+
+    if (salesOrders.length > 0) {
+      lines.push(`\n--- ĐƠN BÁN HÀNG GẦN ĐÂY (${salesOrders.length}) ---`);
+      for (const o of salesOrders) {
+        const items = o.items.map((i: any) => `${i.product?.name} x${i.quantity}`).join(', ');
+        const date = o.order_date.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        lines.push(`- ${o.order_code} | ${date} | ${o.customer?.company_name} | ${o.status} | ${items} | ${o.grand_total.toLocaleString()}đ`);
+      }
+    } else {
+      lines.push('\n--- ĐƠN BÁN HÀNG: Chưa có đơn nào ---');
+    }
+
+    if (purchaseOrders.length > 0) {
+      lines.push(`\n--- ĐƠN MUA HÀNG GẦN ĐÂY (${purchaseOrders.length}) ---`);
+      for (const o of purchaseOrders) {
+        const items = o.items.map((i: any) => `${i.product?.name} x${i.quantity}`).join(', ');
+        const date = o.order_date.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        lines.push(`- ${o.order_code} | ${date} | ${o.supplier?.company_name} | ${o.status} | ${items} | ${o.total.toLocaleString()}đ`);
+      }
+    } else {
+      lines.push('\n--- ĐƠN MUA HÀNG: Chưa có đơn nào ---');
+    }
+
+    if (pendingSuggestions.length > 0) {
+      lines.push(`\n--- ĐỀ XUẤT ĐƠN HÀNG CHỜ DUYỆT (${pendingSuggestions.length}) ---`);
+      for (const s of pendingSuggestions) {
+        const items = ((s.matched_items || []) as any[]).map((i: any) => `${i.product_name} x${i.quantity}`).join(', ');
+        lines.push(`- Từ: ${s.sender_name} | KH: ${s.customer_name} | SP: ${items || 'chưa khớp'}`);
+      }
+    }
+
+    return lines.join('\n');
+  } catch (err) {
+    logger.error('Build business context error:', err);
+    return '';
+  }
+}
 
 export class AIService {
   static getDefaultPrompts() {
@@ -185,24 +421,22 @@ export class AIService {
 
       const customPrompts = await getCustomPrompts();
       const systemPrompt = customPrompts.chat || CHAT_SYSTEM_PROMPT;
-      const trainingContext = await AiTrainingService.buildTrainingContext();
+      const [trainingContext, businessContext] = await Promise.all([
+        AiTrainingService.buildTrainingContext(),
+        buildBusinessContext(),
+      ]);
 
       const now = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
       const today = new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 
-      const msgContext = messages
-        .map((m) => {
-          const time = new Date(m.created_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-          return `[${time}] [${m.direction === 'INCOMING' ? 'Nhận' : 'Gửi'}] ${m.sender_name || 'Unknown'}: ${m.content || ''}`;
-        })
-        .join('\n');
+      const msgContext = compressMessages(messages);
 
       const response = await openai.chat.completions.create({
         model: config.openai.model,
         max_tokens: config.openai.maxTokens,
         temperature: 0.3,
         messages: [
-          { role: 'system', content: systemPrompt + trainingContext + `\n\nNgày giờ hiện tại: ${now}\nHôm nay là: ${today}\n\n--- TIN NHẮN ZALO ---\n${msgContext}\n--- HẾT ---` },
+          { role: 'system', content: systemPrompt + trainingContext + businessContext + `\n\nNgày giờ hiện tại: ${now}\nHôm nay là: ${today}\n\n--- TIN NHẮN ZALO ---\n${msgContext}\n--- HẾT ---` },
           { role: 'user', content: question },
         ],
       });
@@ -227,9 +461,7 @@ export class AIService {
       const summaryPrompt = customPrompts.summary || SUMMARY_SYSTEM_PROMPT;
       const trainingContext = await AiTrainingService.buildTrainingContext();
 
-      const msgContext = messages
-        .map((m) => `[${m.direction === 'INCOMING' ? 'Nhận' : 'Gửi'}] ${m.sender_name || 'Unknown'}: ${m.content || ''} (${new Date(m.created_at).toLocaleString('vi-VN')})`)
-        .join('\n');
+      const msgContext = compressMessages(messages);
 
       const response = await openai.chat.completions.create({
         model: config.openai.model,

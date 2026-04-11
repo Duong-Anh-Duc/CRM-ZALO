@@ -24,6 +24,7 @@ export function formatDateTime(date: string | Date | undefined | null): string {
 export function getSalesStatusLabels(): Record<string, string> {
   const t = i18n.t;
   return {
+    PENDING: t('salesStatusLabels.PENDING'),
     NEW: t('salesStatusLabels.NEW'),
     CONFIRMED: t('salesStatusLabels.CONFIRMED'),
     PREPARING: t('salesStatusLabels.PREPARING'),
@@ -36,6 +37,7 @@ export function getSalesStatusLabels(): Record<string, string> {
 export function getPurchaseStatusLabels(): Record<string, string> {
   const t = i18n.t;
   return {
+    PENDING: t('purchaseStatusLabels.PENDING'),
     NEW: t('purchaseStatusLabels.NEW'),
     CONFIRMED: t('purchaseStatusLabels.CONFIRMED'),
     PROCESSING: t('purchaseStatusLabels.PROCESSING'),

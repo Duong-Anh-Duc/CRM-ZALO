@@ -37,9 +37,28 @@ body {
   .ant-table-wrapper { overflow-x: auto; }
   .ant-space-wrap { gap: 8px !important; }
   h2 { font-size: 20px !important; }
+  /* Modals full width on mobile */
+  .ant-modal { max-width: calc(100vw - 32px) !important; }
+  .ant-modal-body { padding: 16px !important; }
+  /* Descriptions single column on mobile */
+  .ant-descriptions-item { padding-bottom: 8px !important; }
+  /* Filters stack on mobile */
+  .ant-select { min-width: unset !important; width: 100% !important; }
+  .ant-input, .ant-picker { width: 100% !important; }
+  /* Charts */
+  .recharts-wrapper { font-size: 11px; }
 }
 
 @media (max-width: 576px) {
   .ant-pagination { flex-wrap: wrap; justify-content: center; }
   .ant-pagination .ant-pagination-options { margin-top: 8px; }
+  /* Smaller padding on xs */
+  .crm-content { padding: 8px !important; margin: 4px !important; }
+  /* Stack filter buttons */
+  .ant-space { flex-wrap: wrap; width: 100%; }
+  .ant-space > .ant-space-item { width: 100%; }
+  .ant-space > .ant-space-item .ant-btn { width: 100%; }
+  /* Statistic cards smaller text */
+  .ant-statistic-title { font-size: 12px !important; }
+  .ant-statistic-content { font-size: 18px !important; }
 }

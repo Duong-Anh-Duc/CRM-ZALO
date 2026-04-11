@@ -21,6 +21,7 @@ import SettingsPage from '@/features/settings/pages/SettingsPage';
 import AlertsPage from '@/features/alerts/pages/AlertsPage';
 import ZaloPage from '@/features/zalo/pages/ZaloPage';
 import UserManagementPage from '@/features/users/pages/UserManagementPage';
+import InvoiceListPage from '@/features/invoices/pages/InvoiceListPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuth = useAuthStore((s) => s.isAuthenticated());
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="operating-costs" element={<OperatingCostPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="alerts" element={<AlertsPage />} />
+        <Route path="invoices" element={<InvoiceListPage />} />
         <Route path="zalo" element={<ZaloPage />} />
         <Route
           path="users"

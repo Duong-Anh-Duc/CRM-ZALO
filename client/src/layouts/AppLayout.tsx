@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Dropdown, Badge, Avatar, Typography, Space, Select, Drawer, theme } from 'antd';
+import { Layout, Menu, Dropdown, Avatar, Typography, Space, Select, Drawer, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   DashboardOutlined,
@@ -13,7 +13,6 @@ import {
   WalletOutlined,
   AccountBookOutlined,
   BarChartOutlined,
-  BellOutlined,
   SettingOutlined,
   UserOutlined,
   LockOutlined,
@@ -27,9 +26,9 @@ import {
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/auth.store';
-import apiClient from '@/lib/api-client';
 import logoImg from '@/assets/images/logo.jpg';
 import ProfileModal from '@/features/auth/components/ProfileModal';
+import NotificationPopover from '@/features/alerts/components/NotificationPopover';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -45,6 +44,7 @@ const getMenuItems = (t: (key: string) => string): MenuProps['items'] => [
   { type: 'group', label: t('menu.orders') },
   { key: '/sales-orders', icon: <FileTextOutlined />, label: t('menu.salesOrders') },
   { key: '/purchase-orders', icon: <ImportOutlined />, label: t('menu.purchaseOrders') },
+  { key: '/invoices', icon: <FileTextOutlined />, label: t('menu.invoices') },
   { type: 'group', label: t('menu.finance') },
   { key: '/receivables', icon: <DollarOutlined />, label: t('menu.receivables') },
   { key: '/payables', icon: <WalletOutlined />, label: t('menu.payables') },
@@ -58,7 +58,6 @@ const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileTab, setProfileTab] = useState<'profile' | 'password'>('profile');
   const navigate = useNavigate();
@@ -78,27 +77,12 @@ const AppLayout: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [handleResize]);
 
-  useEffect(() => {
-    fetchUnreadAlerts();
-    const interval = setInterval(fetchUnreadAlerts, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Close mobile drawer on navigate
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
 
-  const fetchUnreadAlerts = async () => {
-    try {
-      const res = await apiClient.get<{ success: boolean; data: { count: number } }>(
-        '/alerts/unread-count',
-      );
-      setUnreadCount(res.data.data.count);
-    } catch {
-      // silent fail
-    }
-  };
 
   const menuItems: MenuProps['items'] = [
     ...getMenuItems(t)!,
@@ -261,12 +245,7 @@ const AppLayout: React.FC = () => {
                 />
               </Space>
             )}
-            <Badge count={unreadCount} size="small" offset={[-2, 2]}>
-              <BellOutlined
-                style={{ fontSize: 18, cursor: 'pointer', color: '#595959' }}
-                onClick={() => navigate('/alerts')}
-              />
-            </Badge>
+            <NotificationPopover />
             <Dropdown
               menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
               placement="bottomRight"

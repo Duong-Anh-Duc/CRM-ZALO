@@ -10,6 +10,7 @@ interface CreatePurchaseOrderInput {
   supplier_id: string;
   expected_delivery?: string;
   notes?: string;
+  status?: PurchaseOrderStatus;
   items: Array<{
     product_id: string;
     quantity: number;
@@ -92,6 +93,7 @@ export class PurchaseOrderService {
       data: {
         order_code: orderCode,
         supplier_id: input.supplier_id,
+        status: input.status || 'NEW',
         expected_delivery: input.expected_delivery ? new Date(input.expected_delivery) : null,
         notes: input.notes,
         total,

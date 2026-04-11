@@ -81,6 +81,7 @@ enum SafetyStandard {
 }
 
 enum SalesOrderStatus {
+  PENDING
   NEW
   CONFIRMED
   PREPARING
@@ -90,6 +91,7 @@ enum SalesOrderStatus {
 }
 
 enum PurchaseOrderStatus {
+  PENDING
   NEW
   CONFIRMED
   PROCESSING
@@ -321,13 +323,15 @@ model Supplier {
 }
 
 model SupplierPrice {
-  id            String  @id @default(uuid())
-  supplier_id   String
-  product_id    String
-  purchase_price Float
-  moq           Int?
-  lead_time_days Int?
-  is_preferred  Boolean @default(false)
+  id              String  @id @default(uuid())
+  supplier_id     String
+  product_id      String
+  purchase_price  Float
+  moq             Int?
+  lead_time_days  Int?
+  stock_quantity  Int     @default(0)  // Tồn kho bên NCC
+  is_preferred    Boolean @default(false)
+  updated_at      DateTime @default(now()) @updatedAt
 
   supplier Supplier @relation(fields: [supplier_id], references: [id])
   product  Product  @relation(fields: [product_id], references: [id])
@@ -358,6 +362,7 @@ model SalesOrder {
   customer    Customer         @relation(fields: [customer_id], references: [id])
   items       SalesOrderItem[]
   receivables Receivable[]
+  invoices    Invoice[]
 
   @@map("sales_orders")
 }
@@ -519,6 +524,62 @@ model OperatingCost {
   @@map("operating_costs")
 }
 
+// ─── INVOICES ───────────────────────────────────────
+
+model Invoice {
+  id               String        @id @default(uuid())
+  sales_order_id   String
+  status           InvoiceStatus @default(DRAFT)
+  serial           String        @default("1C26PKF")
+  invoice_number   Int
+  invoice_date     DateTime      @default(now())
+  cqt_code         String?
+
+  // Seller info (editable)
+  seller_name      String
+  seller_tax_code  String
+  seller_address   String
+  seller_phone     String?
+  seller_email     String?
+  seller_rep       String?
+  seller_position  String?
+  seller_bank      String?
+  seller_bank_name String?
+
+  // Buyer info (editable)
+  buyer_name       String
+  buyer_company    String
+  buyer_address    String?
+  buyer_tax_code   String?
+  buyer_phone      String?
+  buyer_email      String?
+  buyer_payment    String?       @default("Chuyển khoản")
+
+  // Items & amounts (editable)
+  items            Json          // [{name, unit, quantity, unitPrice, amount}]
+  subtotal         Float
+  vat_rate         Int           @default(10)
+  vat_amount       Float
+  total            Float
+  total_in_words   String?
+  notes            String?
+
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @default(now()) @updatedAt
+
+  sales_order      SalesOrder    @relation(fields: [sales_order_id], references: [id])
+
+  @@index([sales_order_id])
+  @@index([status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  FINAL
+  CANCELLED
+}
+
 // ─── ALERTS ─────────────────────────────────────────
 
 model Alert {
@@ -629,4 +690,36 @@ model AiTraining {
 
   @@index([category])
   @@map("ai_trainings")
+}
+
+model AiChatMessage {
+  id         String   @id @default(uuid())
+  user_id    String
+  role       String   // user, ai
+  content    String   @db.Text
+  created_at DateTime @default(now())
+
+  @@index([user_id, created_at])
+  @@map("ai_chat_messages")
+}
+
+model OrderSuggestion {
+  id              String   @id @default(uuid())
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  sender_id       String
+  sender_name     String
+  message         String   @db.Text
+  ai_summary      String?  @db.Text
+  customer_name   String?
+  customer_phone  String?
+  delivery_note   String?
+  extracted_items Json?    // [{product_name, quantity, unit_price, note}]
+  matched_items   Json?    // [{product_id, product_name, quantity, unit_price}]
+  sales_order_id  String?  // filled after approval
+  rejected_reason String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([status, created_at])
+  @@map("order_suggestions")
 }
