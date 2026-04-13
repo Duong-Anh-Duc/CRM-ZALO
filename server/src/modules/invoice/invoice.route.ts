@@ -29,6 +29,14 @@ router.post('/from-order/:orderId', async (req: AuthenticatedRequest, res: Respo
   } catch (err) { next(err); }
 });
 
+// Create purchase invoice (upload file)
+router.post('/purchase/:poId', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { file_url, file_name } = req.body;
+    sendSuccess(res, await InvoiceService.createPurchaseInvoice(req.params.poId as string, file_url, file_name));
+  } catch (err) { next(err); }
+});
+
 // Update draft
 router.patch('/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {

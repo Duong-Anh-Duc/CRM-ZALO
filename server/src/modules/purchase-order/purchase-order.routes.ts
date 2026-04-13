@@ -10,6 +10,7 @@ router.use(authenticate);
 router.get('/', PurchaseOrderController.list);
 router.get('/:id', validateIdParam, PurchaseOrderController.getById);
 router.post('/', requireRole('ADMIN', 'STAFF'), validate(createPurchaseOrderSchema), PurchaseOrderController.create);
+router.patch('/:id', validateIdParam, requireRole('ADMIN', 'STAFF'), PurchaseOrderController.update);
 router.patch('/:id/status', validateIdParam, requireRole('ADMIN', 'STAFF'), validate(updateStatusSchema), PurchaseOrderController.updateStatus);
 
 export default router;

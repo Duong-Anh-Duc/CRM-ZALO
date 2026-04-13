@@ -31,6 +31,13 @@ export class SalesOrderController {
     }
   }
 
+  static async update(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const order = await SalesOrderService.update(req.params.id as string, req.body);
+      sendSuccess(res, order);
+    } catch (err) { next(err); }
+  }
+
   static async updateStatus(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const order = await SalesOrderService.updateStatus(req.params.id as string, req.body.status);

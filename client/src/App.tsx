@@ -13,15 +13,13 @@ import SalesOrderListPage from '@/features/orders/pages/sales/SalesOrderListPage
 import SalesOrderDetailPage from '@/features/orders/pages/sales/SalesOrderDetailPage';
 import PurchaseOrderListPage from '@/features/orders/pages/purchase/PurchaseOrderListPage';
 import PurchaseOrderDetailPage from '@/features/orders/pages/purchase/PurchaseOrderDetailPage';
-import ReceivableListPage from '@/features/debts/pages/ReceivableListPage';
-import PayableListPage from '@/features/debts/pages/PayableListPage';
+import DebtPage from '@/features/debts/pages/DebtPage';
 import OperatingCostPage from '@/features/operating-costs/pages/OperatingCostPage';
 import ReportsPage from '@/features/reports/pages/ReportsPage';
 import SettingsPage from '@/features/settings/pages/SettingsPage';
 import AlertsPage from '@/features/alerts/pages/AlertsPage';
 import ZaloPage from '@/features/zalo/pages/ZaloPage';
 import UserManagementPage from '@/features/users/pages/UserManagementPage';
-import InvoiceListPage from '@/features/invoices/pages/InvoiceListPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuth = useAuthStore((s) => s.isAuthenticated());
@@ -56,12 +54,10 @@ export default function App() {
         <Route path="sales-orders/:id" element={<SalesOrderDetailPage />} />
         <Route path="purchase-orders" element={<PurchaseOrderListPage />} />
         <Route path="purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
-        <Route path="receivables" element={<ReceivableListPage />} />
-        <Route path="payables" element={<PayableListPage />} />
+        <Route path="debts" element={<DebtPage />} />
         <Route path="operating-costs" element={<OperatingCostPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="alerts" element={<AlertsPage />} />
-        <Route path="invoices" element={<InvoiceListPage />} />
         <Route path="zalo" element={<ZaloPage />} />
         <Route
           path="users"

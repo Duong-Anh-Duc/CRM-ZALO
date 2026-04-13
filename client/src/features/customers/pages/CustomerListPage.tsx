@@ -34,10 +34,10 @@ const CustomerListPage: React.FC = () => {
       render: (_: unknown, __: unknown, index: number) => (page - 1) * pageSize + index + 1,
     },
     {
-      title: t('customer.companyName'),
-      dataIndex: 'company_name',
-      key: 'company_name',
+      title: t('customer.name'),
+      key: 'name',
       ellipsis: true,
+      render: (_: unknown, record: any) => record.company_name || record.contact_name || '-',
     },
     {
       title: t('customer.customerTypeShort'),

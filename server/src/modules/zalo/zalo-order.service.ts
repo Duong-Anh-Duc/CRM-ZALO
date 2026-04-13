@@ -67,10 +67,10 @@ export class ZaloOrderService {
   static async approve(suggestionId: string) {
     const suggestion = await prisma.orderSuggestion.findUnique({ where: { id: suggestionId } });
     if (!suggestion) throw new Error(t('common.notFound'));
-    if (suggestion.status !== 'PENDING') throw new Error('Đề xuất đã được xử lý');
+    if (suggestion.status !== 'PENDING') throw new Error(t("zalo.suggestionProcessed"));
 
     const matched = (suggestion.matched_items || []) as any[];
-    if (matched.length === 0) throw new Error('Không có sản phẩm nào khớp');
+    if (matched.length === 0) throw new Error(t("zalo.noItemsMatched"));
 
     // 1. Resolve/create customer
     const customerId = await this.resolveCustomer(
@@ -166,7 +166,7 @@ export class ZaloOrderService {
   static async reject(suggestionId: string, reason?: string) {
     const suggestion = await prisma.orderSuggestion.findUnique({ where: { id: suggestionId } });
     if (!suggestion) throw new Error(t('common.notFound'));
-    if (suggestion.status !== 'PENDING') throw new Error('Đề xuất đã được xử lý');
+    if (suggestion.status !== 'PENDING') throw new Error(t("zalo.suggestionProcessed"));
 
     await prisma.orderSuggestion.update({
       where: { id: suggestionId },
@@ -296,13 +296,18 @@ export class ZaloOrderService {
       } catch { /* skip */ }
     }
 
+    const nameForType = (enrichedName || senderName || '').toLowerCase();
+    const autoType = /công ty|tnhh|cp |cổ phần/.test(nameForType) ? 'BUSINESS'
+      : /cơ sở|cửa hàng|shop|quán/.test(nameForType) ? 'RETAIL'
+      : /đại lý/.test(nameForType) ? 'BUSINESS' : 'INDIVIDUAL';
+
     const newCustomer = await prisma.customer.create({
       data: {
         company_name: enrichedName || `Zalo: ${senderId}`,
         contact_name: enrichedName || senderName,
         phone: phone || '',
         zalo_user_id: senderId || null,
-        customer_type: 'RETAIL',
+        customer_type: autoType as any,
       },
     });
 

@@ -8,7 +8,7 @@ export const createCustomerSchema = z.object({
   contact_name: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email(t('validation.emailInvalid')).optional().or(z.literal('')),
-  customer_type: z.enum(['RETAIL', 'WHOLESALE', 'DISTRIBUTOR', 'OEM'], { message: t('validation.customerTypeRequired') }),
+  customer_type: z.enum(['INDIVIDUAL', 'BUSINESS'], { message: t('validation.customerTypeRequired') }),
   debt_limit: z.number().min(0, t('validation.debtLimitNonNegative')).optional(),
 });
 

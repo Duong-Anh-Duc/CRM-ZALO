@@ -72,42 +72,14 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
     }
   };
 
-  const imageTab = [{
-    key: 'images',
-    label: t('product.images'),
-    children: isEdit ? (
-      <ProductImageManager
-        productId={product!.id}
-        images={product!.images || []}
-        canManage={true}
-      />
-    ) : (
-      <Upload
-        listType="picture-card"
-        fileList={fileList}
-        onChange={({ fileList: newList }) => setFileList(newList)}
-        beforeUpload={() => false}
-        accept="image/jpeg,image/png,image/webp"
-        multiple
-      >
-        {fileList.length < 10 && (
-          <div>
-            <PlusOutlined />
-            <div style={{ marginTop: 8 }}>{t('product.uploadImages')}</div>
-          </div>
-        )}
-      </Upload>
-    ),
-  }];
-
   const tabItems = [
     {
       key: 'general',
       label: t('product.generalInfo'),
       children: (
         <>
-          <Form.Item name="sku" label={t('product.sku')} rules={[{ required: true, message: t('product.skuRequired') }]}>
-            <Input style={fieldStyle} placeholder={t('product.skuPlaceholder')} />
+          <Form.Item name="sku" label={t('product.sku')}>
+            <Input style={fieldStyle} placeholder={t('product.skuAuto')} />
           </Form.Item>
           <Form.Item name="name" label={t('product.name')} rules={[{ required: true, message: t('product.nameRequired') }]}>
             <Input style={fieldStyle} />
@@ -126,6 +98,24 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
                 { value: false, label: t('common.inactive') },
               ]}
             />
+          </Form.Item>
+          <Form.Item label={t('product.images')}>
+            {isEdit ? (
+              <ProductImageManager productId={product!.id} images={product!.images || []} canManage={true} />
+            ) : (
+              <Upload
+                listType="picture-card"
+                fileList={fileList}
+                onChange={({ fileList: newList }) => setFileList(newList)}
+                beforeUpload={() => false}
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+              >
+                {fileList.length < 10 && (
+                  <div><PlusOutlined /><div style={{ marginTop: 8 }}>{t('product.uploadImages')}</div></div>
+                )}
+              </Upload>
+            )}
           </Form.Item>
         </>
       ),
@@ -283,7 +273,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
       }
     >
       <Form form={form} layout="vertical" requiredMark="optional">
-        <Tabs items={[...tabItems, ...imageTab]} />
+        <Tabs items={tabItems} />
       </Form>
     </Modal>
   );

@@ -69,7 +69,7 @@ export function useZaloSyncMessages() {
     mutationFn: () => zaloApi.syncMessages().then(r => r.data),
     onSuccess: (res: any) => {
       const data = res.data;
-      toast.success(`Đồng bộ xong: ${data?.synced || 0} tin nhắn mới, ${data?.skipped || 0} đã có`);
+      toast.success(i18n.t('zalo.syncSuccess', { synced: data?.synced || 0, skipped: data?.skipped || 0 }));
     },
     onError: (err: unknown) => toast.error(getErrorMessage(err)),
   });
@@ -93,7 +93,7 @@ export function useCreateAiTraining() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { category: string; title: string; content: string }) => zaloApi.createTraining(data).then(r => r.data),
-    onSuccess: () => { toast.success('Đã thêm kiến thức cho AI'); qc.invalidateQueries({ queryKey: ['ai-training'] }); },
+    onSuccess: () => { toast.success(i18n.t('zalo.trainingAdded')); qc.invalidateQueries({ queryKey: ['ai-training'] }); },
     onError: (err: unknown) => toast.error(getErrorMessage(err)),
   });
 }
@@ -102,7 +102,7 @@ export function useRemoveAiTraining() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => zaloApi.removeTraining(id).then(r => r.data),
-    onSuccess: () => { toast.success('Đã xóa'); qc.invalidateQueries({ queryKey: ['ai-training'] }); },
+    onSuccess: () => { toast.success(i18n.t('common.deleted')); qc.invalidateQueries({ queryKey: ['ai-training'] }); },
     onError: (err: unknown) => toast.error(getErrorMessage(err)),
   });
 }

@@ -18,6 +18,7 @@ import { formatVND, formatDate, salesStatusLabels } from '@/utils/format';
 const cardStyle: React.CSSProperties = {
   borderRadius: 12,
   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  height: '100%',
 };
 
 const DashboardPage: React.FC = () => {
@@ -51,10 +52,9 @@ const DashboardPage: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card style={cardStyle}>
             <Statistic
-              title={t('dashboard.totalReceivable')}
+              title={<><DollarOutlined style={{ marginRight: 6 }} />{t('dashboard.totalReceivable')}</>}
               value={receivable.total_amount}
               formatter={(v) => formatVND(v as number)}
-              prefix={<DollarOutlined />}
               valueStyle={{ color: receivable.overdue_amount > 0 ? '#cf1322' : '#1890ff' }}
             />
           </Card>
@@ -62,10 +62,9 @@ const DashboardPage: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card style={cardStyle}>
             <Statistic
-              title={t('dashboard.totalPayable')}
+              title={<><ShoppingCartOutlined style={{ marginRight: 6 }} />{t('dashboard.totalPayable')}</>}
               value={payable.total_amount}
               formatter={(v) => formatVND(v as number)}
-              prefix={<ShoppingCartOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
           </Card>
@@ -73,10 +72,9 @@ const DashboardPage: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card style={cardStyle}>
             <Statistic
-              title={t('dashboard.overdueReceivable')}
+              title={<><WarningOutlined style={{ marginRight: 6 }} />{t('dashboard.overdueReceivable')}</>}
               value={receivable.overdue_amount}
               formatter={(v) => formatVND(v as number)}
-              prefix={<WarningOutlined />}
               valueStyle={{ color: '#cf1322' }}
             />
           </Card>
@@ -84,10 +82,9 @@ const DashboardPage: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card style={cardStyle}>
             <Statistic
-              title={t('dashboard.overduePayable')}
+              title={<><WarningOutlined style={{ marginRight: 6 }} />{t('dashboard.overduePayable')}</>}
               value={payable.overdue_amount}
               formatter={(v) => formatVND(v as number)}
-              prefix={<WarningOutlined />}
               valueStyle={{ color: '#fa8c16' }}
             />
           </Card>

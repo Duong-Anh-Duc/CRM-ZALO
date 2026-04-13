@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSupplier } from '../hooks';
 import { StatusTag } from '@/components/common';
-import { Supplier, PurchaseOrder, Payable, Product } from '@/types';
+import { Supplier, PurchaseOrder, Payable } from '@/types';
 import {
   formatVND, formatDate, formatDateTime,
 } from '@/utils/format';
@@ -45,30 +45,39 @@ const SupplierDetailPage: React.FC = () => {
     );
   }
 
-  const products: Product[] = (supplierData?.data?.products as Product[]) ?? [];
-  const orders: PurchaseOrder[] = (supplierData?.data?.orders as PurchaseOrder[]) ?? [];
+  const supplierPrices: any[] = (supplierData?.data?.supplier_prices as any[]) ?? [];
+  const products = supplierPrices.map((sp: any) => ({
+    id: sp.product?.id,
+    sku: sp.product?.sku,
+    name: sp.product?.name,
+    cost_price: sp.purchase_price,
+    moq: sp.moq,
+    lead_time_days: sp.lead_time_days,
+    stock_quantity: sp.stock_quantity,
+    is_preferred: sp.is_preferred,
+  }));
+  const orders: PurchaseOrder[] = (supplierData?.data?.purchase_orders as PurchaseOrder[]) ?? [];
   const payables: Payable[] = (supplierData?.data?.payables as Payable[]) ?? [];
 
-  const productColumns: ColumnsType<Product> = [
-    { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
-    { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 120 },
+  const productColumns: ColumnsType<any> = [
+    { title: 'STT', key: 'stt', width: 50, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
+    { title: 'SKU', dataIndex: 'sku', key: 'sku', width: 100 },
     { title: t('order.productName'), dataIndex: 'name', key: 'name', ellipsis: true },
-    { title: t('supplier.unit'), dataIndex: 'unit', key: 'unit', width: 100 },
-    {
-      title: t('supplier.costPrice'), dataIndex: 'cost_price', key: 'cost_price', width: 150, align: 'right',
-      render: (v: number) => formatVND(v),
-    },
+    { title: t('supplier.costPrice'), dataIndex: 'cost_price', key: 'cost_price', width: 120, align: 'right' as const, render: (v: number) => formatVND(v) },
+    { title: 'MOQ', dataIndex: 'moq', key: 'moq', width: 80, align: 'right' as const },
+    { title: t('supplier.leadTime'), dataIndex: 'lead_time_days', key: 'lead', width: 100, render: (v: number) => v ? `${v} ngày` : '-' },
+    { title: t('supplier.stock'), dataIndex: 'stock_quantity', key: 'stock', width: 100, align: 'right' as const, render: (v: number) => v?.toLocaleString() || '-' },
+    { title: '', dataIndex: 'is_preferred', key: 'pref', width: 60, render: (v: boolean) => v ? <Tag color="gold" style={{ borderRadius: 6 }}>Ưu tiên</Tag> : null },
   ];
 
-  const orderColumns: ColumnsType<PurchaseOrder> = [
-    { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
-    { title: t('order.orderCode'), dataIndex: 'order_code', key: 'order_code', width: 140 },
-    { title: t('order.orderDate'), dataIndex: 'order_date', key: 'order_date', width: 120, render: formatDate },
-    { title: t('order.grandTotal'), dataIndex: 'total', key: 'total', width: 150, align: 'right', render: (v: number) => formatVND(v) },
-    {
-      title: t('common.status'), dataIndex: 'status', key: 'status', width: 130,
-      render: (s: string) => <StatusTag status={s} type="purchase" />,
-    },
+  const orderColumns: ColumnsType<any> = [
+    { title: 'STT', key: 'stt', width: 50, align: 'center' as const, render: (_: unknown, __: unknown, index: number) => index + 1 },
+    { title: t('order.orderCode'), dataIndex: 'order_code', key: 'order_code', width: 150 },
+    { title: t('order.linkedSO'), key: 'so', width: 150, render: (_: unknown, r: any) => r.sales_order?.order_code || '-' },
+    { title: t('order.customer'), key: 'cust', width: 150, render: (_: unknown, r: any) => r.sales_order?.customer?.company_name || r.sales_order?.customer?.contact_name || '-', responsive: ['lg'] as any },
+    { title: t('order.orderDate'), dataIndex: 'order_date', key: 'order_date', width: 110, render: formatDate },
+    { title: t('order.grandTotal'), dataIndex: 'total', key: 'total', width: 130, align: 'right' as const, render: (v: number) => formatVND(v) },
+    { title: t('common.status'), dataIndex: 'status', key: 'status', width: 120, render: (s: string) => <StatusTag status={s} type="purchase" /> },
   ];
 
   const payableColumns: ColumnsType<Payable> = [
@@ -117,7 +126,7 @@ const SupplierDetailPage: React.FC = () => {
       key: 'products',
       label: t('supplier.productsSupplied'),
       children: (
-        <Table<Product>
+        <Table
           rowKey="id"
           columns={productColumns}
           dataSource={products}
@@ -130,7 +139,7 @@ const SupplierDetailPage: React.FC = () => {
       key: 'orders',
       label: t('supplier.purchaseHistory'),
       children: (
-        <Table<PurchaseOrder>
+        <Table
           rowKey="id"
           columns={orderColumns}
           dataSource={orders}
@@ -143,7 +152,7 @@ const SupplierDetailPage: React.FC = () => {
       key: 'payables',
       label: t('customer.debts'),
       children: (
-        <Table<Payable>
+        <Table
           rowKey="id"
           columns={payableColumns}
           dataSource={payables}

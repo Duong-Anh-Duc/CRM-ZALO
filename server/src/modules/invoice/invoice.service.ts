@@ -81,7 +81,7 @@ export class InvoiceService {
     const cqtCode = Array.from({ length: 32 }, () => '0123456789ABCDEF'[Math.floor(Math.random() * 16)]).join('');
 
     const items = order.items.map((item) => ({
-      name: item.product?.name || 'Sản phẩm',
+      name: item.product?.name || t('invoice.defaultProduct'),
       unit: unitMap[item.product?.unit_of_sale || 'PIECE'] || 'Cái',
       quantity: item.quantity,
       unitPrice: Number(item.unit_price),
@@ -167,15 +167,15 @@ export class InvoiceService {
       where: { id },
       include: { sales_order: { select: { order_code: true, customer: { select: { company_name: true } } } } },
     });
-    if (!invoice) throw new AppError('Không tìm thấy hoá đơn', 404);
+    if (!invoice) throw new AppError(t('invoice.notFound'), 404);
     return invoice;
   }
 
   // ──── Update draft ────
   static async updateDraft(id: string, data: Record<string, unknown>) {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) throw new AppError('Không tìm thấy hoá đơn', 404);
-    if (invoice.status !== 'DRAFT') throw new AppError('Chỉ chỉnh sửa hoá đơn nháp', 400);
+    if (!invoice) throw new AppError(t('invoice.notFound'), 404);
+    if (invoice.status !== 'DRAFT') throw new AppError(t('invoice.onlyEditDraft'), 400);
 
     // Recalculate total_in_words if total changed
     const updateData: any = { ...data };
@@ -186,19 +186,59 @@ export class InvoiceService {
     return prisma.invoice.update({ where: { id }, data: updateData });
   }
 
-  // ──── Finalize invoice ────
+  // ──── Create purchase invoice (upload from supplier) ────
+  static async createPurchaseInvoice(purchaseOrderId: string, fileUrl: string, fileName: string) {
+    const po = await prisma.purchaseOrder.findUnique({
+      where: { id: purchaseOrderId },
+      include: { supplier: true },
+    });
+    if (!po) throw new AppError(t('order.purchaseNotFound'), 404);
+
+    const existing = await prisma.invoice.findFirst({ where: { purchase_order_id: purchaseOrderId, type: 'PURCHASE', status: { not: 'CANCELLED' } } });
+    if (existing) return existing;
+
+    return prisma.invoice.create({
+      data: {
+        type: 'PURCHASE',
+        purchase_order_id: purchaseOrderId,
+        status: 'DRAFT',
+        invoice_number: await this.getNextInvoiceNumber(),
+        invoice_date: new Date(),
+        buyer_company: 'CÔNG TY TNHH TECHLA AI',
+        seller_name: po.supplier.company_name,
+        total: po.total,
+        file_url: fileUrl,
+        file_name: fileName,
+      },
+    });
+  }
+
+  // ──── Approve invoice (finalize) ────
   static async finalize(id: string) {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) throw new AppError('Không tìm thấy hoá đơn', 404);
-    if (invoice.status !== 'DRAFT') throw new AppError('Chỉ xuất chính thức hoá đơn nháp', 400);
+    if (!invoice) throw new AppError(t('invoice.notFound'), 404);
+    if (invoice.status !== 'DRAFT') throw new AppError(t('invoice.onlyFinalizeDraft'), 400);
 
-    return prisma.invoice.update({ where: { id }, data: { status: 'FINAL' } });
+    const updated = await prisma.invoice.update({ where: { id }, data: { status: 'APPROVED' } });
+
+    // After approving, check if debts should be created
+    const { SalesOrderService } = require('../sales-order/sales-order.service');
+    const soId = invoice.sales_order_id || (invoice.purchase_order_id
+      ? (await prisma.purchaseOrder.findUnique({ where: { id: invoice.purchase_order_id }, select: { sales_order_id: true } }))?.sales_order_id
+      : null);
+    if (soId) {
+      SalesOrderService.checkAndCreateDebts(soId).catch((err: any) => {
+        logger.warn(`Debt check after invoice approve failed: ${err.message}`);
+      });
+    }
+
+    return updated;
   }
 
   // ──── Cancel invoice ────
   static async cancel(id: string) {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) throw new AppError('Không tìm thấy hoá đơn', 404);
+    if (!invoice) throw new AppError(t('invoice.notFound'), 404);
 
     return prisma.invoice.update({ where: { id }, data: { status: 'CANCELLED' } });
   }
@@ -206,7 +246,12 @@ export class InvoiceService {
   // ──── Generate PDF preview ────
   static async generatePdf(id: string): Promise<Buffer> {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) throw new AppError('Không tìm thấy hoá đơn', 404);
+    if (!invoice) throw new AppError(t('invoice.notFound'), 404);
+
+    // Purchase invoices are uploaded files, not generated PDFs
+    if (invoice.type === 'PURCHASE' && invoice.file_url) {
+      throw new AppError('Hoá đơn mua có file đính kèm, không tạo PDF', 400);
+    }
 
     const invoiceData: InvoiceData = {
       serial: invoice.serial,
@@ -214,24 +259,24 @@ export class InvoiceService {
       date: `Ngày (date) ${dayjs(invoice.invoice_date).format('DD')} tháng (month) ${dayjs(invoice.invoice_date).format('MM')} năm (year) ${dayjs(invoice.invoice_date).format('YYYY')}`,
       cqtCode: invoice.cqt_code || undefined,
       seller: {
-        name: invoice.seller_name,
-        taxCode: invoice.seller_tax_code,
-        address: invoice.seller_address,
+        name: invoice.seller_name || '',
+        taxCode: invoice.seller_tax_code || '',
+        address: invoice.seller_address || '',
         phone: invoice.seller_phone || '',
         email: invoice.seller_email || '',
         representative: invoice.seller_rep || '',
         position: invoice.seller_position || '',
       },
       buyer: {
-        contactName: invoice.buyer_name,
-        companyName: invoice.buyer_company,
+        contactName: invoice.buyer_name || '',
+        companyName: invoice.buyer_company || '',
         address: invoice.buyer_address || '',
         taxCode: invoice.buyer_tax_code || '',
         paymentMethod: invoice.buyer_payment || 'Chuyển khoản',
         email: invoice.buyer_email || '',
       },
       items: (invoice.items as any[]) || [],
-      subtotal: Number(invoice.subtotal),
+      subtotal: Number(invoice.subtotal || 0),
       vatRate: invoice.vat_rate,
       vatAmount: Number(invoice.vat_amount),
       total: Number(invoice.total),

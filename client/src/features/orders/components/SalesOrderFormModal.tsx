@@ -18,7 +18,7 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
   const { data: productsData } = useProducts({ limit: 200 });
   const products = productsData?.data ?? [];
 
-  const customerOptions = customers.map((c: any) => ({ label: c.company_name, value: c.id }));
+  const customerOptions = customers.map((c: any) => ({ label: c.company_name || c.contact_name, value: c.id }));
   const productOptions = products.map((p: any) => ({ label: `${p.sku} - ${p.name}`, value: p.id, price: p.retail_price || 0 }));
 
   const handleSubmit = async () => {

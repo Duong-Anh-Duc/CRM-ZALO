@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useProducts, useDeleteProduct } from '../hooks';
 import { productApi } from '../api';
+import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth.store';
 import { Product, PlasticMaterial, Category } from '@/types';
 import { formatVND, materialLabels } from '@/utils/format';
@@ -32,17 +33,23 @@ const ProductListPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [material, setMaterial] = useState<string | undefined>();
   const [categoryId, setCategoryId] = useState<string | undefined>();
+  const [supplierId, setSupplierId] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const { data, isLoading, refetch } = useProducts({ search, material, category_id: categoryId, page, limit: pageSize });
+  const { data, isLoading, refetch } = useProducts({ search, material, category_id: categoryId, supplier_id: supplierId, page, limit: pageSize });
   const { data: categoriesData } = useQuery<Category[]>({
     queryKey: ['product-categories'],
     queryFn: () => productApi.list({ type: 'categories' }).then((r) => r.data.data ?? []),
   });
   const categoryOptions = (categoriesData ?? []).map((c: Category) => ({ value: c.id, label: c.name }));
+  const { data: suppliersData } = useQuery({
+    queryKey: ['suppliers-for-filter'],
+    queryFn: () => apiClient.get('/suppliers', { params: { limit: 100 } }).then((r) => r.data.data ?? []),
+  });
+  const supplierOptions = (suppliersData ?? []).map((s: any) => ({ value: s.id, label: s.company_name }));
   const deleteMutation = useDeleteProduct();
 
   const products: Product[] = data?.data ?? [];
@@ -221,6 +228,19 @@ const ProductListPage: React.FC = () => {
               setPage(1);
             }}
             options={categoryOptions}
+          />
+          <Select
+            placeholder={t('product.supplier')}
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            style={{ width: 220, borderRadius: 8 }}
+            value={supplierId}
+            onChange={(v) => {
+              setSupplierId(v);
+              setPage(1);
+            }}
+            options={supplierOptions}
           />
         </Space>
 

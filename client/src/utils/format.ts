@@ -60,10 +60,8 @@ export function getDebtStatusLabels(): Record<string, string> {
 export function getCustomerTypeLabels(): Record<string, string> {
   const t = i18n.t;
   return {
-    RETAIL: t('customerTypeLabels.RETAIL'),
-    WHOLESALE: t('customerTypeLabels.WHOLESALE'),
-    DISTRIBUTOR: t('customerTypeLabels.DISTRIBUTOR'),
-    OEM: t('customerTypeLabels.OEM'),
+    INDIVIDUAL: t('customerTypeLabels.INDIVIDUAL'),
+    BUSINESS: t('customerTypeLabels.BUSINESS'),
   };
 }
 

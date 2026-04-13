@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Table, Card, Select, Space, Tooltip, Dropdown, Input, DatePicker } from 'antd';
-import { PlusOutlined, EyeOutlined, SwapOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, EyeOutlined, EditOutlined, SwapOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSalesOrders, useUpdateSalesOrderStatus } from '../../hooks';
@@ -70,9 +70,9 @@ const SalesOrderListPage: React.FC = () => {
     },
     {
       title: t('order.customer'),
-      dataIndex: ['customer', 'company_name'],
       key: 'customer',
       ellipsis: true,
+      render: (_: unknown, record: any) => record.customer?.company_name || record.customer?.contact_name || '-',
     },
     {
       title: t('order.orderDate'),
@@ -98,6 +98,17 @@ const SalesOrderListPage: React.FC = () => {
       render: (val: SalesOrderStatus) => <StatusTag status={val} type="sales" />,
     },
     {
+      title: t('order.suppliers'),
+      key: 'suppliers',
+      width: 120,
+      responsive: ['lg'] as any,
+      render: (_: unknown, record: any) => {
+        const pos = record.purchase_orders || [];
+        if (pos.length === 0) return '-';
+        return pos.map((po: any) => po.supplier?.company_name).filter(Boolean).join(', ');
+      },
+    },
+    {
       title: t('order.expectedDelivery'),
       dataIndex: 'expected_delivery',
       key: 'expected_delivery',
@@ -117,6 +128,11 @@ const SalesOrderListPage: React.FC = () => {
             <Tooltip title={t('common.viewDetail')}>
               <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }} onClick={() => navigate(`/sales-orders/${record.id}`)} />
             </Tooltip>
+            {record.status !== 'COMPLETED' && record.status !== 'CANCELLED' && (
+              <Tooltip title={t('common.edit')}>
+                <Button type="text" size="small" icon={<EditOutlined />} onClick={() => navigate(`/sales-orders/${record.id}?edit=1`)} />
+              </Tooltip>
+            )}
             {nextStatuses.length > 0 && (
               <Dropdown
                 menu={{

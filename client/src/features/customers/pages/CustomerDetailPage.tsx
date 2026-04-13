@@ -38,7 +38,7 @@ const CustomerDetailPage: React.FC = () => {
     );
   }
 
-  const orders: SalesOrder[] = (customerData?.data?.orders as SalesOrder[]) ?? [];
+  const orders: SalesOrder[] = (customerData?.data?.sales_orders as SalesOrder[]) ?? [];
   const receivables: Receivable[] = (customerData?.data?.receivables as Receivable[]) ?? [];
   const payments: Payment[] = receivables.flatMap((r) => r.payments ?? []);
 

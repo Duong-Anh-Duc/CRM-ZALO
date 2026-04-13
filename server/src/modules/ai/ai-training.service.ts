@@ -1,17 +1,16 @@
 import prisma from '../../lib/prisma';
 import logger from '../../utils/logger';
-
-const CATEGORIES = {
-  PRODUCT_ALIAS: 'Tên gọi khác của sản phẩm',
-  ORDER_EXAMPLE: 'Ví dụ tin nhắn đặt hàng',
-  CORRECTION: 'Sửa lỗi AI (AI sai → đáp án đúng)',
-  BUSINESS_RULE: 'Quy tắc kinh doanh',
-  CUSTOMER_INFO: 'Thông tin khách hàng',
-};
+import { t } from '../../locales';
 
 export class AiTrainingService {
   static getCategories() {
-    return CATEGORIES;
+    return {
+      PRODUCT_ALIAS: t('training.productAlias'),
+      ORDER_EXAMPLE: t('training.orderExample'),
+      CORRECTION: t('training.correction'),
+      BUSINESS_RULE: t('training.businessRule'),
+      CUSTOMER_INFO: t('training.customerInfo'),
+    };
   }
 
   static async list(category?: string) {

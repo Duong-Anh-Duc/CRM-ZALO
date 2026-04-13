@@ -75,7 +75,10 @@ export class SupplierService {
         supplier_prices: {
           include: { product: { select: { id: true, sku: true, name: true } } },
         },
-        purchase_orders: { orderBy: { order_date: 'desc' }, take: 50 },
+        purchase_orders: {
+          orderBy: { order_date: 'desc' }, take: 50,
+          include: { sales_order: { select: { order_code: true, customer: { select: { company_name: true, contact_name: true } } } } },
+        },
         payables: {
           include: { payments: true },
           orderBy: { created_at: 'desc' },

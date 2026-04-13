@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Tabs, Table, Row, Col, Statistic, DatePicker, Button, Spin, Empty } from 'antd';
-import { DownloadOutlined, RiseOutlined, FallOutlined } from '@ant-design/icons';
+import { DownloadOutlined, RiseOutlined, FallOutlined, ShoppingCartOutlined, DollarOutlined, FundOutlined } from '@ant-design/icons';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -17,6 +17,7 @@ const { RangePicker } = DatePicker;
 const cardStyle: React.CSSProperties = {
   borderRadius: 12,
   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  height: '100%',
 };
 
 const ReportsPage: React.FC = () => {
@@ -146,14 +147,14 @@ const ReportsPage: React.FC = () => {
           <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
             {[
               { title: t('report.revenue'), value: pnl.revenue, color: '#1890ff', icon: <RiseOutlined /> },
-              { title: t('report.cogs'), value: pnl.cogs, color: '#fa8c16' },
-              { title: t('report.grossProfit'), value: pnl.gross_profit, color: '#52c41a' },
+              { title: t('report.cogs'), value: pnl.cogs, color: '#fa8c16', icon: <ShoppingCartOutlined /> },
+              { title: t('report.grossProfit'), value: pnl.gross_profit, color: '#52c41a', icon: <DollarOutlined /> },
               { title: t('report.operatingCosts'), value: pnl.operating_costs, color: '#cf1322', icon: <FallOutlined /> },
-              { title: t('report.netProfit'), value: pnl.net_profit, color: pnl.net_profit >= 0 ? '#52c41a' : '#cf1322' },
+              { title: t('report.netProfit'), value: pnl.net_profit, color: pnl.net_profit >= 0 ? '#52c41a' : '#cf1322', icon: <FundOutlined /> },
             ].map((s) => (
-              <Col xs={24} sm={12} md={4} key={s.title}>
+              <Col xs={12} sm={8} md={4} lg={4} key={s.title} style={{ minWidth: 0 }}>
                 <Card style={cardStyle} size="small">
-                  <Statistic title={s.title} value={s.value} formatter={(v) => formatVND(v as number)} valueStyle={{ color: s.color, fontSize: 16 }} prefix={s.icon} />
+                  <Statistic title={<><span style={{ marginRight: 4 }}>{s.icon}</span>{s.title}</>} value={s.value} formatter={(v) => formatVND(v as number)} valueStyle={{ color: s.color, fontSize: 16 }} />
                 </Card>
               </Col>
             ))}

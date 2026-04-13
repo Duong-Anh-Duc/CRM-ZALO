@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Table, Typography, Space, Card, Select, Tooltip, Dropdown, Input, DatePicker } from 'antd';
-import { PlusOutlined, TruckOutlined, EyeOutlined, SwapOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, TruckOutlined, EyeOutlined, EditOutlined, SwapOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { usePurchaseOrders, useUpdatePurchaseOrderStatus } from '../../hooks';
@@ -70,6 +70,13 @@ const PurchaseOrderListPage: React.FC = () => {
       width: 150,
     },
     {
+      title: t('order.linkedSO'),
+      key: 'sales_order',
+      width: 150,
+      render: (_: unknown, record: any) => record.sales_order?.order_code || '-',
+      responsive: ['md'] as any,
+    },
+    {
       title: t('order.supplier'),
       dataIndex: ['supplier', 'company_name'],
       key: 'supplier',
@@ -123,6 +130,11 @@ const PurchaseOrderListPage: React.FC = () => {
             <Tooltip title={t('common.viewDetail')}>
               <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }} onClick={() => navigate(`/purchase-orders/${record.id}`)} />
             </Tooltip>
+            {record.status !== 'COMPLETED' && record.status !== 'CANCELLED' && (
+              <Tooltip title={t('common.edit')}>
+                <Button type="text" size="small" icon={<EditOutlined />} onClick={() => navigate(`/purchase-orders/${record.id}?edit=1`)} />
+              </Tooltip>
+            )}
             {nextStatuses.length > 0 && (
               <Dropdown
                 menu={{

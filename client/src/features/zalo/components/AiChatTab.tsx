@@ -201,7 +201,7 @@ const AiChatTab: React.FC = () => {
       title={<span><BulbOutlined style={{ color: '#faad14', marginRight: 8 }} />{t('zalo.trainAiAgent')}</span>}
     >
       <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-        Nhập kiến thức để AI học. Ví dụ: "Khách hỏi chai 5 lít tức là can HDPE 5L", "Giá sỉ từ 500 cái trở lên"...
+        {t('zalo.trainingHelpText')}
       </Text>
 
       <Form form={trainingForm} onFinish={(v) => {
@@ -211,8 +211,8 @@ const AiChatTab: React.FC = () => {
         );
       }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Form.Item name="text" style={{ flex: 1, marginBottom: 0 }} rules={[{ required: true, message: 'Nhập nội dung' }]}>
-            <Input.TextArea rows={2} placeholder="Nhập kiến thức cho AI..." style={{ borderRadius: 8 }} />
+          <Form.Item name="text" style={{ flex: 1, marginBottom: 0 }} rules={[{ required: true, message: t('zalo.trainingRequired') }]}>
+            <Input.TextArea rows={2} placeholder={t('zalo.trainingPlaceholder')} style={{ borderRadius: 8 }} />
           </Form.Item>
           <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={createTraining.isPending} style={{ borderRadius: 8, height: 'auto' }}>
             {t('common.add')}

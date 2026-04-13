@@ -17,10 +17,8 @@ enum UserRole {
 }
 
 enum CustomerType {
-  RETAIL
-  WHOLESALE
-  DISTRIBUTOR
-  OEM
+  INDIVIDUAL
+  BUSINESS
 }
 
 enum PaymentTerms {
@@ -286,7 +284,7 @@ model Customer {
   contact_name String?
   phone        String?
   email        String?
-  customer_type CustomerType @default(RETAIL)
+  customer_type CustomerType @default(INDIVIDUAL)
   debt_limit   Float        @default(0)
   zalo_user_id String?      // Phase 2
   is_active    Boolean      @default(true)
@@ -315,9 +313,10 @@ model Supplier {
   created_at    DateTime     @default(now())
   updated_at    DateTime     @updatedAt
 
-  supplier_prices  SupplierPrice[]
-  purchase_orders  PurchaseOrder[]
-  payables         Payable[]
+  supplier_prices    SupplierPrice[]
+  purchase_orders    PurchaseOrder[]
+  payables           Payable[]
+  sales_order_items  SalesOrderItem[]
 
   @@map("suppliers")
 }
@@ -359,10 +358,11 @@ model SalesOrder {
   created_at          DateTime         @default(now())
   updated_at          DateTime         @updatedAt
 
-  customer    Customer         @relation(fields: [customer_id], references: [id])
-  items       SalesOrderItem[]
-  receivables Receivable[]
-  invoices    Invoice[]
+  customer        Customer         @relation(fields: [customer_id], references: [id])
+  items           SalesOrderItem[]
+  purchase_orders PurchaseOrder[]
+  receivables     Receivable[]
+  invoices        Invoice[]
 
   @@map("sales_orders")
 }
@@ -372,16 +372,20 @@ model SalesOrderItem {
   sales_order_id String
   product_id     String?
   combo_id       String?
+  supplier_id    String?            // NCC cung cấp SP này
   quantity       Int
-  unit_price     Float
+  unit_price     Float              // Giá bán cho khách
+  purchase_price Float?             // Giá mua từ NCC
   discount_pct   Float   @default(0)
   line_total     Float
   color_note     String?
   packaging_note String?
+  supplier_status String @default("PENDING") // PENDING, CONFIRMED, SHIPPING, DELIVERED
 
   sales_order SalesOrder    @relation(fields: [sales_order_id], references: [id])
   product     Product?      @relation(fields: [product_id], references: [id])
   combo       ProductCombo? @relation(fields: [combo_id], references: [id])
+  supplier    Supplier?     @relation(fields: [supplier_id], references: [id])
 
   @@map("sales_order_items")
 }
@@ -391,20 +395,24 @@ model SalesOrderItem {
 model PurchaseOrder {
   id                 String              @id @default(uuid())
   order_code         String              @unique
+  sales_order_id     String?             // Linked to SO (required for new flow)
   supplier_id        String
   order_date         DateTime            @default(now())
   expected_delivery  DateTime?
   notes              String?
   total              Float               @default(0)
   status             PurchaseOrderStatus @default(NEW)
-  zalo_message_id    String?             // Phase 2
+  zalo_message_id    String?
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
 
-  supplier  Supplier            @relation(fields: [supplier_id], references: [id])
-  items     PurchaseOrderItem[]
-  payables  Payable[]
+  sales_order SalesOrder?         @relation(fields: [sales_order_id], references: [id])
+  supplier    Supplier            @relation(fields: [supplier_id], references: [id])
+  items       PurchaseOrderItem[]
+  payables    Payable[]
+  invoices    Invoice[]
 
+  @@index([sales_order_id])
   @@map("purchase_orders")
 }
 
@@ -527,18 +535,20 @@ model OperatingCost {
 // ─── INVOICES ───────────────────────────────────────
 
 model Invoice {
-  id               String        @id @default(uuid())
-  sales_order_id   String
-  status           InvoiceStatus @default(DRAFT)
-  serial           String        @default("1C26PKF")
-  invoice_number   Int
-  invoice_date     DateTime      @default(now())
-  cqt_code         String?
+  id                 String        @id @default(uuid())
+  type               String        @default("SALES") // SALES or PURCHASE
+  sales_order_id     String?
+  purchase_order_id  String?
+  status             InvoiceStatus @default(DRAFT)
+  serial             String        @default("1C26PKF")
+  invoice_number     Int
+  invoice_date       DateTime      @default(now())
+  cqt_code           String?
 
-  // Seller info (editable)
-  seller_name      String
-  seller_tax_code  String
-  seller_address   String
+  // Seller info (editable - for SALES invoice)
+  seller_name      String?
+  seller_tax_code  String?
+  seller_address   String?
   seller_phone     String?
   seller_email     String?
   seller_rep       String?
@@ -546,37 +556,44 @@ model Invoice {
   seller_bank      String?
   seller_bank_name String?
 
-  // Buyer info (editable)
-  buyer_name       String
-  buyer_company    String
+  // Buyer info (editable - for SALES invoice)
+  buyer_name       String?
+  buyer_company    String?
   buyer_address    String?
   buyer_tax_code   String?
   buyer_phone      String?
   buyer_email      String?
   buyer_payment    String?       @default("Chuyển khoản")
 
-  // Items & amounts (editable)
-  items            Json          // [{name, unit, quantity, unitPrice, amount}]
-  subtotal         Float
+  // Items & amounts (for SALES invoice)
+  items            Json?         // [{name, unit, quantity, unitPrice, amount}]
+  subtotal         Float?
   vat_rate         Int           @default(10)
-  vat_amount       Float
-  total            Float
+  vat_amount       Float?
+  total            Float?
   total_in_words   String?
   notes            String?
+
+  // File upload (for PURCHASE invoice from supplier)
+  file_url         String?       // Uploaded invoice file/image URL
+  file_name        String?
 
   created_at       DateTime      @default(now())
   updated_at       DateTime      @default(now()) @updatedAt
 
-  sales_order      SalesOrder    @relation(fields: [sales_order_id], references: [id])
+  sales_order      SalesOrder?    @relation(fields: [sales_order_id], references: [id])
+  purchase_order   PurchaseOrder? @relation(fields: [purchase_order_id], references: [id])
 
   @@index([sales_order_id])
+  @@index([purchase_order_id])
   @@index([status])
+  @@index([type])
   @@map("invoices")
 }
 
 enum InvoiceStatus {
   DRAFT
-  FINAL
+  APPROVED
   CANCELLED
 }
 

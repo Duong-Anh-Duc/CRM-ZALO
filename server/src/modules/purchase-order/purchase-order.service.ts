@@ -8,6 +8,7 @@ import { delCache } from '../../lib/redis';
 
 interface CreatePurchaseOrderInput {
   supplier_id: string;
+  sales_order_id?: string;
   expected_delivery?: string;
   notes?: string;
   status?: PurchaseOrderStatus;
@@ -46,7 +47,9 @@ export class PurchaseOrderService {
         where,
         include: {
           supplier: { select: { id: true, company_name: true, phone: true } },
+          sales_order: { select: { order_code: true, customer: { select: { company_name: true, contact_name: true } } } },
           items: { include: { product: { select: { id: true, sku: true, name: true } } } },
+          invoices: { where: { type: 'PURCHASE' }, select: { id: true, status: true, file_url: true } },
         },
         skip: (page - 1) * limit,
         take: limit,
@@ -63,7 +66,9 @@ export class PurchaseOrderService {
       where: { id },
       include: {
         supplier: true,
+        sales_order: { select: { id: true, order_code: true, customer: { select: { company_name: true, contact_name: true } } } },
         items: { include: { product: { select: { id: true, sku: true, name: true } } } },
+        invoices: { where: { type: 'PURCHASE' } },
         payables: { include: { payments: true } },
       },
     });
@@ -93,7 +98,8 @@ export class PurchaseOrderService {
       data: {
         order_code: orderCode,
         supplier_id: input.supplier_id,
-        status: input.status || 'NEW',
+        sales_order_id: input.sales_order_id || null,
+        status: input.status || 'PENDING',
         expected_delivery: input.expected_delivery ? new Date(input.expected_delivery) : null,
         notes: input.notes,
         total,
@@ -106,32 +112,30 @@ export class PurchaseOrderService {
     return order;
   }
 
+  static async update(id: string, data: { notes?: string; expected_delivery?: string }) {
+    const order = await prisma.purchaseOrder.findUnique({ where: { id } });
+    if (!order) throw new AppError(t('order.purchaseNotFound'), 404);
+
+    const updateData: any = {};
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.expected_delivery) updateData.expected_delivery = new Date(data.expected_delivery);
+
+    const updated = await prisma.purchaseOrder.update({ where: { id }, data: updateData, include: { supplier: true, items: true } });
+    await delCache('cache:/api/purchase-orders*');
+    return updated;
+  }
+
   static async updateStatus(id: string, status: PurchaseOrderStatus) {
     const order = await prisma.purchaseOrder.findUnique({ where: { id } });
     if (!order) throw new AppError(t('order.purchaseNotFound'), 404);
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const result = await tx.purchaseOrder.update({
-        where: { id },
-        data: { status },
-      });
-
-      if (status === 'CONFIRMED' && order.status === 'NEW') {
-        const dueDays = config.defaultReceivableDueDays;
-        await tx.payable.create({
-          data: {
-            purchase_order_id: id,
-            supplier_id: order.supplier_id,
-            invoice_date: new Date(),
-            due_date: dayjs().add(dueDays, 'day').toDate(),
-            original_amount: order.total,
-            remaining: order.total,
-          },
-        });
-      }
-
-      return result;
+    const updated = await prisma.purchaseOrder.update({
+      where: { id },
+      data: { status },
     });
+
+    // Debts are now created by SalesOrderService.checkAndCreateDebts
+    // when both sales + purchase invoices are approved
 
     await delCache('cache:/api/purchase-orders*', 'cache:/api/dashboard*', 'cache:/api/payables*');
     return updated;

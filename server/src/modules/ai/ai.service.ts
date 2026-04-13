@@ -109,9 +109,14 @@ ACTIONS-->
 DANH SACH ACTIONS:
 
 -- KHACH HANG --
-create_customer: {"company_name","contact_name","phone","email","tax_code","address","customer_type":"RETAIL/WHOLESALE/DISTRIBUTOR/OEM"}
+create_customer: {"company_name","contact_name","phone","email","tax_code","address","customer_type":"INDIVIDUAL/BUSINESS"}
 update_customer: {"customer_name":"tên hiện tại","updates":{"company_name","contact_name","phone","email","tax_code","address","customer_type","debt_limit"}}
 delete_customer: {"customer_name":"tên KH"}
+
+QUY TAC PHAN BIET KHACH HANG:
+- INDIVIDUAL (Ca nhan): Chi co ten nguoi, khong co ten cong ty, khong co MST. VD: "Nguyen Van A", "anh Tung"
+- BUSINESS (Doanh nghiep): Co ten cong ty/co so/cua hang, co the co MST. VD: "Cong ty TNHH ABC", "Co so Hoa Phat"
+Khi tao khach hang, neu chi co ten nguoi → INDIVIDUAL, neu co "cong ty", "co so", "cua hang" → BUSINESS
 
 -- NHA CUNG CAP --
 create_supplier: {"company_name","contact_name","phone","email","tax_code","address","payment_terms":"NET_30/NET_60/NET_90/IMMEDIATE"}
@@ -132,6 +137,7 @@ finalize_invoice: {"order_code":"SO-xxx"}
 
 -- THANH TOAN / CONG NO --
 record_payment: {"type":"receivable/payable","order_code":"SO-xxx hoac PO-xxx","amount":1000000,"method":"CASH/BANK_TRANSFER","reference":"so tham chieu"}
+mark_debt_paid: {"type":"receivable/payable","order_code":"SO-xxx hoac PO-xxx"} (danh dau da thanh toan het)
 
 -- SAN PHAM --
 create_product: {"name","sku","category_name","material":"PET/HDPE/PP","retail_price","wholesale_price","moq","description"}
@@ -347,6 +353,62 @@ async function buildBusinessContext(): Promise<string> {
       for (const s of pendingSuggestions) {
         const items = ((s.matched_items || []) as any[]).map((i: any) => `${i.product_name} x${i.quantity}`).join(', ');
         lines.push(`- Từ: ${s.sender_name} | KH: ${s.customer_name} | SP: ${items || 'chưa khớp'}`);
+      }
+    }
+
+    // Receivables (công nợ phải thu)
+    const receivables = await prisma.receivable.findMany({
+      where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
+      include: {
+        customer: { select: { company_name: true } },
+        sales_order: { select: { order_code: true } },
+      },
+      orderBy: { due_date: 'asc' },
+    });
+    if (receivables.length > 0) {
+      const totalRec = receivables.reduce((s, r) => s + Number(r.remaining), 0);
+      const overdue = receivables.filter((r) => r.status === 'OVERDUE' || new Date(r.due_date) < new Date());
+      lines.push(`\n--- CÔNG NỢ PHẢI THU (${receivables.length} | Tổng: ${totalRec.toLocaleString()}đ | Quá hạn: ${overdue.length}) ---`);
+      for (const r of receivables) {
+        const isOverdue = r.status === 'OVERDUE' || new Date(r.due_date) < new Date();
+        lines.push(`- ${r.sales_order?.order_code || '?'} | ${r.customer?.company_name} | Còn: ${Number(r.remaining).toLocaleString()}đ | Hạn: ${r.due_date.toLocaleDateString('vi-VN')}${isOverdue ? ' QUÁ HẠN' : ''}`);
+      }
+    } else {
+      lines.push('\n--- CÔNG NỢ PHẢI THU: Không có ---');
+    }
+
+    // Payables (công nợ phải trả)
+    const payables = await prisma.payable.findMany({
+      where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
+      include: {
+        supplier: { select: { company_name: true } },
+        purchase_order: { select: { order_code: true } },
+      },
+      orderBy: { due_date: 'asc' },
+    });
+    if (payables.length > 0) {
+      const totalPay = payables.reduce((s, p) => s + Number(p.remaining), 0);
+      const overdue = payables.filter((p) => p.status === 'OVERDUE' || new Date(p.due_date) < new Date());
+      lines.push(`\n--- CÔNG NỢ PHẢI TRẢ (${payables.length} | Tổng: ${totalPay.toLocaleString()}đ | Quá hạn: ${overdue.length}) ---`);
+      for (const p of payables) {
+        const isOverdue = p.status === 'OVERDUE' || new Date(p.due_date) < new Date();
+        lines.push(`- ${p.purchase_order?.order_code || '?'} | ${p.supplier?.company_name} | Còn: ${Number(p.remaining).toLocaleString()}đ | Hạn: ${p.due_date.toLocaleDateString('vi-VN')}${isOverdue ? ' QUÁ HẠN' : ''}`);
+      }
+    } else {
+      lines.push('\n--- CÔNG NỢ PHẢI TRẢ: Không có ---');
+    }
+
+    // Invoices
+    const invoices = await prisma.invoice.findMany({
+      where: { status: { in: ['DRAFT', 'APPROVED'] } },
+      include: { sales_order: { select: { order_code: true } } },
+      orderBy: { created_at: 'desc' },
+      take: 10,
+    });
+    if (invoices.length > 0) {
+      lines.push(`\n--- HOÁ ĐƠN (${invoices.length}) ---`);
+      for (const inv of invoices) {
+        lines.push(`- #${inv.invoice_number} | ${inv.sales_order?.order_code || '?'} | ${inv.buyer_company} | ${Number(inv.total).toLocaleString()}đ | ${inv.status}`);
       }
     }
 

@@ -17,7 +17,7 @@ const InvoiceListPage: React.FC = () => {
 
   const statusConfig: Record<string, { color: string; label: string }> = {
     DRAFT: { color: 'orange', label: t('invoice.statusDraft') },
-    FINAL: { color: 'green', label: t('invoice.statusFinal') },
+    APPROVED: { color: 'green', label: t('invoice.statusApproved') },
     CANCELLED: { color: 'red', label: t('invoice.statusCancelled') },
   };
 
@@ -93,7 +93,7 @@ const InvoiceListPage: React.FC = () => {
       title: t('common.actions'), key: 'actions', width: 160, align: 'center' as const,
       render: (_: unknown, r: any) => (
         <Space size={8}>
-          <Tooltip title="Xem PDF">
+          <Tooltip title={t('invoice.viewPdf')}>
             <Button type="text" size="small" icon={<FilePdfOutlined />} onClick={() => setPreviewId(r.id)} />
           </Tooltip>
           {r.status === 'DRAFT' && (
@@ -142,7 +142,7 @@ const InvoiceListPage: React.FC = () => {
             options={[
               { label: t('common.all'), value: '' },
               { label: t('invoice.statusDraft'), value: 'DRAFT' },
-              { label: t('invoice.statusFinal'), value: 'FINAL' },
+              { label: t('invoice.statusApproved'), value: 'APPROVED' },
               { label: t('invoice.statusCancelled'), value: 'CANCELLED' },
             ]}
           />
@@ -168,7 +168,7 @@ const InvoiceListPage: React.FC = () => {
             onChange: (p, ps) => { setPage(p); setPageSize(ps); },
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50'],
-            showTotal: (t) => `${t} hoá đơn`,
+            showTotal: (total) => `${total} ${t('invoice.title').toLowerCase()}`,
           }}
         />
       </Card>

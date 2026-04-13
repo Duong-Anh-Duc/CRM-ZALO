@@ -263,23 +263,17 @@ export class ZaloService {
         await prisma.zaloMessage.createMany({ data: records });
         logger.info(`Zalo webhook: saved ${records.length} ${direction} messages (${event})`);
 
-        // Create order suggestions from incoming messages (fire-and-forget)
-        if (direction === 'INCOMING') {
+        // Auto-detect & process incoming messages (fire-and-forget)
+        if (direction === 'INCOMING' && !isGroup) {
           for (const msg of msgs) {
             const msgContent = msg.content || msg.text || '';
-            if (msgContent && msgContent.length > 5) {
-              ZaloOrderService.processMessage(
-                msg.uidFrom || msg.senderId || '',
-                msg.dName || msg.senderName || '',
-                msgContent,
-              ).then((result) => {
-                if (result.suggested) {
-                  logger.info(`Zalo order suggestion created from ${msg.dName || msg.senderName}`);
-                }
-              }).catch((err) => {
-                logger.error('Zalo order suggestion background error:', err);
-              });
-            }
+            const senderName = msg.dName || msg.senderName || '';
+            const senderId = msg.uidFrom || msg.senderId || '';
+            if (!msgContent || msgContent.length < 3) continue;
+
+            this.autoProcessMessage(senderId, senderName, msgContent).catch((err) => {
+              logger.error('Zalo auto-process error:', err);
+            });
           }
         }
 
@@ -319,6 +313,143 @@ export class ZaloService {
     } catch (err) {
       logger.error('Zalo webhook processing error:', err);
       throw err;
+    }
+  }
+
+  // ──── Auto-process incoming Zalo messages ────
+
+  private static async createNotification(type: string, title: string, message: string) {
+    await prisma.alert.create({
+      data: { type, title, message, is_read: false },
+    });
+    logger.info(`Notification: [${type}] ${title}`);
+  }
+
+  private static async autoProcessMessage(senderId: string, senderName: string, content: string) {
+    const text = content.toLowerCase();
+
+    // 1. Detect payment ("đã chuyển khoản", "đã ck", "đã thanh toán", "đã gửi tiền")
+    const paymentPatterns = /đã (chuyển khoản|ck|thanh toán|gửi tiền|chuyển tiền|trả tiền|cọc)/i;
+    const amountMatch = content.match(/(\d[\d.,]*)\s*(k|tr|triệu|nghìn|ngàn|đ|dong|vnđ|vnd)?/i);
+
+    if (paymentPatterns.test(content) && amountMatch) {
+      let amount = parseFloat(amountMatch[1].replace(/[.,]/g, ''));
+      const unit = (amountMatch[2] || '').toLowerCase();
+      if (unit === 'k' || unit === 'nghìn' || unit === 'ngàn') amount *= 1000;
+      if (unit === 'tr' || unit === 'triệu') amount *= 1000000;
+
+      if (amount > 0) {
+        // Find customer by zalo_user_id or name
+        const customer = await prisma.customer.findFirst({
+          where: {
+            is_active: true,
+            OR: [
+              { zalo_user_id: senderId },
+              { contact_name: { contains: senderName, mode: 'insensitive' as const } },
+            ],
+          },
+        });
+
+        if (customer) {
+          // Find unpaid receivable
+          const receivable = await prisma.receivable.findFirst({
+            where: { customer_id: customer.id, status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
+            include: { sales_order: { select: { order_code: true } } },
+            orderBy: { due_date: 'asc' },
+          });
+
+          if (receivable) {
+            const payAmount = Math.min(amount, Number(receivable.remaining));
+            await prisma.$transaction(async (tx) => {
+              await tx.receivablePayment.create({
+                data: {
+                  receivable_id: receivable.id,
+                  amount: payAmount,
+                  payment_date: new Date(),
+                  method: 'BANK_TRANSFER',
+                  reference: `Zalo: ${senderName} - "${content.substring(0, 50)}"`,
+                },
+              });
+              const newPaid = Number(receivable.paid_amount) + payAmount;
+              const newRemaining = Number(receivable.original_amount) - newPaid;
+              await tx.receivable.update({
+                where: { id: receivable.id },
+                data: { paid_amount: newPaid, remaining: Math.max(0, newRemaining), status: newRemaining <= 0 ? 'PAID' : 'PARTIAL' },
+              });
+            });
+
+            await this.createNotification(
+              'WARNING',
+              `Thanh toán từ ${senderName}`,
+              `${senderName} báo đã thanh toán ${payAmount.toLocaleString()}đ cho đơn ${receivable.sales_order?.order_code}. Công nợ còn: ${Math.max(0, Number(receivable.remaining) - payAmount).toLocaleString()}đ. Vui lòng kiểm tra tài khoản ngân hàng.`,
+            );
+            return;
+          }
+        }
+
+        // No matching receivable — still notify
+        await this.createNotification(
+          'WARNING',
+          `Thanh toán từ ${senderName}`,
+          `${senderName} báo đã thanh toán ${amount.toLocaleString()}đ nhưng chưa tìm thấy công nợ tương ứng. Nội dung: "${content.substring(0, 100)}"`,
+        );
+        return;
+      }
+    }
+
+    // 2. Detect order ("đặt hàng", "mua", "order", kèm số lượng)
+    const orderPatterns = /đặt|mua|order|lấy|cần|gửi.*\d/i;
+    const hasQuantity = /\d+\s*(cái|chai|hũ|can|nắp|thùng|kg|lít|bộ|c\b|k\b)/i.test(content);
+
+    if (orderPatterns.test(content) && hasQuantity && content.length > 10) {
+      // Use existing AI extraction
+      ZaloOrderService.processMessage(senderId, senderName, content).then((result) => {
+        if (result.suggested) {
+          this.createNotification(
+            'URGENT',
+            `Đơn hàng mới từ ${senderName}`,
+            `${senderName} có yêu cầu đặt hàng: "${content.substring(0, 150)}". Đơn đã tạo ở trạng thái chờ duyệt.`,
+          );
+        }
+      }).catch(() => {});
+      return;
+    }
+
+    // 3. Detect delivery confirmation ("đã nhận hàng", "hàng đã đến", "đã giao")
+    const deliveryPatterns = /đã (nhận hàng|nhận được|giao xong|giao rồi)|hàng (đã đến|đã nhận|ok)/i;
+    if (deliveryPatterns.test(content)) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          is_active: true,
+          OR: [
+            { zalo_user_id: senderId },
+            { contact_name: { contains: senderName, mode: 'insensitive' as const } },
+          ],
+        },
+      });
+
+      if (customer) {
+        const shippingOrder = await prisma.salesOrder.findFirst({
+          where: { customer_id: customer.id, status: 'SHIPPING' },
+          orderBy: { created_at: 'desc' },
+        });
+
+        if (shippingOrder) {
+          await prisma.salesOrder.update({ where: { id: shippingOrder.id }, data: { status: 'COMPLETED' } });
+          await this.createNotification(
+            'WARNING',
+            `Xác nhận giao hàng - ${senderName}`,
+            `${senderName} xác nhận đã nhận hàng đơn ${shippingOrder.order_code}. Đơn đã chuyển sang Hoàn thành.`,
+          );
+          return;
+        }
+      }
+
+      await this.createNotification(
+        'WARNING',
+        `Xác nhận giao hàng - ${senderName}`,
+        `${senderName} báo đã nhận hàng: "${content.substring(0, 100)}"`,
+      );
     }
   }
 
@@ -524,9 +655,18 @@ export class ZaloService {
             },
           });
           if (existing) {
-            results.push({ success: true, message: `Khách hàng "${existing.company_name}" đã tồn tại` });
+            results.push({ success: true, message: t("aiAction.customerExists", { name: existing.company_name }) });
             continue;
           }
+          // Auto-detect customer type if not specified
+          let customerType = d.customer_type || 'INDIVIDUAL';
+          if (!d.customer_type) {
+            const name = (d.company_name || d.contact_name || '').toLowerCase();
+            if (/công ty|tnhh|cp |cổ phần/.test(name)) customerType = 'BUSINESS';
+            else if (/cơ sở|cửa hàng|shop|quán/.test(name)) customerType = 'BUSINESS';
+            else if (/đại lý/.test(name)) customerType = 'BUSINESS';
+          }
+
           const customer = await prisma.customer.create({
             data: {
               company_name: d.company_name || d.contact_name,
@@ -535,10 +675,10 @@ export class ZaloService {
               email: d.email || '',
               tax_code: d.tax_code || '',
               address: d.address || '',
-              customer_type: d.customer_type === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL',
+              customer_type: customerType as any,
             },
           });
-          results.push({ success: true, message: `Đã tạo khách hàng "${customer.company_name}"` });
+          results.push({ success: true, message: t("aiAction.customerCreated", { name: customer.company_name }) });
 
         } else if (action.type === 'create_order_suggestion') {
           const d = action.data;
@@ -582,7 +722,7 @@ export class ZaloService {
           const customer = await prisma.customer.findFirst({
             where: { company_name: { contains: d.customer_name, mode: 'insensitive' }, is_active: true },
           });
-          if (!customer) { results.push({ success: false, message: `Không tìm thấy khách hàng "${d.customer_name}"` }); continue; }
+          if (!customer) { results.push({ success: false, message: t("aiAction.customerNotFound", { name: d.customer_name }) }); continue; }
 
           const updates: any = {};
           if (d.updates?.tax_code) updates.tax_code = d.updates.tax_code;
@@ -592,27 +732,27 @@ export class ZaloService {
           if (d.updates?.contact_name) updates.contact_name = d.updates.contact_name;
           if (d.updates?.company_name) updates.company_name = d.updates.company_name;
 
-          if (Object.keys(updates).length === 0) { results.push({ success: false, message: 'Không có thông tin cần cập nhật' }); continue; }
+          if (Object.keys(updates).length === 0) { results.push({ success: false, message: t("aiAction.noUpdateData") }); continue; }
 
           await prisma.customer.update({ where: { id: customer.id }, data: updates });
           const fields = Object.keys(updates).join(', ');
-          results.push({ success: true, message: `Đã cập nhật ${fields} cho khách hàng "${customer.company_name}"` });
+          results.push({ success: true, message: t("aiAction.customerUpdated", { fields, name: customer.company_name }) });
 
         } else if (action.type === 'update_sales_order') {
           const d = action.data;
           const order = await prisma.salesOrder.findFirst({
             where: { order_code: { contains: d.order_code, mode: 'insensitive' } },
           });
-          if (!order) { results.push({ success: false, message: `Không tìm thấy đơn hàng "${d.order_code}"` }); continue; }
+          if (!order) { results.push({ success: false, message: t("aiAction.orderNotFound", { code: d.order_code }) }); continue; }
 
           const updates: any = {};
           if (d.updates?.notes) updates.notes = d.updates.notes;
           if (d.updates?.expected_delivery) updates.expected_delivery = new Date(d.updates.expected_delivery);
 
-          if (Object.keys(updates).length === 0) { results.push({ success: false, message: 'Không có thông tin cần cập nhật' }); continue; }
+          if (Object.keys(updates).length === 0) { results.push({ success: false, message: t("aiAction.noUpdateData") }); continue; }
 
           await prisma.salesOrder.update({ where: { id: order.id }, data: updates });
-          results.push({ success: true, message: `Đã cập nhật đơn hàng ${order.order_code}` });
+          results.push({ success: true, message: t("aiAction.salesOrderUpdated", { code: order.order_code }) });
 
         } else if (action.type === 'create_sales_order') {
           const d = action.data;
@@ -631,6 +771,10 @@ export class ZaloService {
             if (existing) {
               customerId = existing.id;
             } else {
+              const custName = (d.customer_name || '').toLowerCase();
+              const autoType = /công ty|tnhh|cp |cổ phần/.test(custName) ? 'BUSINESS'
+                : /cơ sở|cửa hàng|shop|quán/.test(custName) ? 'RETAIL'
+                : /đại lý/.test(custName) ? 'BUSINESS' : 'INDIVIDUAL';
               const newCust = await prisma.customer.create({
                 data: {
                   company_name: d.customer_name,
@@ -638,14 +782,14 @@ export class ZaloService {
                   phone: d.phone || '',
                   tax_code: d.tax_code || '',
                   address: d.address || '',
-                  customer_type: 'RETAIL',
+                  customer_type: autoType as any,
                 },
               });
               customerId = newCust.id;
-              results.push({ success: true, message: `Đã tạo khách hàng "${newCust.company_name}"` });
+              results.push({ success: true, message: t("aiAction.customerCreated", { name: newCust.company_name }) });
             }
           }
-          if (!customerId) { results.push({ success: false, message: 'Thiếu thông tin khách hàng' }); continue; }
+          if (!customerId) { results.push({ success: false, message: t("aiAction.missingCustomerInfo") }); continue; }
 
           // Match products
           const products = await prisma.product.findMany({ where: { is_active: true }, select: { id: true, name: true, sku: true, wholesale_price: true, retail_price: true } });
@@ -663,7 +807,7 @@ export class ZaloService {
               });
             }
           }
-          if (orderItems.length === 0) { results.push({ success: false, message: 'Không khớp được sản phẩm nào' }); continue; }
+          if (orderItems.length === 0) { results.push({ success: false, message: t("aiAction.noProductMatch") }); continue; }
 
           const so = await SalesOrderService.create({
             customer_id: customerId,
@@ -673,7 +817,7 @@ export class ZaloService {
             notes: d.notes || `[AI] ${d.customer_name}`,
             items: orderItems,
           });
-          results.push({ success: true, message: `Đã tạo đơn bán ${so.order_code} (chờ duyệt) — ${orderItems.length} SP, tổng ${so.grand_total.toLocaleString()}đ` });
+          results.push({ success: true, message: t("aiAction.salesOrderCreated", { code: so.order_code, count: orderItems.length, total: so.grand_total.toLocaleString() }) });
 
         } else if (action.type === 'create_purchase_order') {
           const d = action.data;
@@ -685,7 +829,7 @@ export class ZaloService {
             });
             if (supplier) supplierId = supplier.id;
           }
-          if (!supplierId) { results.push({ success: false, message: `Không tìm thấy NCC "${d.supplier_name}"` }); continue; }
+          if (!supplierId) { results.push({ success: false, message: t("aiAction.supplierNotFound", { name: d.supplier_name }) }); continue; }
 
           // Match products with supplier prices
           const supplierPrices = await prisma.supplierPrice.findMany({
@@ -706,7 +850,7 @@ export class ZaloService {
               });
             }
           }
-          if (poItems.length === 0) { results.push({ success: false, message: 'Không khớp được sản phẩm nào với NCC' }); continue; }
+          if (poItems.length === 0) { results.push({ success: false, message: t("aiAction.noProductMatchSupplier") }); continue; }
 
           const po = await PurchaseOrderService.create({
             supplier_id: supplierId,
@@ -715,19 +859,19 @@ export class ZaloService {
             notes: d.notes || `[AI] Mua cho ${d.supplier_name}`,
             items: poItems,
           });
-          results.push({ success: true, message: `Đã tạo đơn mua ${po.order_code} (chờ duyệt) từ "${d.supplier_name}" — ${poItems.length} SP, tổng ${po.total.toLocaleString()}đ` });
+          results.push({ success: true, message: t("aiAction.purchaseOrderCreated", { code: po.order_code, supplier: d.supplier_name, count: poItems.length, total: po.total.toLocaleString() }) });
 
         } else if (action.type === 'delete_customer') {
           const d = action.data;
           const customer = await prisma.customer.findFirst({ where: { company_name: { contains: d.customer_name, mode: 'insensitive' }, is_active: true } });
-          if (!customer) { results.push({ success: false, message: `Không tìm thấy khách hàng "${d.customer_name}"` }); continue; }
+          if (!customer) { results.push({ success: false, message: t("aiAction.customerNotFound", { name: d.customer_name }) }); continue; }
           await prisma.customer.update({ where: { id: customer.id }, data: { is_active: false } });
-          results.push({ success: true, message: `Đã xoá khách hàng "${customer.company_name}"` });
+          results.push({ success: true, message: t("aiAction.customerDeleted", { name: customer.company_name }) });
 
         } else if (action.type === 'create_supplier') {
           const d = action.data;
           const existing = await prisma.supplier.findFirst({ where: { company_name: { contains: d.company_name, mode: 'insensitive' }, is_active: true } });
-          if (existing) { results.push({ success: true, message: `NCC "${d.company_name}" đã tồn tại` }); continue; }
+          if (existing) { results.push({ success: true, message: t("aiAction.supplierExists", { name: d.company_name }) }); continue; }
           const supplier = await prisma.supplier.create({
             data: {
               company_name: d.company_name, contact_name: d.contact_name || '', phone: d.phone || '',
@@ -735,93 +879,93 @@ export class ZaloService {
               payment_terms: d.payment_terms || 'NET_30',
             },
           });
-          results.push({ success: true, message: `Đã tạo NCC "${supplier.company_name}"` });
+          results.push({ success: true, message: t("aiAction.supplierCreated", { name: supplier.company_name }) });
 
         } else if (action.type === 'update_supplier') {
           const d = action.data;
           const supplier = await prisma.supplier.findFirst({ where: { company_name: { contains: d.supplier_name, mode: 'insensitive' }, is_active: true } });
-          if (!supplier) { results.push({ success: false, message: `Không tìm thấy NCC "${d.supplier_name}"` }); continue; }
+          if (!supplier) { results.push({ success: false, message: t("aiAction.supplierNotFound", { name: d.supplier_name }) }); continue; }
           const u = d.updates || {};
           const updates: any = {};
           for (const k of ['company_name', 'contact_name', 'phone', 'email', 'tax_code', 'address', 'payment_terms']) {
             if (u[k] !== undefined) updates[k] = u[k];
           }
-          if (Object.keys(updates).length === 0) { results.push({ success: false, message: 'Không có thông tin cần cập nhật' }); continue; }
+          if (Object.keys(updates).length === 0) { results.push({ success: false, message: t("aiAction.noUpdateData") }); continue; }
           await prisma.supplier.update({ where: { id: supplier.id }, data: updates });
-          results.push({ success: true, message: `Đã cập nhật NCC "${supplier.company_name}"` });
+          results.push({ success: true, message: t("aiAction.supplierUpdated", { name: supplier.company_name }) });
 
         } else if (action.type === 'update_order_status') {
           const d = action.data;
           const code = d.order_code || '';
           if (code.startsWith('SO')) {
             const order = await prisma.salesOrder.findFirst({ where: { order_code: code } });
-            if (!order) { results.push({ success: false, message: `Không tìm thấy ${code}` }); continue; }
+            if (!order) { results.push({ success: false, message: t("aiAction.orderNotFound", { code }) }); continue; }
             await SalesOrderService.updateStatus(order.id, d.status);
-            results.push({ success: true, message: `Đã chuyển ${code} sang ${d.status}` });
+            results.push({ success: true, message: t("aiAction.statusChanged", { code, status: d.status }) });
           } else if (code.startsWith('PO')) {
             const order = await prisma.purchaseOrder.findFirst({ where: { order_code: code } });
-            if (!order) { results.push({ success: false, message: `Không tìm thấy ${code}` }); continue; }
+            if (!order) { results.push({ success: false, message: t("aiAction.orderNotFound", { code }) }); continue; }
             await PurchaseOrderService.updateStatus(order.id, d.status);
-            results.push({ success: true, message: `Đã chuyển ${code} sang ${d.status}` });
+            results.push({ success: true, message: t("aiAction.statusChanged", { code, status: d.status }) });
           } else {
-            results.push({ success: false, message: `Mã đơn không hợp lệ: ${code}` });
+            results.push({ success: false, message: t("aiAction.invalidOrderCode", { code }) });
           }
 
         } else if (action.type === 'update_purchase_order') {
           const d = action.data;
           const order = await prisma.purchaseOrder.findFirst({ where: { order_code: { contains: d.order_code, mode: 'insensitive' } } });
-          if (!order) { results.push({ success: false, message: `Không tìm thấy ${d.order_code}` }); continue; }
+          if (!order) { results.push({ success: false, message: t("aiAction.orderNotFound", { code: d.order_code }) }); continue; }
           const updates: any = {};
           if (d.updates?.notes) updates.notes = d.updates.notes;
           if (d.updates?.expected_delivery) updates.expected_delivery = new Date(d.updates.expected_delivery);
           await prisma.purchaseOrder.update({ where: { id: order.id }, data: updates });
-          results.push({ success: true, message: `Đã cập nhật ${order.order_code}` });
+          results.push({ success: true, message: t("aiAction.purchaseOrderUpdated", { code: order.order_code }) });
 
         } else if (action.type === 'create_invoice') {
           const d = action.data;
           const so = await prisma.salesOrder.findFirst({ where: { order_code: { contains: d.order_code, mode: 'insensitive' } } });
-          if (!so) { results.push({ success: false, message: `Không tìm thấy đơn "${d.order_code}"` }); continue; }
+          if (!so) { results.push({ success: false, message: t("aiAction.invoiceNotFound", { code: d.order_code }) }); continue; }
           const invoice = await InvoiceService.createDraftFromOrder(so.id);
-          results.push({ success: true, message: `Đã tạo hoá đơn nháp #${invoice.invoice_number} cho ${so.order_code}` });
+          results.push({ success: true, message: t("aiAction.invoiceCreated", { number: invoice.invoice_number, code: so.order_code }) });
 
         } else if (action.type === 'finalize_invoice') {
           const d = action.data;
           const so = await prisma.salesOrder.findFirst({ where: { order_code: { contains: d.order_code, mode: 'insensitive' } } });
-          if (!so) { results.push({ success: false, message: `Không tìm thấy đơn "${d.order_code}"` }); continue; }
+          if (!so) { results.push({ success: false, message: t("aiAction.invoiceNotFound", { code: d.order_code }) }); continue; }
           const invoice = await prisma.invoice.findFirst({ where: { sales_order_id: so.id, status: 'DRAFT' } });
-          if (!invoice) { results.push({ success: false, message: `Không có hoá đơn nháp cho ${d.order_code}` }); continue; }
+          if (!invoice) { results.push({ success: false, message: t("aiAction.noDraftInvoice", { code: d.order_code }) }); continue; }
           await InvoiceService.finalize(invoice.id);
-          results.push({ success: true, message: `Đã xuất chính thức hoá đơn #${invoice.invoice_number}` });
+          results.push({ success: true, message: t("aiAction.invoiceFinalized", { number: invoice.invoice_number }) });
 
         } else if (action.type === 'record_payment') {
           const d = action.data;
           const code = d.order_code || '';
           if (d.type === 'receivable') {
             const rec = await prisma.receivable.findFirst({ where: { sales_order: { order_code: code } }, include: { sales_order: true } });
-            if (!rec) { results.push({ success: false, message: `Không tìm thấy công nợ cho ${code}` }); continue; }
+            if (!rec) { results.push({ success: false, message: t("aiAction.debtNotFound", { code }) }); continue; }
             await prisma.$transaction(async (tx) => {
               await tx.receivablePayment.create({ data: { receivable_id: rec.id, amount: d.amount, payment_date: new Date(), method: d.method || 'BANK_TRANSFER', reference: d.reference || '' } });
               const newPaid = Number(rec.paid_amount) + d.amount;
               const newRemaining = Number(rec.original_amount) - newPaid;
               await tx.receivable.update({ where: { id: rec.id }, data: { paid_amount: newPaid, remaining: Math.max(0, newRemaining), status: newRemaining <= 0 ? 'PAID' : 'PARTIAL' } });
             });
-            results.push({ success: true, message: `Đã ghi nhận thanh toán ${d.amount.toLocaleString()}đ cho ${code}` });
+            results.push({ success: true, message: t("aiAction.paymentRecorded", { amount: d.amount.toLocaleString(), code }) });
           } else {
             const pay = await prisma.payable.findFirst({ where: { purchase_order: { order_code: code } }, include: { purchase_order: true } });
-            if (!pay) { results.push({ success: false, message: `Không tìm thấy công nợ cho ${code}` }); continue; }
+            if (!pay) { results.push({ success: false, message: t("aiAction.debtNotFound", { code }) }); continue; }
             await prisma.$transaction(async (tx) => {
               await tx.payablePayment.create({ data: { payable_id: pay.id, amount: d.amount, payment_date: new Date(), method: d.method || 'BANK_TRANSFER', reference: d.reference || '' } });
               const newPaid = Number(pay.paid_amount) + d.amount;
               const newRemaining = Number(pay.original_amount) - newPaid;
               await tx.payable.update({ where: { id: pay.id }, data: { paid_amount: newPaid, remaining: Math.max(0, newRemaining), status: newRemaining <= 0 ? 'PAID' : 'PARTIAL' } });
             });
-            results.push({ success: true, message: `Đã ghi nhận thanh toán ${d.amount.toLocaleString()}đ cho ${code}` });
+            results.push({ success: true, message: t("aiAction.paymentRecorded", { amount: d.amount.toLocaleString(), code }) });
           }
 
         } else if (action.type === 'create_product') {
           const d = action.data;
           const existing = await prisma.product.findFirst({ where: { name: { contains: d.name, mode: 'insensitive' }, is_active: true } });
-          if (existing) { results.push({ success: true, message: `Sản phẩm "${d.name}" đã tồn tại` }); continue; }
+          if (existing) { results.push({ success: true, message: t("aiAction.productExists", { name: d.name }) }); continue; }
           let categoryId = null;
           if (d.category_name) {
             const cat = await prisma.category.findFirst({ where: { name: { contains: d.category_name, mode: 'insensitive' } } });
@@ -839,43 +983,63 @@ export class ZaloService {
               wholesale_price: d.wholesale_price || null, moq: d.moq || null,
             },
           });
-          results.push({ success: true, message: `Đã tạo sản phẩm "${product.name}" (SKU: ${product.sku})` });
+          results.push({ success: true, message: t("aiAction.productCreated", { name: product.name, sku: product.sku }) });
 
         } else if (action.type === 'update_product') {
           const d = action.data;
           const product = await prisma.product.findFirst({ where: { name: { contains: d.product_name, mode: 'insensitive' }, is_active: true } });
-          if (!product) { results.push({ success: false, message: `Không tìm thấy SP "${d.product_name}"` }); continue; }
+          if (!product) { results.push({ success: false, message: t("aiAction.productNotFound", { name: d.product_name }) }); continue; }
           const u = d.updates || {};
           const updates: any = {};
           for (const k of ['retail_price', 'wholesale_price', 'moq', 'description', 'name']) {
             if (u[k] !== undefined) updates[k] = u[k];
           }
           await prisma.product.update({ where: { id: product.id }, data: updates });
-          results.push({ success: true, message: `Đã cập nhật SP "${product.name}"` });
+          results.push({ success: true, message: t("aiAction.productUpdated", { name: product.name }) });
 
         } else if (action.type === 'update_supplier_price') {
           const d = action.data;
           const supplier = await prisma.supplier.findFirst({ where: { company_name: { contains: d.supplier_name, mode: 'insensitive' }, is_active: true } });
           const product = await prisma.product.findFirst({ where: { name: { contains: d.product_name, mode: 'insensitive' }, is_active: true } });
-          if (!supplier || !product) { results.push({ success: false, message: `Không tìm thấy NCC/SP` }); continue; }
+          if (!supplier || !product) { results.push({ success: false, message: t("aiAction.supplierPriceNotFound") }); continue; }
           const u = d.updates || {};
           await prisma.supplierPrice.upsert({
             where: { supplier_id_product_id: { supplier_id: supplier.id, product_id: product.id } },
             update: { ...(u.purchase_price && { purchase_price: u.purchase_price }), ...(u.moq && { moq: u.moq }), ...(u.lead_time_days && { lead_time_days: u.lead_time_days }), ...(u.stock_quantity !== undefined && { stock_quantity: u.stock_quantity }) },
             create: { supplier_id: supplier.id, product_id: product.id, purchase_price: u.purchase_price || 0, moq: u.moq, lead_time_days: u.lead_time_days, stock_quantity: u.stock_quantity || 0 },
           });
-          results.push({ success: true, message: `Đã cập nhật giá NCC "${supplier.company_name}" cho "${product.name}"` });
+          results.push({ success: true, message: t("aiAction.supplierPriceUpdated", { supplier: supplier.company_name, product: product.name }) });
+
+        } else if (action.type === 'mark_debt_paid') {
+          const d = action.data;
+          const code = d.order_code || '';
+          if (d.type === 'receivable') {
+            const rec = await prisma.receivable.findFirst({ where: { sales_order: { order_code: code } } });
+            if (!rec) { results.push({ success: false, message: t("aiAction.debtNotFound", { code }) }); continue; }
+            await prisma.receivable.update({
+              where: { id: rec.id },
+              data: { paid_amount: rec.original_amount, remaining: 0, status: 'PAID' },
+            });
+            results.push({ success: true, message: t("aiAction.debtMarkedPaid", { code }) });
+          } else {
+            const pay = await prisma.payable.findFirst({ where: { purchase_order: { order_code: code } } });
+            if (!pay) { results.push({ success: false, message: t("aiAction.debtNotFound", { code }) }); continue; }
+            await prisma.payable.update({
+              where: { id: pay.id },
+              data: { paid_amount: pay.original_amount, remaining: 0, status: 'PAID' },
+            });
+            results.push({ success: true, message: t("aiAction.debtMarkedPaid", { code }) });
+          }
 
         } else if (action.type === 'get_report') {
           const d = action.data;
-          // Reports are informational — just confirm what was requested
-          results.push({ success: true, message: `Báo cáo ${d.type} từ ${d.from_date || 'đầu'} đến ${d.to_date || 'nay'} — anh vui lòng xem trên trang Báo cáo` });
+          results.push({ success: true, message: t("aiAction.reportInfo", { type: d.type, from: d.from_date || "-", to: d.to_date || "-" }) });
 
         } else {
-          results.push({ success: false, message: `Action không hỗ trợ: ${action.type}` });
+          results.push({ success: false, message: t("aiAction.unsupportedAction", { type: action.type }) });
         }
       } catch (err: any) {
-        results.push({ success: false, message: `Lỗi ${action.type}: ${err.message}` });
+        results.push({ success: false, message: t("aiAction.actionError", { type: action.type, message: err.message }) });
       }
     }
 
