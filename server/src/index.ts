@@ -18,7 +18,19 @@ const app = express();
 
 // Security
 app.set('trust proxy', 1);
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
+      connectSrc: ["'self'", "https:", "wss:"],
+      fontSrc: ["'self'", "data:", "https:"],
+      frameSrc: ["'self'", "blob:"],
+    },
+  },
+}));
 app.use(hpp());
 app.use(cors({ origin: config.cors.origin, credentials: true }));
 

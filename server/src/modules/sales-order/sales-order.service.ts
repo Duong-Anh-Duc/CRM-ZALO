@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import { delCache } from '../../lib/redis';
 import { InvoiceService } from '../invoice/invoice.service';
 import { PurchaseOrderService } from '../purchase-order/purchase-order.service';
+import { AlertService } from '../alert/alert.service';
 import logger from '../../utils/logger';
 
 interface CreateSalesOrderInput {
@@ -17,12 +18,12 @@ interface CreateSalesOrderInput {
   status?: SalesOrderStatus;
   items: Array<{
     product_id?: string;
-    combo_id?: string;
     supplier_id?: string;
     quantity: number;
     unit_price: number;
     purchase_price?: number;
     discount_pct?: number;
+    customer_product_name?: string;
     color_note?: string;
     packaging_note?: string;
   }>;
@@ -83,9 +84,14 @@ export class SalesOrderService {
         customer: true,
         items: {
           include: {
-            product: { select: { id: true, sku: true, name: true, images: { where: { is_primary: true }, take: 1 } } },
+            product: {
+              select: {
+                id: true, sku: true, name: true,
+                images: { where: { is_primary: true }, take: 1 },
+                supplier_prices: { include: { supplier: { select: { id: true, company_name: true } } } },
+              },
+            },
             supplier: { select: { id: true, company_name: true, phone: true } },
-            combo: true,
           },
         },
         purchase_orders: {
@@ -140,13 +146,13 @@ export class SalesOrderService {
 
       return {
         product_id: item.product_id,
-        combo_id: item.combo_id,
         supplier_id: supplierId || null,
         quantity: item.quantity,
         unit_price: item.unit_price,
         purchase_price: purchasePrice || null,
         discount_pct: discountPct,
         line_total: lineTotal,
+        customer_product_name: item.customer_product_name || null,
         color_note: item.color_note,
         packaging_note: item.packaging_note,
         supplier_status: 'PENDING',
@@ -162,7 +168,7 @@ export class SalesOrderService {
       data: {
         order_code: orderCode,
         customer_id: input.customer_id,
-        status: input.status || 'PENDING',
+        status: input.status || 'DRAFT',
         expected_delivery: input.expected_delivery ? new Date(input.expected_delivery) : null,
         notes: input.notes,
         subtotal,
@@ -173,6 +179,17 @@ export class SalesOrderService {
       },
       include: { customer: true, items: { include: { supplier: { select: { company_name: true } } } } },
     });
+
+    // Auto-save product aliases (customer product names)
+    for (const item of input.items) {
+      if (item.product_id && item.customer_product_name?.trim()) {
+        await prisma.productAlias.upsert({
+          where: { product_id_alias: { product_id: item.product_id, alias: item.customer_product_name.trim() } },
+          create: { product_id: item.product_id, alias: item.customer_product_name.trim() },
+          update: {},
+        }).catch(() => {}); // ignore duplicates
+      }
+    }
 
     await delCache('cache:/api/sales-orders*', 'cache:/api/dashboard*');
     return order;
@@ -238,8 +255,19 @@ export class SalesOrderService {
   }
 
   static async updateStatus(id: string, status: SalesOrderStatus) {
-    const order = await prisma.salesOrder.findUnique({ where: { id } });
+    const order = await prisma.salesOrder.findUnique({
+      where: { id },
+      include: { items: true },
+    });
     if (!order) throw new AppError(t('order.salesNotFound'), 404);
+
+    // DRAFT → CONFIRMED: check tất cả items phải có NCC
+    if (status === 'CONFIRMED' && (order.status === 'DRAFT' || order.status === 'PENDING')) {
+      const itemsNoSupplier = order.items.filter((item) => !item.supplier_id);
+      if (itemsNoSupplier.length > 0) {
+        throw new AppError(t('order.allItemsMustHaveSupplier', { count: itemsNoSupplier.length }), 400);
+      }
+    }
 
     const updated = await prisma.salesOrder.update({
       where: { id },
@@ -247,24 +275,137 @@ export class SalesOrderService {
       include: { customer: true, items: true },
     });
 
-    // When confirmed: auto-create POs + draft sales invoice
-    if (status === 'CONFIRMED' && order.status === 'PENDING') {
+    // DRAFT → CONFIRMED: auto-create POs (DRAFT status)
+    if (status === 'CONFIRMED' && (order.status === 'DRAFT' || order.status === 'PENDING')) {
       this.createPurchaseOrders(id).catch((err) => {
         logger.warn(`Auto PO creation failed for ${id}: ${err.message}`);
       });
-      InvoiceService.createDraftFromOrder(id).catch((err) => {
-        logger.warn(`Auto invoice draft failed for ${id}: ${err.message}`);
-      });
     }
 
-    // Check if all invoices approved → create debts
-    if (status === 'CONFIRMED' || status === 'COMPLETED') {
-      this.checkAndCreateDebts(id).catch((err) => {
-        logger.warn(`Debt check failed for ${id}: ${err.message}`);
-      });
-    }
+    // Create alert for status change
+    AlertService.createAlert({
+      type: 'WARNING',
+      title: t('alert.soStatusChanged', { code: updated.order_code, status }),
+      message: t('alert.soStatusChanged', { code: updated.order_code, status }),
+    }).catch((err) => logger.warn(`Alert creation failed: ${err.message}`));
 
     await delCache('cache:/api/sales-orders*', 'cache:/api/dashboard*', 'cache:/api/receivables*');
+    return updated;
+  }
+
+  // Recalculate SO totals after item changes
+  private static async recalculateTotals(salesOrderId: string) {
+    const so = await prisma.salesOrder.findUnique({
+      where: { id: salesOrderId },
+      include: { items: true },
+    });
+    if (!so) return;
+
+    const subtotal = so.items.reduce((sum, i) => sum + Number(i.line_total), 0);
+    const vatPct = so.vat_rate === 'VAT_0' ? 0 : so.vat_rate === 'VAT_8' ? 8 : 10;
+    const vatAmount = subtotal * (vatPct / 100);
+    const grandTotal = subtotal + vatAmount;
+
+    await prisma.salesOrder.update({
+      where: { id: salesOrderId },
+      data: { subtotal, vat_amount: vatAmount, grand_total: grandTotal },
+    });
+    await delCache('cache:/api/sales-orders*', 'cache:/api/dashboard*');
+  }
+
+  static async addItem(salesOrderId: string, input: { product_id: string; supplier_id?: string; quantity: number; unit_price: number; purchase_price?: number; discount_pct?: number; customer_product_name?: string }) {
+    const order = await prisma.salesOrder.findUnique({ where: { id: salesOrderId } });
+    if (!order) throw new AppError(t('order.salesNotFound'), 404);
+    if (order.status !== 'DRAFT') throw new AppError(t('order.onlyEditDraft'), 400);
+
+    // Auto-assign preferred supplier if not specified
+    let supplierId = input.supplier_id || null;
+    let purchasePrice = input.purchase_price || null;
+    if (input.product_id && !supplierId) {
+      const preferred = await prisma.supplierPrice.findFirst({
+        where: { product_id: input.product_id, is_preferred: true },
+        select: { supplier_id: true, purchase_price: true },
+      });
+      if (preferred) {
+        supplierId = preferred.supplier_id;
+        purchasePrice = purchasePrice || preferred.purchase_price;
+      }
+    }
+
+    const discountPct = input.discount_pct || 0;
+    const lineTotal = input.quantity * input.unit_price * (1 - discountPct / 100);
+
+    const item = await prisma.salesOrderItem.create({
+      data: {
+        sales_order_id: salesOrderId,
+        product_id: input.product_id,
+        supplier_id: supplierId,
+        quantity: input.quantity,
+        unit_price: input.unit_price,
+        purchase_price: purchasePrice,
+        discount_pct: discountPct,
+        line_total: lineTotal,
+        customer_product_name: input.customer_product_name || null,
+        supplier_status: 'PENDING',
+      },
+      include: {
+        product: { select: { id: true, sku: true, name: true, images: { where: { is_primary: true }, take: 1 } } },
+        supplier: { select: { id: true, company_name: true } },
+      },
+    });
+
+    await this.recalculateTotals(salesOrderId);
+    return item;
+  }
+
+  static async removeItem(salesOrderId: string, itemId: string) {
+    const order = await prisma.salesOrder.findUnique({ where: { id: salesOrderId } });
+    if (!order) throw new AppError(t('order.salesNotFound'), 404);
+    if (order.status !== 'DRAFT') throw new AppError(t('order.onlyEditDraft'), 400);
+
+    const item = await prisma.salesOrderItem.findFirst({ where: { id: itemId, sales_order_id: salesOrderId } });
+    if (!item) throw new AppError(t('order.itemNotFound'), 404);
+
+    // Ensure at least 1 item remains
+    const count = await prisma.salesOrderItem.count({ where: { sales_order_id: salesOrderId } });
+    if (count <= 1) throw new AppError(t('order.minOneItem'), 400);
+
+    await prisma.salesOrderItem.delete({ where: { id: itemId } });
+    await this.recalculateTotals(salesOrderId);
+    return { deleted: true };
+  }
+
+  static async updateItem(salesOrderId: string, itemId: string, input: { supplier_id?: string; purchase_price?: number; quantity?: number; unit_price?: number; discount_pct?: number }) {
+    const order = await prisma.salesOrder.findUnique({ where: { id: salesOrderId } });
+    if (!order) throw new AppError(t('order.salesNotFound'), 404);
+    if (order.status !== 'DRAFT') throw new AppError(t('order.onlyEditDraft'), 400);
+
+    const item = await prisma.salesOrderItem.findFirst({ where: { id: itemId, sales_order_id: salesOrderId } });
+    if (!item) throw new AppError(t('order.itemNotFound'), 404);
+
+    const updateData: any = {};
+    if (input.supplier_id !== undefined) updateData.supplier_id = input.supplier_id || null;
+    if (input.purchase_price !== undefined) updateData.purchase_price = input.purchase_price;
+    if (input.quantity !== undefined) updateData.quantity = input.quantity;
+    if (input.unit_price !== undefined) updateData.unit_price = input.unit_price;
+    if (input.discount_pct !== undefined) updateData.discount_pct = input.discount_pct;
+
+    // Recalculate line_total if qty/price/discount changed
+    const qty = input.quantity ?? item.quantity;
+    const price = input.unit_price ?? Number(item.unit_price);
+    const disc = input.discount_pct ?? Number(item.discount_pct);
+    updateData.line_total = qty * price * (1 - disc / 100);
+
+    const updated = await prisma.salesOrderItem.update({
+      where: { id: itemId },
+      data: updateData,
+      include: {
+        product: { select: { id: true, sku: true, name: true, images: { where: { is_primary: true }, take: 1 } } },
+        supplier: { select: { id: true, company_name: true } },
+      },
+    });
+
+    await this.recalculateTotals(salesOrderId);
     return updated;
   }
 

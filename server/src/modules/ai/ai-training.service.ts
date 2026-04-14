@@ -1,16 +1,16 @@
 import prisma from '../../lib/prisma';
 import logger from '../../utils/logger';
-import { t } from '../../locales';
 
 export class AiTrainingService {
-  static getCategories() {
-    return {
-      PRODUCT_ALIAS: t('training.productAlias'),
-      ORDER_EXAMPLE: t('training.orderExample'),
-      CORRECTION: t('training.correction'),
-      BUSINESS_RULE: t('training.businessRule'),
-      CUSTOMER_INFO: t('training.customerInfo'),
-    };
+  // Lấy tất cả categories đang có trong DB (dynamic, không hardcode)
+  static async getCategories() {
+    const entries = await prisma.aiTraining.findMany({
+      where: { is_active: true },
+      select: { category: true },
+      distinct: ['category'],
+      orderBy: { category: 'asc' },
+    });
+    return entries.map((e) => e.category);
   }
 
   static async list(category?: string) {
@@ -39,7 +39,7 @@ export class AiTrainingService {
 
   /**
    * Build training context string to inject into AI prompts.
-   * This is the core: all training data gets compiled into prompt context.
+   * Dynamic: tự group theo category, không hardcode.
    */
   static async buildTrainingContext(): Promise<string> {
     const entries = await prisma.aiTraining.findMany({
@@ -49,53 +49,22 @@ export class AiTrainingService {
 
     if (entries.length === 0) return '';
 
+    // Group by category
     const grouped: Record<string, typeof entries> = {};
     for (const e of entries) {
       if (!grouped[e.category]) grouped[e.category] = [];
       grouped[e.category].push(e);
     }
 
+    // Build context — mỗi category thành 1 section
     const sections: string[] = [];
-
-    if (grouped.PRODUCT_ALIAS?.length) {
-      sections.push(
-        'TÊN GỌI KHÁC CỦA SẢN PHẨM (khi khách dùng tên này thì hiểu là sản phẩm tương ứng):',
-        ...grouped.PRODUCT_ALIAS.map((e) => `  - ${e.title}: ${e.content}`),
-      );
+    for (const [category, items] of Object.entries(grouped)) {
+      sections.push(`\n[${category}]`);
+      for (const item of items) {
+        sections.push(`  - ${item.title}: ${item.content}`);
+      }
     }
 
-    if (grouped.ORDER_EXAMPLE?.length) {
-      sections.push(
-        '',
-        'VÍ DỤ TIN NHẮN ĐẶT HÀNG (học theo các mẫu này để nhận diện đơn hàng chính xác hơn):',
-        ...grouped.ORDER_EXAMPLE.map((e) => `  - Tin nhắn: "${e.title}" → ${e.content}`),
-      );
-    }
-
-    if (grouped.CORRECTION?.length) {
-      sections.push(
-        '',
-        'SỬA LỖI TRƯỚC ĐÓ (tránh lặp lại sai lầm này):',
-        ...grouped.CORRECTION.map((e) => `  - ${e.title}: ${e.content}`),
-      );
-    }
-
-    if (grouped.BUSINESS_RULE?.length) {
-      sections.push(
-        '',
-        'QUY TẮC KINH DOANH (luôn tuân theo):',
-        ...grouped.BUSINESS_RULE.map((e) => `  - ${e.title}: ${e.content}`),
-      );
-    }
-
-    if (grouped.CUSTOMER_INFO?.length) {
-      sections.push(
-        '',
-        'THÔNG TIN KHÁCH HÀNG QUAN TRỌNG:',
-        ...grouped.CUSTOMER_INFO.map((e) => `  - ${e.title}: ${e.content}`),
-      );
-    }
-
-    return '\n\n--- KIẾN THỨC ĐÃ ĐƯỢC HUẤN LUYỆN ---\n' + sections.join('\n') + '\n--- HẾT KIẾN THỨC ---';
+    return '\n\n--- KIẾN THỨC ĐÃ ĐƯỢC HUẤN LUYỆN ---' + sections.join('\n') + '\n--- HẾT KIẾN THỨC ---';
   }
 }

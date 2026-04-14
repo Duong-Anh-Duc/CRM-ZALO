@@ -122,10 +122,16 @@ Khi tao khach hang, neu chi co ten nguoi → INDIVIDUAL, neu co "cong ty", "co s
 create_supplier: {"company_name","contact_name","phone","email","tax_code","address","payment_terms":"NET_30/NET_60/NET_90/IMMEDIATE"}
 update_supplier: {"supplier_name":"tên hiện tại","updates":{"company_name","contact_name","phone","email","tax_code","address","payment_terms"}}
 
--- DON BAN HANG (tao ra status PENDING) --
-create_sales_order: {"customer_name","vat_rate":"VAT_10","delivery_date":"YYYY-MM-DD","notes","items":[{"product_name","quantity","unit_price"}]}
+-- DON BAN HANG (tao ra status DRAFT) --
+create_sales_order: {"customer_name","vat_rate":"VAT_10","delivery_date":"YYYY-MM-DD","notes","items":[{"product_name","quantity","unit_price","supplier_name":"ten NCC (tu tim trong context, uu tien NCC co ⭐)"}]}
 update_sales_order: {"order_code":"SO-xxx","updates":{"notes","expected_delivery":"YYYY-MM-DD"}}
-update_order_status: {"order_code":"SO-xxx hoac PO-xxx","status":"NEW/CONFIRMED/CANCELLED/COMPLETED"}
+update_order_status: {"order_code":"SO-xxx hoac PO-xxx","status":"DRAFT/CONFIRMED/SHIPPING/COMPLETED/CANCELLED"}
+
+QUY TAC MATCH NCC KHI TAO DON:
+- Moi san pham PHAI co NCC. Doc danh sach NCC trong context, tim NCC co san pham do.
+- Uu tien NCC co dau ⭐ (is_preferred).
+- Neu nhieu NCC co cung SP → chon NCC co gia thap nhat hoac NCC ⭐.
+- Neu khong tim thay NCC nao co SP do → BAO CHO USER, khong tao don.
 
 -- DON MUA HANG (tao ra status PENDING) --
 create_purchase_order: {"supplier_name","delivery_date":"YYYY-MM-DD","notes","items":[{"product_name","quantity","unit_price"}]}
@@ -146,10 +152,25 @@ update_product: {"product_name":"tên hiện tại","updates":{"retail_price","w
 -- GIA NCC --
 update_supplier_price: {"supplier_name","product_name","updates":{"purchase_price","moq","lead_time_days","stock_quantity"}}
 
+-- CAP NHAT TRANG THAI DON MUA --
+update_po_status: {"order_code":"PO-xxx","status":"CONFIRMED/INVOICED/COMPLETED","note":"NCC xác nhận/giao hàng"}
+
+-- CANH BAO --
+create_alert: {"type":"STOCK_OUT/PRICE_CHANGE/DELIVERY_DELAY","title":"tiêu đề","message":"chi tiết","related_entity":"PO-xxx hoặc tên NCC"}
+
 -- BAO CAO --
 get_report: {"type":"pnl/debt_aging/product_sales","from_date":"YYYY-MM-DD","to_date":"YYYY-MM-DD"}
 
 LUU Y: Thong tin san pham, NCC, khach hang, don hang, hoa don da co san trong context. KHONG can tao action de "get" hay "check" — chi can doc context va tra loi.
+
+XU LY TIN NHAN TU NHA CUNG CAP (NCC):
+Trong phần PHÂN LOẠI NGƯỜI GỬI ZALO, nếu người gửi được đánh dấu "NHÀ CUNG CẤP":
+- NCC nhắn về giao hàng ("đã giao", "đã ship", "đang giao", "giao xong") → gợi ý update_po_status sang COMPLETED hoặc SHIPPING
+- NCC xác nhận đơn ("xác nhận đơn", "nhận đơn", "ok đơn") → gợi ý update_po_status sang CONFIRMED
+- NCC báo giá mới ("giá mới", "tăng giá", "giảm giá", "báo giá") → gợi ý update_supplier_price
+- NCC báo hết hàng ("hết hàng", "không còn", "hết rồi", "tạm hết") → gợi ý create_alert type STOCK_OUT
+- NCC báo giao trễ ("giao trễ", "chậm giao", "lùi lịch") → gợi ý create_alert type DELIVERY_DELAY
+Luôn HỎI xác nhận trước khi thực hiện action, trừ khi người dùng yêu cầu trực tiếp.
 
 QUY TẮC TUYỆT ĐỐI VỀ ACTIONS:
 - KHÔNG BAO GIỜ tự thêm actions block nếu người dùng CHƯA XÁC NHẬN.
@@ -180,7 +201,7 @@ Trả về JSON:
 
 const SYSTEM_PROMPT = `Bạn là trợ lý AI chuyên phân tích tin nhắn Zalo để trích xuất thông tin đơn hàng cho công ty bao bì nhựa.
 
-Nhiệm vụ: Đọc tin nhắn và xác định xem đây có phải là tin nhắn đặt hàng không. Nếu có, trích xuất thông tin đơn hàng.
+Nhiệm vụ: Đọc TOÀN BỘ cuộc hội thoại (nhiều tin nhắn) và xác định xem khách hàng có đặt hàng không. Nếu có, trích xuất và GỘP thông tin đơn hàng từ TẤT CẢ tin nhắn.
 
 Quy tắc:
 1. Tin nhắn đặt hàng thường chứa: tên sản phẩm, số lượng, đôi khi có giá và ghi chú giao hàng
@@ -188,6 +209,13 @@ Quy tắc:
 3. Số lượng có thể viết: "1000 cái", "5 thùng", "2k" (=2000), "500c" (=500 cái)
 4. Tên sản phẩm có thể viết tắt hoặc không chính xác, hãy giữ nguyên
 5. Nếu tin nhắn nhắc đến nhiều sản phẩm, tách thành nhiều items
+
+GỘP ĐƠN HÀNG TỪ NHIỀU TIN NHẮN:
+6. Nếu khách nhắn thêm sản phẩm ở tin nhắn sau ("thêm 200 nắp nữa nhé"), GỘP vào cùng 1 đơn hàng
+7. Nếu khách SỬA số lượng ("không, 1000 cái chứ không phải 500"), dùng số lượng MỚI NHẤT
+8. Ghi chú giao hàng có thể xuất hiện ở BẤT KỲ tin nhắn nào trong cuộc hội thoại
+9. Chỉ xét các tin nhắn INCOMING (← từ khách hàng), bỏ qua tin nhắn OUTGOING (→ từ shop)
+10. Tin nhắn mới nhất có độ ưu tiên cao hơn nếu có mâu thuẫn
 
 Trả về JSON duy nhất, không giải thích thêm:
 {
@@ -198,7 +226,7 @@ Trả về JSON duy nhất, không giải thích thêm:
     { "product_name": "tên SP", "quantity": 1000, "unit_price": null, "note": "ghi chú nếu có" }
   ],
   "delivery_note": "ghi chú giao hàng nếu có",
-  "raw_summary": "tóm tắt ngắn gọn nội dung tin nhắn"
+  "raw_summary": "tóm tắt ngắn gọn nội dung đơn hàng đã gộp"
 }`;
 
 // ──── Message compression helpers ────
@@ -245,58 +273,77 @@ function compressMessages(messages: MsgRow[]): string {
 }
 
 // Build product + supplier context for AI
-async function buildBusinessContext(): Promise<string> {
+async function buildBusinessContext(messageHints?: string[]): Promise<string> {
   try {
-    const [products, supplierPrices, customers] = await Promise.all([
+    // Smart loading: load all SP + NCC prices (compact), but limit KH + orders
+    const [products, supplierPrices] = await Promise.all([
       prisma.product.findMany({
         where: { is_active: true },
         select: { id: true, name: true, sku: true, retail_price: true, wholesale_price: true },
-        take: 200,
+        take: 100,
       }),
       prisma.supplierPrice.findMany({
+        where: { supplier: { is_active: true } },
         include: {
           supplier: { select: { company_name: true, phone: true, is_active: true } },
           product: { select: { name: true, sku: true } },
         },
       }),
-      prisma.customer.findMany({
-        where: { is_active: true },
-        select: { company_name: true, contact_name: true, phone: true, zalo_user_id: true },
-        take: 200,
-      }),
     ]);
+
+    // KH: top 30 gần đây (có đơn hàng) + tất cả có zalo_user_id
+    const customers = await prisma.customer.findMany({
+      where: { is_active: true },
+      select: { company_name: true, contact_name: true, phone: true, zalo_user_id: true },
+      orderBy: { updated_at: 'desc' },
+      take: 50,
+    });
 
     const lines: string[] = [];
 
-    // Products
-    if (products.length > 0) {
-      lines.push(`\n--- SẢN PHẨM TRONG HỆ THỐNG (${products.length}) ---`);
-      for (const p of products) {
-        const prices = [];
-        if (p.retail_price) prices.push(`lẻ: ${p.retail_price}`);
-        if (p.wholesale_price) prices.push(`sỉ: ${p.wholesale_price}`);
-        lines.push(`- ${p.name} (SKU: ${p.sku}, ${prices.join(', ') || 'chưa có giá'})`);
-
-        // Suppliers for this product
-        const sp = supplierPrices.filter((s) => s.product?.sku === p.sku && s.supplier?.is_active);
-        if (sp.length > 0) {
-          for (const s of sp) {
-            lines.push(`  → NCC: ${s.supplier.company_name} | Giá: ${s.purchase_price} | Tồn kho: ${s.stock_quantity} | MOQ: ${s.moq || 'N/A'} | Lead: ${s.lead_time_days || '?'} ngày${s.is_preferred ? ' ⭐' : ''}`);
-          }
-        } else {
-          lines.push('  → Chưa có NCC nào cung cấp');
-        }
-      }
+    // Products — compact: 1 line per product with NCC inline
+    lines.push(`\n--- SP (${products.length}) ---`);
+    for (const p of products) {
+      const sp = supplierPrices.filter((s) => s.product?.sku === p.sku && s.supplier?.is_active);
+      const nccInfo = sp.map((s) => `${s.supplier.company_name}:${s.purchase_price}đ${s.is_preferred ? '⭐' : ''}`).join(', ');
+      lines.push(`${p.sku}|${p.name}|lẻ:${p.retail_price||'-'}|sỉ:${p.wholesale_price||'-'}|NCC:[${nccInfo || 'chưa có'}]`);
     }
 
-    // Customers
-    if (customers.length > 0) {
-      lines.push(`\n--- KHÁCH HÀNG (${customers.length}) ---`);
-      for (const c of customers) {
-        lines.push(`- ${c.company_name}${c.contact_name ? ' (' + c.contact_name + ')' : ''} | SĐT: ${c.phone || 'N/A'}`);
+    // Customers — compact
+    lines.push(`\n--- KH (${customers.length}) ---`);
+    for (const c of customers) {
+      lines.push(`${c.company_name || c.contact_name}|${c.phone || '-'}${c.zalo_user_id ? '|Zalo✓' : ''}`);
+    }
+
+    // Thread classification for recent Zalo senders
+    const recentSenders = await prisma.zaloMessage.findMany({
+      where: { direction: 'INCOMING', msg_type: { not: 'control' }, group_id: null },
+      distinct: ['sender_id'],
+      orderBy: { created_at: 'desc' },
+      select: { sender_id: true, sender_name: true },
+      take: 50,
+    });
+
+    if (recentSenders.length > 0) {
+      const suppliers = await prisma.supplier.findMany({
+        where: { is_active: true },
+        select: { company_name: true, zalo_user_id: true },
+      });
+
+      const customerZaloMap = new Map(customers.filter((c) => c.zalo_user_id).map((c) => [c.zalo_user_id!, `KHÁCH HÀNG: ${c.company_name}`]));
+      const supplierZaloMap = new Map(suppliers.filter((s) => s.zalo_user_id).map((s) => [s.zalo_user_id!, `NHÀ CUNG CẤP: ${s.company_name}`]));
+
+      const classifiedLines: string[] = [];
+      for (const s of recentSenders) {
+        if (!s.sender_id) continue;
+        const label = customerZaloMap.get(s.sender_id) || supplierZaloMap.get(s.sender_id) || 'CHƯA XÁC ĐỊNH';
+        classifiedLines.push(`- ${s.sender_name || s.sender_id}: ${label}`);
       }
-    } else {
-      lines.push('\n--- KHÁCH HÀNG: Chưa có khách hàng nào ---');
+
+      if (classifiedLines.length > 0) {
+        lines.push(`\n--- PHÂN LOẠI NGƯỜI GỬI ZALO (${classifiedLines.length}) ---`);
+        lines.push(...classifiedLines);
+      }
     }
 
     // Recent orders (last 30 days)
@@ -326,26 +373,20 @@ async function buildBusinessContext(): Promise<string> {
       }),
     ]);
 
+    // Orders — compact: chỉ 10 đơn gần nhất mỗi loại
     if (salesOrders.length > 0) {
-      lines.push(`\n--- ĐƠN BÁN HÀNG GẦN ĐÂY (${salesOrders.length}) ---`);
-      for (const o of salesOrders) {
-        const items = o.items.map((i: any) => `${i.product?.name} x${i.quantity}`).join(', ');
-        const date = o.order_date.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        lines.push(`- ${o.order_code} | ${date} | ${o.customer?.company_name} | ${o.status} | ${items} | ${o.grand_total.toLocaleString()}đ`);
+      lines.push(`\n--- SO gần đây (${salesOrders.length}) ---`);
+      for (const o of salesOrders.slice(0, 10)) {
+        const items = o.items.map((i: any) => `${i.product?.name}x${i.quantity}`).join('+');
+        lines.push(`${o.order_code}|${o.customer?.company_name}|${o.status}|${items}|${o.grand_total.toLocaleString()}đ`);
       }
-    } else {
-      lines.push('\n--- ĐƠN BÁN HÀNG: Chưa có đơn nào ---');
     }
-
     if (purchaseOrders.length > 0) {
-      lines.push(`\n--- ĐƠN MUA HÀNG GẦN ĐÂY (${purchaseOrders.length}) ---`);
-      for (const o of purchaseOrders) {
-        const items = o.items.map((i: any) => `${i.product?.name} x${i.quantity}`).join(', ');
-        const date = o.order_date.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        lines.push(`- ${o.order_code} | ${date} | ${o.supplier?.company_name} | ${o.status} | ${items} | ${o.total.toLocaleString()}đ`);
+      lines.push(`\n--- PO gần đây (${purchaseOrders.length}) ---`);
+      for (const o of purchaseOrders.slice(0, 10)) {
+        const items = o.items.map((i: any) => `${i.product?.name}x${i.quantity}`).join('+');
+        lines.push(`${o.order_code}|${o.supplier?.company_name}|${o.status}|${items}|${o.total.toLocaleString()}đ`);
       }
-    } else {
-      lines.push('\n--- ĐƠN MUA HÀNG: Chưa có đơn nào ---');
     }
 
     if (pendingSuggestions.length > 0) {
@@ -356,61 +397,16 @@ async function buildBusinessContext(): Promise<string> {
       }
     }
 
-    // Receivables (công nợ phải thu)
-    const receivables = await prisma.receivable.findMany({
-      where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
-      include: {
-        customer: { select: { company_name: true } },
-        sales_order: { select: { order_code: true } },
-      },
-      orderBy: { due_date: 'asc' },
-    });
-    if (receivables.length > 0) {
-      const totalRec = receivables.reduce((s, r) => s + Number(r.remaining), 0);
-      const overdue = receivables.filter((r) => r.status === 'OVERDUE' || new Date(r.due_date) < new Date());
-      lines.push(`\n--- CÔNG NỢ PHẢI THU (${receivables.length} | Tổng: ${totalRec.toLocaleString()}đ | Quá hạn: ${overdue.length}) ---`);
-      for (const r of receivables) {
-        const isOverdue = r.status === 'OVERDUE' || new Date(r.due_date) < new Date();
-        lines.push(`- ${r.sales_order?.order_code || '?'} | ${r.customer?.company_name} | Còn: ${Number(r.remaining).toLocaleString()}đ | Hạn: ${r.due_date.toLocaleDateString('vi-VN')}${isOverdue ? ' QUÁ HẠN' : ''}`);
-      }
-    } else {
-      lines.push('\n--- CÔNG NỢ PHẢI THU: Không có ---');
-    }
-
-    // Payables (công nợ phải trả)
-    const payables = await prisma.payable.findMany({
-      where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
-      include: {
-        supplier: { select: { company_name: true } },
-        purchase_order: { select: { order_code: true } },
-      },
-      orderBy: { due_date: 'asc' },
-    });
-    if (payables.length > 0) {
-      const totalPay = payables.reduce((s, p) => s + Number(p.remaining), 0);
-      const overdue = payables.filter((p) => p.status === 'OVERDUE' || new Date(p.due_date) < new Date());
-      lines.push(`\n--- CÔNG NỢ PHẢI TRẢ (${payables.length} | Tổng: ${totalPay.toLocaleString()}đ | Quá hạn: ${overdue.length}) ---`);
-      for (const p of payables) {
-        const isOverdue = p.status === 'OVERDUE' || new Date(p.due_date) < new Date();
-        lines.push(`- ${p.purchase_order?.order_code || '?'} | ${p.supplier?.company_name} | Còn: ${Number(p.remaining).toLocaleString()}đ | Hạn: ${p.due_date.toLocaleDateString('vi-VN')}${isOverdue ? ' QUÁ HẠN' : ''}`);
-      }
-    } else {
-      lines.push('\n--- CÔNG NỢ PHẢI TRẢ: Không có ---');
-    }
-
-    // Invoices
-    const invoices = await prisma.invoice.findMany({
-      where: { status: { in: ['DRAFT', 'APPROVED'] } },
-      include: { sales_order: { select: { order_code: true } } },
-      orderBy: { created_at: 'desc' },
-      take: 10,
-    });
-    if (invoices.length > 0) {
-      lines.push(`\n--- HOÁ ĐƠN (${invoices.length}) ---`);
-      for (const inv of invoices) {
-        lines.push(`- #${inv.invoice_number} | ${inv.sales_order?.order_code || '?'} | ${inv.buyer_company} | ${Number(inv.total).toLocaleString()}đ | ${inv.status}`);
-      }
-    }
+    // Debts — summary only (save tokens)
+    const [recAgg, payAgg] = await Promise.all([
+      prisma.receivable.aggregate({ where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } }, _sum: { remaining: true }, _count: true }),
+      prisma.payable.aggregate({ where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } }, _sum: { remaining: true }, _count: true }),
+    ]);
+    const recOverdue = await prisma.receivable.count({ where: { status: 'OVERDUE' } });
+    const payOverdue = await prisma.payable.count({ where: { status: 'OVERDUE' } });
+    lines.push(`\n--- CÔNG NỢ ---`);
+    lines.push(`Phải thu: ${recAgg._count} khoản, còn ${(recAgg._sum.remaining || 0).toLocaleString()}đ, quá hạn ${recOverdue}`);
+    lines.push(`Phải trả: ${payAgg._count} khoản, còn ${(payAgg._sum.remaining || 0).toLocaleString()}đ, quá hạn ${payOverdue}`);
 
     return lines.join('\n');
   } catch (err) {
@@ -431,6 +427,7 @@ export class AIService {
   static async extractOrderFromMessage(
     message: string,
     productList: string[],
+    threadMessages?: Array<{ sender_name: string | null; content: string | null; direction: string; created_at: Date }>,
   ): Promise<ExtractedOrder> {
     try {
       if (!config.openai.apiKey) {
@@ -446,6 +443,15 @@ export class AIService {
         ? `\n\nDanh sách sản phẩm hiện có:\n${productList.join('\n')}`
         : '';
 
+      // Build user content: full thread context if available, otherwise single message
+      let userContent: string;
+      if (threadMessages && threadMessages.length > 0) {
+        const threadContext = compressMessages(threadMessages);
+        userContent = `Cuộc hội thoại gần đây (tin nhắn cũ → mới):\n\n${threadContext}\n\nTin nhắn mới nhất cần phân tích:\n${message}`;
+      } else {
+        userContent = message;
+      }
+
       const response = await openai.chat.completions.create({
         model: config.openai.model,
         max_tokens: config.openai.maxTokens,
@@ -453,7 +459,7 @@ export class AIService {
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: orderPrompt + trainingContext + productContext },
-          { role: 'user', content: message },
+          { role: 'user', content: userContent },
         ],
       });
 

@@ -13,7 +13,6 @@ router.use(authenticate);
 // Product CRUD
 router.get('/', cache(60), ProductController.list);
 router.get('/:id', validateIdParam, cache(60), ProductController.getById);
-router.get('/:id/compatible-caps', validateIdParam, cache(120), ProductController.getCompatibleCaps);
 router.post('/', requireRole('ADMIN', 'STAFF'), uploadImages, handleMulterError, ProductController.create);
 router.put('/:id', validateIdParam, requireRole('ADMIN', 'STAFF'), validate(updateProductSchema), ProductController.update);
 router.delete('/:id', validateIdParam, requireRole('ADMIN', 'STAFF'), ProductController.softDelete);

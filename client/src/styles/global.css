@@ -6,59 +6,134 @@ body {
   background-color: #f5f5f5;
 }
 
-/* Card hover effect */
-.ant-card {
-  transition: box-shadow 0.2s ease;
+/* ── Base ── */
+* { box-sizing: border-box; }
+
+.ant-card { transition: box-shadow 0.2s ease; }
+.ant-table-tbody > tr { cursor: pointer; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Text overflow prevention ── */
+.ant-card-head-title,
+.ant-statistic-title,
+.ant-typography { word-break: break-word; }
+.ant-statistic-content-value { word-break: break-all; }
+.ant-avatar > span { white-space: nowrap; }
+
+/* ── Tables always scrollable ── */
+.ant-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ant-table-thead > tr > th { white-space: nowrap !important; }
+
+/* ── Pagination wrap ── */
+.ant-pagination { flex-wrap: wrap; gap: 4px; }
+
+/* ── Field cards ── */
+div[style*="background: #f5f5f5"] {
+  min-height: 52px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  height: 100%;
 }
 
-/* Table row cursor */
-.ant-table-tbody > tr {
-  cursor: pointer;
+/* ── Cards in Row sync height ── */
+.ant-row > .ant-col > .ant-card { height: 100%; }
+
+/* ── Modals ── */
+.ant-modal { max-width: calc(100vw - 32px) !important; }
+
+/* ── Drawer ── */
+.ant-drawer-body { padding: 16px !important; }
+
+/* ═══════════════════════════════════════ */
+/*  TABLET (max-width: 992px)             */
+/* ═══════════════════════════════════════ */
+@media (max-width: 992px) {
+  .recharts-wrapper { font-size: 12px; }
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d9d9d9;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* Responsive */
+/* ═══════════════════════════════════════ */
+/*  MOBILE (max-width: 768px)             */
+/* ═══════════════════════════════════════ */
 @media (max-width: 768px) {
-  .ant-card { margin: 0 !important; }
-  .ant-table-wrapper { overflow-x: auto; }
-  .ant-space-wrap { gap: 8px !important; }
-  h2 { font-size: 20px !important; }
-  /* Modals full width on mobile */
-  .ant-modal { max-width: calc(100vw - 32px) !important; }
-  .ant-modal-body { padding: 16px !important; }
-  /* Descriptions single column on mobile */
-  .ant-descriptions-item { padding-bottom: 8px !important; }
-  /* Filters stack on mobile */
-  .ant-select { min-width: unset !important; width: 100% !important; }
-  .ant-input, .ant-picker { width: 100% !important; }
+  /* Modal full width */
+  .ant-modal { max-width: calc(100vw - 16px) !important; margin: 8px auto !important; }
+  .ant-modal-body { padding: 12px !important; }
+
+  /* Filters stack */
+  .ant-space { flex-wrap: wrap; }
+  .ant-select { min-width: unset !important; }
+
   /* Charts */
   .recharts-wrapper { font-size: 11px; }
+
+  /* Statistic smaller */
+  .ant-statistic-content { font-size: 16px !important; }
+
+  /* Buttons */
+  .ant-btn { font-size: 13px !important; }
+
+  /* Headings */
+  h2 { font-size: 20px !important; }
 }
 
+/* ═══════════════════════════════════════ */
+/*  SMALL MOBILE (max-width: 576px)       */
+/* ═══════════════════════════════════════ */
 @media (max-width: 576px) {
-  .ant-pagination { flex-wrap: wrap; justify-content: center; }
-  .ant-pagination .ant-pagination-options { margin-top: 8px; }
-  /* Smaller padding on xs */
+  /* Content padding */
   .crm-content { padding: 8px !important; margin: 4px !important; }
-  /* Stack filter buttons */
-  .ant-space { flex-wrap: wrap; width: 100%; }
+
+  /* Card padding */
+  .ant-card-body { padding: 12px !important; }
+
+  /* Statistic smaller */
+  .ant-statistic-title { font-size: 11px !important; }
+  .ant-statistic-content { font-size: 14px !important; }
+
+  /* Avatar */
+  .ant-avatar-lg { width: 40px !important; height: 40px !important; line-height: 40px !important; font-size: 14px !important; }
+
+  /* Tag */
+  .ant-tag { font-size: 11px !important; padding: 0 6px !important; }
+
+  /* Field cards */
+  div[style*="background: #f5f5f5"] { padding: 8px 10px !important; min-height: 44px; }
+
+  /* Table */
+  .ant-table { font-size: 12px !important; }
+
+  /* Modal title */
+  .ant-modal-title { font-size: 15px !important; }
+
+  /* Pagination compact */
+  .ant-pagination-item, .ant-pagination-prev, .ant-pagination-next {
+    min-width: 28px !important; height: 28px !important; line-height: 28px !important;
+  }
+
+  /* Filters full width */
+  .ant-select, .ant-input, .ant-picker, .ant-picker-range { width: 100% !important; }
+
+  /* Space items full width */
   .ant-space > .ant-space-item { width: 100%; }
-  .ant-space > .ant-space-item .ant-btn { width: 100%; }
-  /* Statistic cards smaller text */
-  .ant-statistic-title { font-size: 12px !important; }
-  .ant-statistic-content { font-size: 18px !important; }
+  .ant-space > .ant-space-item > .ant-btn { width: 100%; }
+
+  /* Upload */
+  .ant-upload { width: 100%; }
+  .ant-upload .ant-btn { width: 100%; }
+
+  /* Dropdown menu */
+  .ant-dropdown { max-width: calc(100vw - 16px); }
+}
+
+/* ═══════════════════════════════════════ */
+/*  EXTRA SMALL (max-width: 400px)        */
+/* ═══════════════════════════════════════ */
+@media (max-width: 400px) {
+  .ant-statistic-content { font-size: 13px !important; }
+  .ant-card-head-title { font-size: 13px !important; }
+  .ant-table { font-size: 11px !important; }
 }

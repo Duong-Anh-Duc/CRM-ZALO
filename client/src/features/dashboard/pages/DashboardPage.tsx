@@ -48,7 +48,7 @@ const DashboardPage: React.FC = () => {
   }));
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       {/* Summary Cards */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>

@@ -79,21 +79,25 @@ enum SafetyStandard {
 }
 
 enum SalesOrderStatus {
+  DRAFT
   PENDING
   NEW
   CONFIRMED
   PREPARING
   SHIPPING
+  INVOICED
   COMPLETED
   CANCELLED
 }
 
 enum PurchaseOrderStatus {
+  DRAFT
   PENDING
   NEW
   CONFIRMED
   PROCESSING
   SHIPPING
+  INVOICED
   COMPLETED
   CANCELLED
 }
@@ -129,7 +133,6 @@ model User {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  audit_logs AuditLog[]
 
   @@map("users")
 }
@@ -200,13 +203,26 @@ model Product {
   images            ProductImage[]
   price_tiers       PriceTier[]
   supplier_prices   SupplierPrice[]
-  cap_compatibles   CapCompatibility[] @relation("BottleProduct")
-  compatible_with   CapCompatibility[] @relation("CapProduct")
-  combo_items       ComboItem[]
   sales_order_items SalesOrderItem[]
   purchase_order_items PurchaseOrderItem[]
 
+  aliases           ProductAlias[]
+
   @@map("products")
+}
+
+// Tên khách gọi cho sản phẩm (VD: "chai xanh 500" → PET-500)
+model ProductAlias {
+  id         String   @id @default(uuid())
+  product_id String
+  alias      String   // Tên khách gọi
+  created_at DateTime @default(now())
+
+  product Product @relation(fields: [product_id], references: [id])
+
+  @@unique([product_id, alias])
+  @@index([alias])
+  @@map("product_aliases")
 }
 
 model ProductImage {
@@ -233,46 +249,7 @@ model PriceTier {
   @@map("price_tiers")
 }
 
-model CapCompatibility {
-  id         String @id @default(uuid())
-  bottle_id  String
-  cap_id     String
-
-  bottle Product @relation("BottleProduct", fields: [bottle_id], references: [id])
-  cap    Product @relation("CapProduct", fields: [cap_id], references: [id])
-
-  @@unique([bottle_id, cap_id])
-  @@map("cap_compatibilities")
-}
-
-// ─── PRODUCT COMBOS ─────────────────────────────────
-
-model ProductCombo {
-  id          String  @id @default(uuid())
-  name        String
-  description String?
-  combo_price Float
-  is_active   Boolean @default(true)
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
-  items             ComboItem[]
-  sales_order_items SalesOrderItem[]
-
-  @@map("product_combos")
-}
-
-model ComboItem {
-  id       String @id @default(uuid())
-  combo_id String
-  product_id String
-  quantity   Int
-
-  combo   ProductCombo @relation(fields: [combo_id], references: [id])
-  product Product      @relation(fields: [product_id], references: [id])
-
-  @@map("combo_items")
-}
+// ─── CUSTOMERS ──────────────────────────────────────
 
 // ─── CUSTOMERS ──────────────────────────────────────
 
@@ -353,7 +330,7 @@ model SalesOrder {
   vat_rate            VATRate          @default(VAT_0)
   vat_amount          Float            @default(0)
   grand_total         Float            @default(0)
-  status              SalesOrderStatus @default(NEW)
+  status              SalesOrderStatus @default(DRAFT)
   zalo_message_id     String?          // Phase 2
   created_at          DateTime         @default(now())
   updated_at          DateTime         @updatedAt
@@ -371,20 +348,19 @@ model SalesOrderItem {
   id             String  @id @default(uuid())
   sales_order_id String
   product_id     String?
-  combo_id       String?
   supplier_id    String?            // NCC cung cấp SP này
   quantity       Int
   unit_price     Float              // Giá bán cho khách
   purchase_price Float?             // Giá mua từ NCC
   discount_pct   Float   @default(0)
   line_total     Float
+  customer_product_name String? // Tên SP khách gọi (VD: "chai xanh 500")
   color_note     String?
   packaging_note String?
   supplier_status String @default("PENDING") // PENDING, CONFIRMED, SHIPPING, DELIVERED
 
   sales_order SalesOrder    @relation(fields: [sales_order_id], references: [id])
   product     Product?      @relation(fields: [product_id], references: [id])
-  combo       ProductCombo? @relation(fields: [combo_id], references: [id])
   supplier    Supplier?     @relation(fields: [supplier_id], references: [id])
 
   @@map("sales_order_items")
@@ -401,7 +377,7 @@ model PurchaseOrder {
   expected_delivery  DateTime?
   notes              String?
   total              Float               @default(0)
-  status             PurchaseOrderStatus @default(NEW)
+  status             PurchaseOrderStatus @default(DRAFT)
   zalo_message_id    String?
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
@@ -621,23 +597,6 @@ model SystemConfig {
   value String // JSON string
 
   @@map("system_configs")
-}
-
-// ─── AUDIT LOG ──────────────────────────────────────
-
-model AuditLog {
-  id        String   @id @default(uuid())
-  user_id   String
-  action    String
-  entity    String
-  entity_id String?
-  old_value Json?
-  new_value Json?
-  created_at DateTime @default(now())
-
-  user User @relation(fields: [user_id], references: [id])
-
-  @@map("audit_logs")
 }
 
 // ─── ZALO INTEGRATION ────────────────────────────────

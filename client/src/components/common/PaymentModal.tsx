@@ -77,6 +77,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       styles={{ body: { paddingTop: 16 } }}
       style={{ borderRadius: 12 }}
     >
+      <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: '8px 12px', marginBottom: 16, fontSize: 13 }}>
+        {t('payment.fifoNote', { max: formatVND(maxAmount) })}
+      </div>
       <Form form={form} layout="vertical" initialValues={{ method: 'BANK_TRANSFER', payment_date: dayjs() }}>
         <Form.Item
           label={t('payment.amount')}

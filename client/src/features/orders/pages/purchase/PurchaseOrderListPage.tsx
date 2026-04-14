@@ -8,7 +8,7 @@ import { usePurchaseOrders, useUpdatePurchaseOrderStatus } from '../../hooks';
 import { PurchaseOrder, PurchaseOrderStatus } from '@/types';
 import { formatVND, formatDate, purchaseStatusLabels } from '@/utils/format';
 import { PageHeader, StatusTag } from '@/components/common';
-import PurchaseOrderFormModal from '../../components/PurchaseOrderFormModal';
+// import PurchaseOrderFormModal from '../../components/PurchaseOrderFormModal';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -21,13 +21,15 @@ const PurchaseOrderListPage: React.FC = () => {
   const [dateRange, setDateRange] = useState<[any, any] | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [createOpen, setCreateOpen] = useState(false);
+  // const [createOpen, setCreateOpen] = useState(false);
 
   const statusOptions = [
     { label: t('common.all'), value: '' },
+    { label: t('purchaseStatusLabels.DRAFT'), value: 'DRAFT' },
     { label: t('purchaseStatusLabels.CONFIRMED'), value: 'CONFIRMED' },
     { label: t('purchaseStatusLabels.SHIPPING'), value: 'SHIPPING' },
     { label: t('purchaseStatusLabels.COMPLETED'), value: 'COMPLETED' },
+    { label: t('purchaseStatusLabels.CANCELLED'), value: 'CANCELLED' },
   ];
 
   const { data, isLoading } = usePurchaseOrders({
@@ -41,10 +43,8 @@ const PurchaseOrderListPage: React.FC = () => {
   const statusMutation = useUpdatePurchaseOrderStatus();
 
   const NEXT_STATUS: Record<string, string[]> = {
-    PENDING: ['NEW', 'CANCELLED'],
-    NEW: ['CONFIRMED', 'CANCELLED'],
-    CONFIRMED: ['PROCESSING', 'CANCELLED'],
-    PROCESSING: ['SHIPPING', 'CANCELLED'],
+    DRAFT: ['CONFIRMED', 'CANCELLED'],
+    CONFIRMED: ['SHIPPING', 'CANCELLED'],
     SHIPPING: ['COMPLETED'],
   };
 
@@ -126,7 +126,7 @@ const PurchaseOrderListPage: React.FC = () => {
             <Tooltip title={t('common.viewDetail')}>
               <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }} onClick={() => navigate(`/purchase-orders/${record.id}`)} />
             </Tooltip>
-            {record.status !== 'COMPLETED' && record.status !== 'CANCELLED' && (
+            {(record.status as string) !== 'COMPLETED' && (record.status as string) !== 'CANCELLED' && (
               <Tooltip title={t('common.edit')}>
                 <Button type="text" size="small" icon={<EditOutlined />} onClick={() => navigate(`/purchase-orders/${record.id}?edit=1`)} />
               </Tooltip>
@@ -163,7 +163,7 @@ const PurchaseOrderListPage: React.FC = () => {
             type="primary"
             icon={<PlusOutlined />}
             style={{ borderRadius: 8 }}
-            onClick={() => setCreateOpen(true)}
+            onClick={() => navigate('/purchase-orders/create')}
           >
             {t('order.createOrder')}
           </Button>
@@ -211,7 +211,7 @@ const PurchaseOrderListPage: React.FC = () => {
         }}
       />
 
-      <PurchaseOrderFormModal open={createOpen} onClose={() => setCreateOpen(false)} onSuccess={() => setCreateOpen(false)} />
+      {/* <PurchaseOrderFormModal open={createOpen} onClose={() => setCreateOpen(false)} onSuccess={() => setCreateOpen(false)} /> */}
     </Card>
   );
 };

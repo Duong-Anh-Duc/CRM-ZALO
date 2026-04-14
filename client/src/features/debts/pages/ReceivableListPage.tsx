@@ -6,12 +6,14 @@ import {
 } from 'antd';
 import {
   DollarOutlined, WarningOutlined, CalendarOutlined,
-  SearchOutlined, EyeOutlined,
+  SearchOutlined, EyeOutlined, DownloadOutlined, FilePdfOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
 import { useReceivablesByCustomer, useReceivableSummary } from '../hooks';
-import { formatVND } from '@/utils/format';
+import { receivableApi } from '../api';
+import { formatVND, formatDate, debtStatusLabels } from '@/utils/format';
+import { exportToExcel } from '@/utils/export';
 import { PageHeader } from '@/components/common';
 
 const { Text } = Typography;
@@ -81,12 +83,53 @@ const ReceivableListPage: React.FC = () => {
         : <Text type="secondary">0</Text>,
     },
     {
-      title: t('common.actions'), key: 'actions', width: 80, fixed: 'right' as const, align: 'center' as const,
+      title: t('common.actions'), key: 'actions', width: 130, fixed: 'right' as const, align: 'center' as const,
       render: (_: unknown, r: any) => (
-        <Tooltip title={t('common.viewDetail')}>
-          <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }}
-            onClick={() => navigate(`/receivables/customer/${r.customer_id}`)} />
-        </Tooltip>
+        <Space size={2}>
+          <Tooltip title={t('common.viewDetail')}>
+            <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }}
+              onClick={() => navigate(`/receivables/customer/${r.customer_id}`)} />
+          </Tooltip>
+          <Tooltip title={t('debt.exportExcel')}>
+            <Button type="text" size="small" icon={<DownloadOutlined />} onClick={async () => {
+              try {
+                const detail = await receivableApi.getCustomerDetail(r.customer_id);
+                const d = detail.data?.data;
+                const recs = d?.receivables || [];
+                const cust = d?.customer;
+                const sum = d?.summary;
+                const name = cust?.company_name || cust?.contact_name || '';
+                const rows = [
+                  { [t('debt.receivables')]: t('order.customer') + ': ' + name, '': '', ' ': '', '  ': '', '   ': '', '    ': '', '     ': '' },
+                  { [t('debt.receivables')]: t('customer.phone') + ': ' + (cust?.phone || '-'), '': t('customer.address') + ': ' + (cust?.address || '-') },
+                  { [t('debt.receivables')]: t('debt.totalDebt') + ': ' + formatVND(sum?.total_original), '': t('debt.totalPaid') + ': ' + formatVND(sum?.total_paid), ' ': t('debt.remaining') + ': ' + formatVND(sum?.total_remaining) },
+                  {},
+                  ...recs.map((rec: any, i: number) => ({
+                    'STT': i + 1,
+                    [t('debt.invoiceNumber')]: rec.invoice_number || '',
+                    [t('order.orderCode')]: rec.sales_order?.order_code || '',
+                    [t('debt.invoiceDate')]: formatDate(rec.invoice_date),
+                    [t('debt.dueDate')]: formatDate(rec.due_date),
+                    [t('debt.originalAmount')]: rec.original_amount,
+                    [t('debt.paidShort')]: rec.paid_amount,
+                    [t('debt.remaining')]: rec.remaining,
+                    [t('common.status')]: debtStatusLabels[rec.status] || rec.status,
+                  })),
+                ];
+                exportToExcel(rows, `cong-no-phai-thu-${name}`, t('debt.receivables'));
+              } catch { /* ignore */ }
+            }} />
+          </Tooltip>
+          <Tooltip title={t('debt.exportPdf')}>
+            <Button type="text" size="small" icon={<FilePdfOutlined />} onClick={async () => {
+              try {
+                const res = await receivableApi.exportPdf(r.customer_id);
+                const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                window.open(url, '_blank');
+              } catch { /* ignore */ }
+            }} />
+          </Tooltip>
+        </Space>
       ),
     },
   ];

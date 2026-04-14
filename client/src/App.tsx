@@ -11,8 +11,10 @@ import SupplierListPage from '@/features/suppliers/pages/SupplierListPage';
 import SupplierDetailPage from '@/features/suppliers/pages/SupplierDetailPage';
 import SalesOrderListPage from '@/features/orders/pages/sales/SalesOrderListPage';
 import SalesOrderDetailPage from '@/features/orders/pages/sales/SalesOrderDetailPage';
+import CreateSalesOrderPage from '@/features/orders/pages/sales/CreateSalesOrderPage';
 import PurchaseOrderListPage from '@/features/orders/pages/purchase/PurchaseOrderListPage';
 import PurchaseOrderDetailPage from '@/features/orders/pages/purchase/PurchaseOrderDetailPage';
+import CreatePurchaseOrderPage from '@/features/orders/pages/purchase/CreatePurchaseOrderPage';
 import DebtPage from '@/features/debts/pages/DebtPage';
 import CustomerDebtDetailPage from '@/features/debts/pages/CustomerDebtDetailPage';
 import SupplierDebtDetailPage from '@/features/debts/pages/SupplierDebtDetailPage';
@@ -53,8 +55,10 @@ export default function App() {
         <Route path="suppliers" element={<SupplierListPage />} />
         <Route path="suppliers/:id" element={<SupplierDetailPage />} />
         <Route path="sales-orders" element={<SalesOrderListPage />} />
+        <Route path="sales-orders/create" element={<CreateSalesOrderPage />} />
         <Route path="sales-orders/:id" element={<SalesOrderDetailPage />} />
         <Route path="purchase-orders" element={<PurchaseOrderListPage />} />
+        <Route path="purchase-orders/create" element={<CreatePurchaseOrderPage />} />
         <Route path="purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
         <Route path="debts" element={<DebtPage />} />
         <Route path="receivables/customer/:customerId" element={<CustomerDebtDetailPage />} />

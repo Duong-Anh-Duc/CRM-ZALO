@@ -5,6 +5,8 @@ import { config } from '../../config';
 import { t } from '../../locales';
 import dayjs from 'dayjs';
 import { delCache } from '../../lib/redis';
+import { AlertService } from '../alert/alert.service';
+import logger from '../../utils/logger';
 
 interface CreatePurchaseOrderInput {
   supplier_id: string;
@@ -99,7 +101,7 @@ export class PurchaseOrderService {
         order_code: orderCode,
         supplier_id: input.supplier_id,
         sales_order_id: input.sales_order_id || null,
-        status: input.status || 'PENDING',
+        status: input.status || 'DRAFT',
         expected_delivery: input.expected_delivery ? new Date(input.expected_delivery) : null,
         notes: input.notes,
         total,
@@ -136,6 +138,14 @@ export class PurchaseOrderService {
 
     // Debts are now created by SalesOrderService.checkAndCreateDebts
     // when both sales + purchase invoices are approved
+
+    // Create alert for PO status change
+    AlertService.createAlert({
+      type: 'WARNING',
+      title: t('alert.poStatusChanged', { code: updated.order_code, status }),
+      message: t('alert.poStatusChanged', { code: updated.order_code, status }),
+      purchase_order_id: id,
+    }).catch((err) => logger.warn(`Alert creation failed: ${err.message}`));
 
     await delCache('cache:/api/purchase-orders*', 'cache:/api/dashboard*', 'cache:/api/payables*');
     return updated;

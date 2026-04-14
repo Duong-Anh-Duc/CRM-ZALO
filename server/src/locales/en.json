@@ -30,7 +30,11 @@
     "notFound": "Order not found",
     "salesNotFound": "Sales order not found",
     "purchaseNotFound": "Purchase order not found",
-    "invalidStatus": "Invalid status"
+    "invalidStatus": "Invalid status",
+    "allItemsMustHaveSupplier": "{{count}} items have no supplier assigned. Please assign suppliers to all items before confirming.",
+    "onlyEditDraft": "Can only edit draft orders",
+    "itemNotFound": "Item not found in order",
+    "minOneItem": "Order must have at least 1 item"
   },
   "debt": {
     "notFound": "Debt record not found",
@@ -49,7 +53,12 @@
     "dueToday": "Purchase order #{{code}} delivery due TODAY",
     "deliveryNotConfirmed": "Delivery not confirmed",
     "overdueDays": "Order {{code}} overdue {{days}} days - delivery not confirmed",
-    "reportToManager": "Report to management required"
+    "reportToManager": "Report to management required",
+    "soStatusChanged": "Sales order {{code}} status changed to {{status}}",
+    "poStatusChanged": "Purchase order {{code}} status changed to {{status}}",
+    "invoiceApproved": "Invoice #{{number}} has been approved",
+    "receivablePaymentRecorded": "Receivable payment of {{amount}} recorded",
+    "payablePaymentRecorded": "Payable payment of {{amount}} recorded"
   },
   "validation": {
     "emailRequired": "Please enter email",
@@ -111,6 +120,8 @@
     "notFound": "Invoice not found",
     "onlyEditDraft": "Can only edit draft invoices",
     "onlyFinalizeDraft": "Can only approve draft invoices",
+    "cannotEditCancelled": "Cannot edit cancelled invoice",
+    "orderLocked": "Order is completed/cancelled, cannot edit invoice",
     "defaultProduct": "Product"
   },
   "zalo": {
@@ -158,6 +169,8 @@
     "supplierPriceNotFound": "Supplier/Product not found",
     "supplierPriceUpdated": "Updated supplier price \"{{supplier}}\" for \"{{product}}\"",
     "reportInfo": "Report {{type}} from {{from}} to {{to}} — please view on Reports page",
+    "poStatusUpdated": "Updated PO {{code}} status to {{status}}",
+    "alertCreated": "Created alert: {{title}}",
     "unsupportedAction": "Unsupported action: {{type}}",
     "actionError": "Error {{type}}: {{message}}"
   },

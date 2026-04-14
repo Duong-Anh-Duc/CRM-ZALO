@@ -6,12 +6,14 @@ import {
 } from 'antd';
 import {
   DollarOutlined, WarningOutlined, CalendarOutlined,
-  SearchOutlined, EyeOutlined,
+  SearchOutlined, EyeOutlined, FilePdfOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
 import { usePayablesBySupplier, usePayableSummary } from '../hooks';
-import { formatVND } from '@/utils/format';
+import { payableApi } from '../api';
+import { formatVND, formatDate, debtStatusLabels } from '@/utils/format';
+import { exportToExcel } from '@/utils/export';
 import { PageHeader } from '@/components/common';
 
 const { Text } = Typography;
@@ -81,12 +83,53 @@ const PayableListPage: React.FC = () => {
         : <Text type="secondary">0</Text>,
     },
     {
-      title: t('common.actions'), key: 'actions', width: 80, fixed: 'right' as const, align: 'center' as const,
+      title: t('common.actions'), key: 'actions', width: 130, fixed: 'right' as const, align: 'center' as const,
       render: (_: unknown, r: any) => (
-        <Tooltip title={t('common.viewDetail')}>
-          <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }}
-            onClick={() => navigate(`/payables/supplier/${r.supplier_id}`)} />
-        </Tooltip>
+        <Space size={2}>
+          <Tooltip title={t('common.viewDetail')}>
+            <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }}
+              onClick={() => navigate(`/payables/supplier/${r.supplier_id}`)} />
+          </Tooltip>
+          <Tooltip title={t('debt.exportExcel')}>
+            <Button type="text" size="small" icon={<DownloadOutlined />} onClick={async () => {
+              try {
+                const detail = await payableApi.getSupplierDetail(r.supplier_id);
+                const d = detail.data?.data;
+                const pays = d?.payables || [];
+                const supp = d?.supplier;
+                const sum = d?.summary;
+                const name = supp?.company_name || '';
+                const rows = [
+                  { [t('debt.payables')]: t('order.supplier') + ': ' + name },
+                  { [t('debt.payables')]: t('customer.phone') + ': ' + (supp?.phone || '-'), '': t('customer.address') + ': ' + (supp?.address || '-') },
+                  { [t('debt.payables')]: t('debt.totalDebt') + ': ' + formatVND(sum?.total_original), '': t('debt.totalPaid') + ': ' + formatVND(sum?.total_paid), ' ': t('debt.remaining') + ': ' + formatVND(sum?.total_remaining) },
+                  {},
+                  ...pays.map((pay: any, i: number) => ({
+                    'STT': i + 1,
+                    [t('debt.invoiceNumber')]: pay.invoice_number || '',
+                    [t('order.orderCode')]: pay.purchase_order?.order_code || '',
+                    [t('debt.invoiceDate')]: formatDate(pay.invoice_date),
+                    [t('debt.dueDate')]: formatDate(pay.due_date),
+                    [t('debt.originalAmount')]: pay.original_amount,
+                    [t('debt.paidShort')]: pay.paid_amount,
+                    [t('debt.remaining')]: pay.remaining,
+                    [t('common.status')]: debtStatusLabels[pay.status] || pay.status,
+                  })),
+                ];
+                exportToExcel(rows, `cong-no-phai-tra-${name}`, t('debt.payables'));
+              } catch { /* ignore */ }
+            }} />
+          </Tooltip>
+          <Tooltip title={t('debt.exportPdf')}>
+            <Button type="text" size="small" icon={<FilePdfOutlined />} onClick={async () => {
+              try {
+                const res = await payableApi.exportPdf(r.supplier_id);
+                const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                window.open(url, '_blank');
+              } catch { /* ignore */ }
+            }} />
+          </Tooltip>
+        </Space>
       ),
     },
   ];

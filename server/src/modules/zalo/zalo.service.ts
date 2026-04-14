@@ -231,6 +231,62 @@ export class ZaloService {
     return result?.data || null;
   }
 
+  // ──── Thread Classification ────
+
+  static async classifyThread(
+    sender_id: string,
+    sender_name?: string,
+    phone?: string,
+  ): Promise<{ type: 'CUSTOMER' | 'SUPPLIER' | 'UNKNOWN'; entity: any }> {
+    try {
+      // 1. Check if sender_id already linked to a Customer
+      const customerByZalo = await prisma.customer.findFirst({
+        where: { zalo_user_id: sender_id, is_active: true },
+      });
+      if (customerByZalo) return { type: 'CUSTOMER', entity: customerByZalo };
+
+      // 2. Check if sender_id already linked to a Supplier
+      const supplierByZalo = await prisma.supplier.findFirst({
+        where: { zalo_user_id: sender_id, is_active: true },
+      });
+      if (supplierByZalo) return { type: 'SUPPLIER', entity: supplierByZalo };
+
+      // 3. Try to match by phone number (if provided)
+      if (phone) {
+        const normalizedPhone = phone.replace(/\D/g, '').replace(/^84/, '0');
+
+        const customerByPhone = await prisma.customer.findFirst({
+          where: { phone: { contains: normalizedPhone }, is_active: true },
+        });
+        if (customerByPhone) {
+          await prisma.customer.update({
+            where: { id: customerByPhone.id },
+            data: { zalo_user_id: sender_id },
+          });
+          logger.info(`Auto-linked Zalo ${sender_id} to customer "${customerByPhone.company_name}" via phone ${normalizedPhone}`);
+          return { type: 'CUSTOMER', entity: customerByPhone };
+        }
+
+        const supplierByPhone = await prisma.supplier.findFirst({
+          where: { phone: { contains: normalizedPhone }, is_active: true },
+        });
+        if (supplierByPhone) {
+          await prisma.supplier.update({
+            where: { id: supplierByPhone.id },
+            data: { zalo_user_id: sender_id },
+          });
+          logger.info(`Auto-linked Zalo ${sender_id} to supplier "${supplierByPhone.company_name}" via phone ${normalizedPhone}`);
+          return { type: 'SUPPLIER', entity: supplierByPhone };
+        }
+      }
+
+      return { type: 'UNKNOWN', entity: null };
+    } catch (err) {
+      logger.error('Thread classification error:', err);
+      return { type: 'UNKNOWN', entity: null };
+    }
+  }
+
   // ──── Webhook ────
 
   static async handleWebhook(payload: any) {
@@ -269,6 +325,14 @@ export class ZaloService {
             const msgContent = msg.content || msg.text || '';
             const senderName = msg.dName || msg.senderName || '';
             const senderId = msg.uidFrom || msg.senderId || '';
+
+            // Classify thread (fire-and-forget)
+            if (senderId) {
+              this.classifyThread(senderId, senderName, msg.phone).catch((err) => {
+                logger.error('Zalo thread classification error:', err);
+              });
+            }
+
             if (!msgContent || msgContent.length < 3) continue;
 
             this.autoProcessMessage(senderId, senderName, msgContent).catch((err) => {
@@ -791,8 +855,14 @@ export class ZaloService {
           }
           if (!customerId) { results.push({ success: false, message: t("aiAction.missingCustomerInfo") }); continue; }
 
-          // Match products
-          const products = await prisma.product.findMany({ where: { is_active: true }, select: { id: true, name: true, sku: true, wholesale_price: true, retail_price: true } });
+          // Match products + suppliers
+          const products = await prisma.product.findMany({
+            where: { is_active: true },
+            select: { id: true, name: true, sku: true, wholesale_price: true, retail_price: true },
+          });
+          const supplierPrices = await prisma.supplierPrice.findMany({
+            include: { supplier: { select: { id: true, company_name: true } } },
+          });
           const orderItems: any[] = [];
           for (const item of (d.items || [])) {
             const search = (item.product_name || '').toLowerCase();
@@ -800,10 +870,29 @@ export class ZaloService {
               p.name.toLowerCase().includes(search) || search.includes(p.name.toLowerCase()) || p.sku.toLowerCase() === search,
             );
             if (matched) {
+              // Match supplier: AI cung cấp tên NCC hoặc tìm preferred
+              let supplierId: string | null = null;
+              let purchasePrice: number | null = null;
+              if (item.supplier_name) {
+                const sp = supplierPrices.find((s) =>
+                  s.product_id === matched.id && s.supplier.company_name.toLowerCase().includes((item.supplier_name || '').toLowerCase())
+                );
+                if (sp) { supplierId = sp.supplier_id; purchasePrice = sp.purchase_price; }
+              }
+              if (!supplierId) {
+                // Fallback: preferred supplier
+                const preferred = supplierPrices.find((s) => s.product_id === matched.id && s.is_preferred);
+                const any = supplierPrices.find((s) => s.product_id === matched.id);
+                const sp = preferred || any;
+                if (sp) { supplierId = sp.supplier_id; purchasePrice = sp.purchase_price; }
+              }
               orderItems.push({
                 product_id: matched.id,
+                supplier_id: supplierId,
                 quantity: item.quantity,
                 unit_price: item.unit_price || Number(matched.wholesale_price) || Number(matched.retail_price) || 0,
+                purchase_price: purchasePrice,
+                customer_product_name: item.product_name || undefined,
               });
             }
           }
@@ -811,7 +900,7 @@ export class ZaloService {
 
           const so = await SalesOrderService.create({
             customer_id: customerId,
-            status: 'PENDING' as any,
+            status: 'DRAFT' as any,
             vat_rate: (d.vat_rate || 'VAT_10') as VATRate,
             expected_delivery: d.delivery_date || dayjs().add(7, 'day').format('YYYY-MM-DD'),
             notes: d.notes || `[AI] ${d.customer_name}`,
@@ -925,7 +1014,7 @@ export class ZaloService {
           const d = action.data;
           const so = await prisma.salesOrder.findFirst({ where: { order_code: { contains: d.order_code, mode: 'insensitive' } } });
           if (!so) { results.push({ success: false, message: t("aiAction.invoiceNotFound", { code: d.order_code }) }); continue; }
-          const invoice = await InvoiceService.createDraftFromOrder(so.id);
+          const invoice = await InvoiceService.createFromOrder(so.id);
           results.push({ success: true, message: t("aiAction.invoiceCreated", { number: invoice.invoice_number, code: so.order_code }) });
 
         } else if (action.type === 'finalize_invoice') {
@@ -1030,6 +1119,32 @@ export class ZaloService {
             });
             results.push({ success: true, message: t("aiAction.debtMarkedPaid", { code }) });
           }
+
+        } else if (action.type === 'update_po_status') {
+          const d = action.data;
+          const code = d.order_code || '';
+          const order = await prisma.purchaseOrder.findFirst({ where: { order_code: { contains: code, mode: 'insensitive' } } });
+          if (!order) { results.push({ success: false, message: t("aiAction.orderNotFound", { code }) }); continue; }
+          await PurchaseOrderService.updateStatus(order.id, d.status);
+          if (d.note) {
+            await prisma.purchaseOrder.update({ where: { id: order.id }, data: { notes: d.note } });
+          }
+          results.push({ success: true, message: t("aiAction.poStatusUpdated", { code: order.order_code, status: d.status }) });
+
+        } else if (action.type === 'create_alert') {
+          const d = action.data;
+          const relatedPO = d.related_entity?.startsWith('PO')
+            ? await prisma.purchaseOrder.findFirst({ where: { order_code: { contains: d.related_entity, mode: 'insensitive' } } })
+            : null;
+          await prisma.alert.create({
+            data: {
+              type: d.type || 'WARNING',
+              title: d.title || 'Cảnh báo từ NCC',
+              message: d.message || '',
+              purchase_order_id: relatedPO?.id || null,
+            },
+          });
+          results.push({ success: true, message: t("aiAction.alertCreated", { title: d.title }) });
 
         } else if (action.type === 'get_report') {
           const d = action.data;

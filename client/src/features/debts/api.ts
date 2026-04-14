@@ -15,6 +15,9 @@ export const receivableApi = {
 
   recordPayment: (data: { customer_id: string; amount: number; payment_date?: string; method: string; reference?: string }) =>
     apiClient.post('/receivables/payments', data),
+
+  exportPdf: (customerId: string) =>
+    apiClient.get(`/receivables/customer/${customerId}/export-pdf`, { responseType: 'blob' }),
 };
 
 export const payableApi = {
@@ -32,4 +35,7 @@ export const payableApi = {
 
   recordPayment: (data: { supplier_id: string; amount: number; payment_date?: string; method: string; reference?: string }) =>
     apiClient.post('/payables/payments', data),
+
+  exportPdf: (supplierId: string) =>
+    apiClient.get(`/payables/supplier/${supplierId}/export-pdf`, { responseType: 'blob' }),
 };

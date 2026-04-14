@@ -8,7 +8,7 @@ import { useSalesOrders, useUpdateSalesOrderStatus } from '../../hooks';
 import { SalesOrder, SalesOrderStatus } from '@/types';
 import { formatVND, formatDate, salesStatusLabels } from '@/utils/format';
 import { PageHeader, StatusTag } from '@/components/common';
-import SalesOrderFormModal from '../../components/SalesOrderFormModal';
+// import SalesOrderFormModal from '../../components/SalesOrderFormModal';
 
 const { RangePicker } = DatePicker;
 
@@ -20,11 +20,11 @@ const SalesOrderListPage: React.FC = () => {
   const [dateRange, setDateRange] = useState<[any, any] | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [createOpen, setCreateOpen] = useState(false);
+  // const [createOpen, setCreateOpen] = useState(false);
 
   const statusOptions = [
     { label: t('common.all'), value: '' },
-    { label: t('salesStatusLabels.PENDING'), value: 'PENDING' },
+    { label: t('salesStatusLabels.DRAFT'), value: 'DRAFT' },
     { label: t('salesStatusLabels.CONFIRMED'), value: 'CONFIRMED' },
     { label: t('salesStatusLabels.SHIPPING'), value: 'SHIPPING' },
     { label: t('salesStatusLabels.COMPLETED'), value: 'COMPLETED' },
@@ -42,10 +42,8 @@ const SalesOrderListPage: React.FC = () => {
   const statusMutation = useUpdateSalesOrderStatus();
 
   const NEXT_STATUS: Record<string, string[]> = {
-    PENDING: ['NEW', 'CANCELLED'],
-    NEW: ['CONFIRMED', 'CANCELLED'],
-    CONFIRMED: ['PREPARING', 'CANCELLED'],
-    PREPARING: ['SHIPPING', 'CANCELLED'],
+    DRAFT: ['CONFIRMED', 'CANCELLED'],
+    CONFIRMED: ['SHIPPING', 'CANCELLED'],
     SHIPPING: ['COMPLETED'],
   };
 
@@ -165,7 +163,7 @@ const SalesOrderListPage: React.FC = () => {
             type="primary"
             icon={<PlusOutlined />}
             style={{ borderRadius: 8 }}
-            onClick={() => setCreateOpen(true)}
+            onClick={() => navigate('/sales-orders/create')}
           >
             {t('order.createOrder')}
           </Button>
@@ -213,7 +211,6 @@ const SalesOrderListPage: React.FC = () => {
         }}
       />
 
-      <SalesOrderFormModal open={createOpen} onClose={() => setCreateOpen(false)} onSuccess={() => setCreateOpen(false)} />
     </Card>
   );
 };

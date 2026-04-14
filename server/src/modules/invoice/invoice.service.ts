@@ -6,6 +6,8 @@ import { buildInvoiceHtml } from './invoice-template';
 import type { InvoiceData } from './invoice-template';
 import dayjs from 'dayjs';
 import logger from '../../utils/logger';
+import { delCache } from '../../lib/redis';
+import { AlertService } from '../alert/alert.service';
 
 const DEFAULT_SELLER = {
   name: 'CÔNG TY TNHH TECHLA AI',
@@ -61,8 +63,8 @@ export class InvoiceService {
     return count + 1;
   }
 
-  // ──── Auto-create draft invoice from Sales Order ────
-  static async createDraftFromOrder(orderId: string) {
+  // ──── Xuất hoá đơn bán (APPROVED luôn + tạo công nợ) ────
+  static async createFromOrder(orderId: string) {
     const order = await prisma.salesOrder.findUnique({
       where: { id: orderId },
       include: {
@@ -72,7 +74,7 @@ export class InvoiceService {
     });
     if (!order) throw new AppError(t('order.notFound'), 404);
 
-    // Check if draft already exists
+    // Check if already exists
     const existing = await prisma.invoice.findFirst({ where: { sales_order_id: orderId, status: { not: 'CANCELLED' } } });
     if (existing) return existing;
 
@@ -88,12 +90,17 @@ export class InvoiceService {
       amount: Number(item.line_total),
     }));
 
+    const total = Number(order.grand_total);
+    const dueDate = new Date(order.order_date);
+    dueDate.setDate(dueDate.getDate() + 30);
+
+    // Create invoice as DRAFT (user phải duyệt thủ công)
     const invoice = await prisma.invoice.create({
       data: {
         sales_order_id: orderId,
         status: 'DRAFT',
         invoice_number: await this.getNextInvoiceNumber(),
-        invoice_date: order.order_date,
+        invoice_date: new Date(),
         cqt_code: cqtCode,
         seller_name: DEFAULT_SELLER.name,
         seller_tax_code: DEFAULT_SELLER.taxCode,
@@ -113,12 +120,13 @@ export class InvoiceService {
         subtotal: Number(order.subtotal),
         vat_rate: vatPct,
         vat_amount: Number(order.vat_amount),
-        total: Number(order.grand_total),
-        total_in_words: numberToVietnameseWords(Math.round(Number(order.grand_total))),
+        total,
+        total_in_words: numberToVietnameseWords(Math.round(total)),
       },
     });
 
-    logger.info(`Draft invoice created: #${invoice.invoice_number} for order ${order.order_code}`);
+    await delCache('cache:/api/sales-orders*');
+    logger.info(`Draft sales invoice created: #${invoice.invoice_number} for order ${order.order_code}`);
     return invoice;
   }
 
@@ -171,13 +179,22 @@ export class InvoiceService {
     return invoice;
   }
 
-  // ──── Update draft ────
-  static async updateDraft(id: string, data: Record<string, unknown>) {
+  // ──── Update invoice (cho phép sửa nếu SO/PO chưa COMPLETED) ────
+  static async updateInvoice(id: string, data: Record<string, unknown>) {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
     if (!invoice) throw new AppError(t('invoice.notFound'), 404);
-    if (invoice.status !== 'DRAFT') throw new AppError(t('invoice.onlyEditDraft'), 400);
+    if (invoice.status === 'CANCELLED') throw new AppError(t('invoice.cannotEditCancelled'), 400);
 
-    // Recalculate total_in_words if total changed
+    // Check SO/PO not COMPLETED
+    if (invoice.sales_order_id) {
+      const so = await prisma.salesOrder.findUnique({ where: { id: invoice.sales_order_id }, select: { status: true } });
+      if (so?.status === 'COMPLETED' || so?.status === 'CANCELLED') throw new AppError(t('invoice.orderLocked'), 400);
+    }
+    if (invoice.purchase_order_id) {
+      const po = await prisma.purchaseOrder.findUnique({ where: { id: invoice.purchase_order_id }, select: { status: true } });
+      if (po?.status === 'COMPLETED' || po?.status === 'CANCELLED') throw new AppError(t('invoice.orderLocked'), 400);
+    }
+
     const updateData: any = { ...data };
     if (data.total) {
       updateData.total_in_words = numberToVietnameseWords(Math.round(Number(data.total)));
@@ -222,9 +239,8 @@ export class InvoiceService {
         purchase_order_id: purchaseOrderId,
         status: 'DRAFT',
         invoice_number: await this.getNextInvoiceNumber(),
-        invoice_date: po.order_date || new Date(),
+        invoice_date: new Date(),
         cqt_code: cqtCode,
-        // Seller = Supplier
         seller_name: po.supplier.company_name,
         seller_tax_code: po.supplier.tax_code || '',
         seller_address: po.supplier.address || '',
@@ -232,7 +248,6 @@ export class InvoiceService {
         seller_email: po.supplier.email || '',
         seller_rep: po.supplier.contact_name || '',
         seller_position: '',
-        // Buyer = Our company
         buyer_name: DEFAULT_SELLER.representative,
         buyer_company: DEFAULT_SELLER.name,
         buyer_address: DEFAULT_SELLER.address,
@@ -249,29 +264,74 @@ export class InvoiceService {
       },
     });
 
-    logger.info(`Purchase invoice created: #${invoice.invoice_number} for PO ${po.order_code}`);
+    await delCache('cache:/api/purchase-orders*');
+    logger.info(`Draft purchase invoice created: #${invoice.invoice_number} for PO ${po.order_code}`);
     return invoice;
   }
 
-  // ──── Approve invoice (finalize) ────
+  // ──── Approve invoice (finalize) → tạo công nợ + update SO/PO status ────
   static async finalize(id: string) {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
     if (!invoice) throw new AppError(t('invoice.notFound'), 404);
     if (invoice.status !== 'DRAFT') throw new AppError(t('invoice.onlyFinalizeDraft'), 400);
 
     const updated = await prisma.invoice.update({ where: { id }, data: { status: 'APPROVED' } });
+    const total = Number(invoice.total);
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 30);
 
-    // After approving, check if debts should be created
-    const { SalesOrderService } = require('../sales-order/sales-order.service');
-    const soId = invoice.sales_order_id || (invoice.purchase_order_id
-      ? (await prisma.purchaseOrder.findUnique({ where: { id: invoice.purchase_order_id }, select: { sales_order_id: true } }))?.sales_order_id
-      : null);
-    if (soId) {
-      SalesOrderService.checkAndCreateDebts(soId).catch((err: any) => {
-        logger.warn(`Debt check after invoice approve failed: ${err.message}`);
-      });
+    // HĐ bán → tạo công nợ phải thu + SO → INVOICED
+    if (invoice.type === 'SALES' && invoice.sales_order_id) {
+      const so = await prisma.salesOrder.findUnique({ where: { id: invoice.sales_order_id }, select: { customer_id: true, order_code: true } });
+      if (so) {
+        // Tạo receivable
+        await prisma.receivable.create({
+          data: {
+            customer_id: so.customer_id,
+            sales_order_id: invoice.sales_order_id,
+            invoice_number: `INV-${invoice.invoice_number}`,
+            invoice_date: new Date(),
+            due_date: dueDate,
+            original_amount: total,
+            paid_amount: 0,
+            remaining: total,
+            status: 'UNPAID',
+          },
+        });
+        logger.info(`Invoice #${invoice.invoice_number} approved → receivable created for SO ${so.order_code}`);
+      }
     }
 
+    // HĐ mua → tạo công nợ phải trả + PO → INVOICED
+    if (invoice.type === 'PURCHASE' && invoice.purchase_order_id) {
+      const po = await prisma.purchaseOrder.findUnique({ where: { id: invoice.purchase_order_id }, select: { supplier_id: true, order_code: true } });
+      if (po) {
+        // Tạo payable
+        await prisma.payable.create({
+          data: {
+            supplier_id: po.supplier_id,
+            purchase_order_id: invoice.purchase_order_id,
+            invoice_number: `PI-${invoice.invoice_number}`,
+            invoice_date: new Date(),
+            due_date: dueDate,
+            original_amount: total,
+            paid_amount: 0,
+            remaining: total,
+            status: 'UNPAID',
+          },
+        });
+        logger.info(`Invoice #${invoice.invoice_number} approved → payable created for PO ${po.order_code}`);
+      }
+    }
+
+    // Create alert for invoice approval
+    AlertService.createAlert({
+      type: 'WARNING',
+      title: t('alert.invoiceApproved', { number: invoice.invoice_number }),
+      message: t('alert.invoiceApproved', { number: invoice.invoice_number }),
+    }).catch((err) => logger.warn(`Alert creation failed: ${err.message}`));
+
+    await delCache('cache:/api/sales-orders*', 'cache:/api/purchase-orders*', 'cache:/api/receivables*', 'cache:/api/payables*', 'cache:/api/dashboard*');
     return updated;
   }
 

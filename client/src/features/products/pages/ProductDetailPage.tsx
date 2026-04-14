@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Card, Table, Tag, Spin, Empty, Space, Row, Col, Typography, Avatar, Tabs, Button, Image, Modal } from 'antd';
-import { StarFilled, ShoppingOutlined, DollarOutlined, ShopOutlined, LinkOutlined, InfoCircleOutlined, ExperimentOutlined, ColumnHeightOutlined, BgColorsOutlined, BorderOutlined, ToolOutlined, InboxOutlined, NumberOutlined, DashboardOutlined } from '@ant-design/icons';
+import { StarFilled, ShoppingOutlined, DollarOutlined, ShopOutlined, InfoCircleOutlined, ExperimentOutlined, ColumnHeightOutlined, BgColorsOutlined, BorderOutlined, ToolOutlined, InboxOutlined, NumberOutlined, DashboardOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useProduct, useCompatibleCaps } from '../hooks';
-import { Product, SupplierPrice } from '@/types';
+import { useProduct } from '../hooks';
+import { SupplierPrice } from '@/types';
 import { formatVND, materialLabels, formatNumber } from '@/utils/format';
 
 const { Text } = Typography;
@@ -18,9 +18,7 @@ const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [modal, setModal] = useState<'pricing' | 'suppliers' | null>(null);
   const { data: productData, isLoading } = useProduct(id);
-  const product = productData?.data as Product | undefined;
-  const { data: capsData } = useCompatibleCaps(id);
-  const compatibleCaps = capsData?.data as Product[] | undefined;
+  const product = productData?.data as any;
 
   if (isLoading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
   if (!product) return <Empty description={t('product.notFound')} style={{ marginTop: 80 }} />;
@@ -94,24 +92,10 @@ const ProductDetailPage: React.FC = () => {
         </div>
       ),
     },
-    ...(compatibleCaps && compatibleCaps.length > 0 ? [{
-      key: 'caps',
-      label: <><LinkOutlined /> {t('product.compatibleCaps')} ({compatibleCaps.length})</>,
-      children: (
-        <Space wrap>
-          {compatibleCaps.map((cap) => (
-            <Tag key={cap.id} color="purple" style={{ borderRadius: 8, cursor: 'pointer', padding: '4px 12px' }}
-              onClick={() => navigate(`/products/${cap.id}`)}>
-              {cap.sku} - {cap.name}
-            </Tag>
-          ))}
-        </Space>
-      ),
-    }] : []),
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Card style={cardStyle}>
         <Tabs items={tabItems} />
       </Card>

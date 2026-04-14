@@ -10,8 +10,6 @@ import {
   FileTextOutlined,
   ImportOutlined,
   DollarOutlined,
-  AccountBookOutlined,
-  BarChartOutlined,
   SettingOutlined,
   UserOutlined,
   LockOutlined,
@@ -21,6 +19,7 @@ import {
   GlobalOutlined,
   MessageOutlined,
   CloseOutlined,
+  AccountBookOutlined,
 } from '@ant-design/icons';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -45,7 +44,7 @@ const getMenuItems = (t: (key: string) => string): MenuProps['items'] => [
   { key: '/purchase-orders', icon: <ImportOutlined />, label: t('menu.purchaseOrders') },
   { type: 'group', label: t('menu.finance') },
   { key: '/debts', icon: <DollarOutlined />, label: t('menu.debts') },
-  // { key: '/operating-costs', icon: <AccountBookOutlined />, label: t('menu.operatingCosts') },
+  { key: '/operating-costs', icon: <AccountBookOutlined />, label: t('menu.operatingCosts') },
 ];
 
 const AppLayout: React.FC = () => {
@@ -84,6 +83,7 @@ const AppLayout: React.FC = () => {
     { key: '/zalo', icon: <MessageOutlined />, label: t('menu.zalo') },
     ...(hasRole('ADMIN')
       ? [
+          { key: '/users', icon: <UserOutlined />, label: t('menu.users') },
           { key: '/settings', icon: <SettingOutlined />, label: t('menu.settings') },
         ]
       : []),

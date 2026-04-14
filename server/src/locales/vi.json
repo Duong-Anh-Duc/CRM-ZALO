@@ -30,7 +30,11 @@
     "notFound": "Không tìm thấy đơn hàng",
     "salesNotFound": "Không tìm thấy đơn hàng",
     "purchaseNotFound": "Không tìm thấy đơn mua hàng",
-    "invalidStatus": "Trạng thái không hợp lệ"
+    "invalidStatus": "Trạng thái không hợp lệ",
+    "allItemsMustHaveSupplier": "Còn {{count}} sản phẩm chưa gán nhà cung cấp. Vui lòng gán NCC cho tất cả sản phẩm trước khi xác nhận.",
+    "onlyEditDraft": "Chỉ chỉnh sửa được đơn hàng nháp",
+    "itemNotFound": "Không tìm thấy sản phẩm trong đơn",
+    "minOneItem": "Đơn hàng phải có ít nhất 1 sản phẩm"
   },
   "debt": {
     "notFound": "Không tìm thấy công nợ",
@@ -49,7 +53,12 @@
     "dueToday": "Đơn mua hàng #{{code}} đến hạn giao HÔM NAY",
     "deliveryNotConfirmed": "Chưa xác nhận giao hàng",
     "overdueDays": "Đơn hàng {{code}} quá hạn {{days}} ngày - chưa xác nhận giao hàng",
-    "reportToManager": "Cần báo cáo lên quản lý"
+    "reportToManager": "Cần báo cáo lên quản lý",
+    "soStatusChanged": "Đơn bán {{code}} chuyển trạng thái sang {{status}}",
+    "poStatusChanged": "Đơn mua {{code}} chuyển trạng thái sang {{status}}",
+    "invoiceApproved": "Hoá đơn #{{number}} đã được duyệt",
+    "receivablePaymentRecorded": "Đã ghi nhận thanh toán công nợ phải thu {{amount}}đ",
+    "payablePaymentRecorded": "Đã ghi nhận thanh toán công nợ phải trả {{amount}}đ"
   },
   "validation": {
     "emailRequired": "Vui lòng nhập email",
@@ -111,6 +120,8 @@
     "notFound": "Không tìm thấy hoá đơn",
     "onlyEditDraft": "Chỉ chỉnh sửa được hoá đơn nháp",
     "onlyFinalizeDraft": "Chỉ duyệt được hoá đơn nháp",
+    "cannotEditCancelled": "Không thể sửa hoá đơn đã huỷ",
+    "orderLocked": "Đơn hàng đã hoàn thành/huỷ, không thể sửa hoá đơn",
     "defaultProduct": "Sản phẩm"
   },
   "zalo": {
@@ -158,6 +169,8 @@
     "supplierPriceNotFound": "Không tìm thấy NCC/SP",
     "supplierPriceUpdated": "Đã cập nhật giá NCC \"{{supplier}}\" cho \"{{product}}\"",
     "reportInfo": "Báo cáo {{type}} từ {{from}} đến {{to}} — anh vui lòng xem trên trang Báo cáo",
+    "poStatusUpdated": "Đã cập nhật trạng thái đơn mua {{code}} sang {{status}}",
+    "alertCreated": "Đã tạo cảnh báo: {{title}}",
     "unsupportedAction": "Action không hỗ trợ: {{type}}",
     "actionError": "Lỗi {{type}}: {{message}}"
   },

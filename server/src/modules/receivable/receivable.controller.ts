@@ -48,4 +48,18 @@ export class ReceivableController {
       next(err);
     }
   }
+
+  static async exportCustomerPdf(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const pdf = await ReceivableService.exportCustomerPdf(req.params.customerId as string);
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="receivable-${req.params.customerId}.pdf"`,
+        'Content-Length': pdf.length.toString(),
+      });
+      res.send(pdf);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

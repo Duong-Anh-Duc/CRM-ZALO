@@ -122,7 +122,7 @@ export class ZaloController {
 
   // AI Training CRUD
   static async getTrainingCategories(_req: AuthenticatedRequest, res: Response) {
-    sendSuccess(res, AiTrainingService.getCategories());
+    sendSuccess(res, await AiTrainingService.getCategories());
   }
 
   static async listTraining(req: AuthenticatedRequest, res: Response, next: NextFunction) {

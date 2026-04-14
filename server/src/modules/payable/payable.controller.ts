@@ -48,4 +48,18 @@ export class PayableController {
       next(err);
     }
   }
+
+  static async exportSupplierPdf(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const pdf = await PayableService.exportSupplierPdf(req.params.supplierId as string);
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="payable-${req.params.supplierId}.pdf"`,
+        'Content-Length': pdf.length.toString(),
+      });
+      res.send(pdf);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

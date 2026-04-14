@@ -129,7 +129,7 @@ export class DashboardService {
   }
 
   private static async getOrdersByStatus() {
-    const statuses = ['PENDING', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED'] as const;
+    const statuses = ['DRAFT', 'CONFIRMED', 'INVOICED', 'COMPLETED', 'CANCELLED'] as const;
     const counts = await Promise.all(
       statuses.map(async (status) => ({
         status,

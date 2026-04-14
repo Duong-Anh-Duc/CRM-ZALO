@@ -31,6 +31,7 @@ export class ProductService {
         OR: [
           { name: { contains: search, mode: 'insensitive' as const } },
           { sku: { contains: search, mode: 'insensitive' as const } },
+          { aliases: { some: { alias: { contains: search, mode: 'insensitive' as const } } } },
         ],
       }),
       ...(category_id && { category_id }),
@@ -43,7 +44,8 @@ export class ProductService {
         where,
         include: {
           category: { select: { id: true, name: true } },
-          images: { orderBy: { sort_order: 'asc' } },
+          images: { orderBy: { sort_order: 'asc' }, take: 1 },
+          aliases: { select: { alias: true }, take: 5 },
           price_tiers: { orderBy: { min_qty: 'asc' } },
           supplier_prices: { include: { supplier: { select: { id: true, company_name: true } } } },
         },
@@ -65,8 +67,6 @@ export class ProductService {
         images: { orderBy: { sort_order: 'asc' } },
         price_tiers: { orderBy: { min_qty: 'asc' } },
         supplier_prices: { include: { supplier: { select: { id: true, company_name: true } } } },
-        cap_compatibles: { include: { cap: { select: { id: true, sku: true, name: true } } } },
-        compatible_with: { include: { bottle: { select: { id: true, sku: true, name: true } } } },
       },
     });
     if (!product) throw new AppError(t('product.notFound'), 404);
@@ -92,7 +92,7 @@ export class ProductService {
     const existing = await prisma.product.findUnique({ where: { sku } });
     if (existing) throw new AppError(t('product.skuExists'), 400);
 
-    const { price_tiers, supplier_prices, images: _images, cap_compatible_ids, ...productData } = data as Record<string, unknown>;
+    const { price_tiers, supplier_prices, images: _images, ...productData } = data as Record<string, unknown>;
 
     // Upload images to Cloudinary
     let imageRecords: Array<{ url: string; public_id: string; is_primary: boolean; sort_order: number }> = [];
@@ -158,20 +158,6 @@ export class ProductService {
     const result = await prisma.product.update({ where: { id }, data: { is_active: false } });
     await delCache('cache:/api/products*');
     return result;
-  }
-
-  static async getCompatibleCaps(productId: string) {
-    const product = await prisma.product.findUnique({ where: { id: productId }, select: { neck_spec: true } });
-    if (!product?.neck_spec) return [];
-
-    return prisma.product.findMany({
-      where: {
-        neck_spec: product.neck_spec,
-        id: { not: productId },
-        is_active: true,
-      },
-      select: { id: true, sku: true, name: true, retail_price: true },
-    });
   }
 
   // ──── Image management ────
@@ -249,5 +235,25 @@ export class ProductService {
 
     await delCache('cache:/api/products*');
     return image;
+  }
+
+  // ── Product Aliases (tên khách gọi) ──
+  static async addAlias(productId: string, alias: string) {
+    const trimmed = alias.trim();
+    if (!trimmed) return null;
+    return prisma.productAlias.upsert({
+      where: { product_id_alias: { product_id: productId, alias: trimmed } },
+      create: { product_id: productId, alias: trimmed },
+      update: {},
+    });
+  }
+
+  static async searchByAlias(query: string) {
+    if (!query.trim()) return [];
+    return prisma.productAlias.findMany({
+      where: { alias: { contains: query.trim(), mode: 'insensitive' } },
+      include: { product: { select: { id: true, sku: true, name: true, retail_price: true, wholesale_price: true, images: { take: 1 } } } },
+      take: 10,
+    });
   }
 }

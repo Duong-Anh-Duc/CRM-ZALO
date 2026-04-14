@@ -176,7 +176,7 @@ const CustomerDetailPage: React.FC = () => {
           <Input prefix={<SearchOutlined />} placeholder={t('order.searchCode')} allowClear value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} style={{ width: 200, borderRadius: 8 }} />
           <Select value={orderStatus} onChange={setOrderStatus} style={{ minWidth: 140 }} options={[
             { label: t('common.all'), value: '' },
-            { label: t('salesStatusLabels.PENDING'), value: 'PENDING' },
+            { label: t('salesStatusLabels.DRAFT'), value: 'DRAFT' },
             { label: t('salesStatusLabels.CONFIRMED'), value: 'CONFIRMED' },
             { label: t('salesStatusLabels.SHIPPING'), value: 'SHIPPING' },
             { label: t('salesStatusLabels.COMPLETED'), value: 'COMPLETED' },

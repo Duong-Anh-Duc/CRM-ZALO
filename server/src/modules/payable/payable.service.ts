@@ -1,8 +1,13 @@
 import prisma from '../../lib/prisma';
+import puppeteer from 'puppeteer';
+import dayjs from 'dayjs';
 import { AppError } from '../../middleware/error.middleware';
 import { DebtStatus, PaymentMethod } from '@prisma/client';
 import { t } from '../../locales';
 import { delCache } from '../../lib/redis';
+import { AlertService } from '../alert/alert.service';
+import logger from '../../utils/logger';
+import { buildDebtReportHtml } from './debt-report-template';
 
 interface RecordPaymentInput {
   supplier_id: string;
@@ -79,7 +84,12 @@ export class PayableService {
     const payables = await prisma.payable.findMany({
       where: { supplier_id: supplierId },
       include: {
-        purchase_order: { select: { id: true, order_code: true } },
+        purchase_order: {
+          select: {
+            id: true, order_code: true, order_date: true, expected_delivery: true, notes: true, status: true, total: true,
+            items: { select: { quantity: true, unit_price: true, line_total: true, product: { select: { name: true, sku: true, material: true, capacity_ml: true } } } },
+          },
+        },
         payments: { orderBy: { payment_date: 'desc' } },
       },
       orderBy: { due_date: 'asc' },
@@ -211,7 +221,76 @@ export class PayableService {
 
     await prisma.$transaction([...paymentCreates, ...payableUpdates]);
 
+    // Create alert for payment recorded
+    AlertService.createAlert({
+      type: 'WARNING',
+      title: t('alert.payablePaymentRecorded', { amount: input.amount }),
+      message: t('alert.payablePaymentRecorded', { amount: input.amount }),
+    }).catch((err) => logger.warn(`Alert creation failed: ${err.message}`));
+
     await delCache('cache:/api/payables*', 'cache:/api/dashboard*');
     return { allocated: paymentCreates.length, total_amount: input.amount };
+  }
+
+  // ── Export supplier debt report as PDF ──
+  static async exportSupplierPdf(supplierId: string): Promise<Buffer> {
+    const detail = await this.getSupplierDetail(supplierId);
+    const { supplier, payables, summary } = detail;
+
+    const invoices = payables.map((p: any) => ({
+      invoice_number: p.invoice_number,
+      order_code: p.purchase_order?.order_code || '-',
+      invoice_date: dayjs(p.invoice_date).format('DD/MM/YYYY'),
+      due_date: dayjs(p.due_date).format('DD/MM/YYYY'),
+      original_amount: Number(p.original_amount),
+      paid_amount: Number(p.paid_amount),
+      remaining: Number(p.remaining),
+      status: p.status,
+    }));
+
+    const payments = payables.flatMap((p: any) =>
+      (p.payments || []).map((pay: any) => ({
+        payment_date: dayjs(pay.payment_date).format('DD/MM/YYYY'),
+        invoice_number: p.invoice_number,
+        amount: Number(pay.amount),
+        method: pay.method,
+        reference: pay.reference || '',
+      }))
+    ).sort((a: any, b: any) => b.payment_date.localeCompare(a.payment_date));
+
+    const html = buildDebtReportHtml({
+      type: 'payable',
+      entity: {
+        name: supplier.company_name || supplier.contact_name || '',
+        phone: supplier.phone || '',
+        email: supplier.email || '',
+        address: supplier.address || '',
+      },
+      summary: {
+        total_original: Number(summary.total_original),
+        total_paid: Number(summary.total_paid),
+        total_remaining: Number(summary.total_remaining),
+      },
+      invoices,
+      payments,
+    });
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '15mm', right: '10mm', bottom: '15mm', left: '10mm' },
+      });
+      return Buffer.from(pdf);
+    } finally {
+      await browser.close();
+    }
   }
 }

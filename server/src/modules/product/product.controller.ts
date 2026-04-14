@@ -56,14 +56,6 @@ export class ProductController {
     }
   }
 
-  static async getCompatibleCaps(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const caps = await ProductService.getCompatibleCaps(req.params.id as string);
-      sendSuccess(res, caps);
-    } catch (err) {
-      next(err);
-    }
-  }
 
   static async uploadImages(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {

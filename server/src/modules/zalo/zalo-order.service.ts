@@ -10,7 +10,20 @@ import dayjs from 'dayjs';
 
 export class ZaloOrderService {
   /**
+   * Load last N messages from the same sender (DM thread) for context.
+   */
+  private static async loadThreadMessages(senderId: string, limit = 20) {
+    return prisma.zaloMessage.findMany({
+      where: { sender_id: senderId, group_id: null },
+      orderBy: { created_at: 'asc' },
+      select: { sender_name: true, content: true, direction: true, created_at: true },
+      take: limit,
+    });
+  }
+
+  /**
    * Process an incoming Zalo message — create a suggestion (not an order) if it looks like an order.
+   * Loads full thread context so AI can aggregate items across multiple messages.
    */
   static async processMessage(
     senderId: string,
@@ -18,17 +31,20 @@ export class ZaloOrderService {
     content: string,
   ): Promise<{ suggested: boolean; reason?: string }> {
     try {
-      const products = await prisma.product.findMany({
-        where: { is_active: true },
-        select: { id: true, name: true, sku: true, retail_price: true, wholesale_price: true },
-        take: 200,
-      });
+      const [products, threadMessages] = await Promise.all([
+        prisma.product.findMany({
+          where: { is_active: true },
+          select: { id: true, name: true, sku: true, retail_price: true, wholesale_price: true },
+          take: 200,
+        }),
+        this.loadThreadMessages(senderId),
+      ]);
 
       const productList = products.map(
         (p) => `- ${p.name} (SKU: ${p.sku}, giá lẻ: ${p.retail_price ?? 'N/A'}, giá sỉ: ${p.wholesale_price ?? 'N/A'})`,
       );
 
-      const extracted = await AIService.extractOrderFromMessage(content, productList);
+      const extracted = await AIService.extractOrderFromMessage(content, productList, threadMessages);
 
       if (!extracted.is_order || extracted.items.length === 0) {
         return { suggested: false, reason: extracted.raw_summary || t('zalo.notAnOrderMessage') };
@@ -37,12 +53,14 @@ export class ZaloOrderService {
       // Match products
       const matchedItems = this.matchProducts(extracted, products);
 
-      // Create suggestion for approval
+      // Create suggestion for approval (store latest message, note thread context was used)
       await prisma.orderSuggestion.create({
         data: {
           sender_id: senderId,
           sender_name: senderName,
-          message: content,
+          message: threadMessages.length > 1
+            ? `[Gộp từ ${threadMessages.length} tin nhắn] ${content}`
+            : content,
           ai_summary: extracted.raw_summary || '',
           customer_name: extracted.customer_name || senderName,
           customer_phone: extracted.customer_phone || null,

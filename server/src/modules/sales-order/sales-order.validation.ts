@@ -8,7 +8,6 @@ export const createSalesOrderSchema = z.object({
   vat_rate: z.enum(['VAT_0', 'VAT_8', 'VAT_10'], { message: t('validation.vatRateRequired') }),
   items: z.array(z.object({
     product_id: z.string().optional(),
-    combo_id: z.string().optional(),
     quantity: z.number().int(t('validation.qtyInteger')).positive(t('validation.qtyPositive')),
     unit_price: z.number().positive(t('validation.unitPricePositive')),
     discount_pct: z.number().min(0).max(100).optional(),

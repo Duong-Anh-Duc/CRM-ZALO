@@ -24,9 +24,9 @@ export function formatDateTime(date: string | Date | undefined | null): string {
 export function getSalesStatusLabels(): Record<string, string> {
   const t = i18n.t;
   return {
-    PENDING: t('salesStatusLabels.PENDING'),
+    DRAFT: t('salesStatusLabels.DRAFT'),
     CONFIRMED: t('salesStatusLabels.CONFIRMED'),
-    SHIPPING: t('salesStatusLabels.SHIPPING'),
+    INVOICED: t('salesStatusLabels.INVOICED'),
     COMPLETED: t('salesStatusLabels.COMPLETED'),
     CANCELLED: t('salesStatusLabels.CANCELLED'),
   };
@@ -35,9 +35,11 @@ export function getSalesStatusLabels(): Record<string, string> {
 export function getPurchaseStatusLabels(): Record<string, string> {
   const t = i18n.t;
   return {
+    DRAFT: t('purchaseStatusLabels.DRAFT'),
     CONFIRMED: t('purchaseStatusLabels.CONFIRMED'),
     SHIPPING: t('purchaseStatusLabels.SHIPPING'),
     COMPLETED: t('purchaseStatusLabels.COMPLETED'),
+    CANCELLED: t('purchaseStatusLabels.CANCELLED'),
   };
 }
 

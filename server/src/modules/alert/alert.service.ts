@@ -42,6 +42,21 @@ export class AlertService {
   }
 
   /**
+   * Create a single alert
+   */
+  static async createAlert(data: { type: string; title: string; message: string; purchase_order_id?: string }) {
+    return prisma.alert.create({
+      data: {
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        is_read: false,
+        ...(data.purchase_order_id ? { purchase_order_id: data.purchase_order_id } : {}),
+      },
+    });
+  }
+
+  /**
    * Run daily to generate delivery reminder alerts for open purchase orders
    */
   static async generateDeliveryAlerts() {

@@ -44,10 +44,10 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response, next: NextFu
   } catch (err) { next(err); }
 });
 
-// Create draft from sales order
+// Xuất hoá đơn từ SO (APPROVED + tạo công nợ)
 router.post('/from-order/:orderId', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    sendSuccess(res, await InvoiceService.createDraftFromOrder(req.params.orderId as string));
+    sendSuccess(res, await InvoiceService.createFromOrder(req.params.orderId as string));
   } catch (err) { next(err); }
 });
 
@@ -61,10 +61,10 @@ router.post('/purchase/:poId', invoiceUpload, async (req: AuthenticatedRequest, 
   } catch (err) { next(err); }
 });
 
-// Update draft
+// Update invoice (chỉ HĐ bán, SO chưa COMPLETED)
 router.patch('/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    sendSuccess(res, await InvoiceService.updateDraft(req.params.id as string, req.body));
+    sendSuccess(res, await InvoiceService.updateInvoice(req.params.id as string, req.body));
   } catch (err) { next(err); }
 });
 
@@ -98,7 +98,7 @@ router.get('/:id/pdf', async (req: AuthenticatedRequest, res: Response, next: Ne
 // Legacy: generate from order directly (backward compat)
 router.get('/sales-order/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const invoice = await InvoiceService.createDraftFromOrder(req.params.id as string);
+    const invoice = await InvoiceService.createFromOrder(req.params.id as string);
     const pdf = await InvoiceService.generatePdf(invoice.id);
     res.set({
       'Content-Type': 'application/pdf',

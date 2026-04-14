@@ -5,24 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useProducts, useDeleteProduct } from '../hooks';
-import { productApi } from '../api';
 import apiClient from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth.store';
-import { Product, PlasticMaterial, Category } from '@/types';
+import { Product } from '@/types';
 import { formatVND, materialLabels } from '@/utils/format';
 import { PageHeader } from '@/components/common';
 import ProductFormModal from '../components/ProductFormModal';
 
 const cardStyle: React.CSSProperties = { borderRadius: 12 };
-
-const materialOptions: { value: PlasticMaterial; label: string }[] = [
-  { value: 'PET', label: 'PET' },
-  { value: 'HDPE', label: 'HDPE' },
-  { value: 'PP', label: 'PP' },
-  { value: 'PVC', label: 'PVC' },
-  { value: 'PS', label: 'PS' },
-  { value: 'ABS', label: 'ABS' },
-];
 
 const ProductListPage: React.FC = () => {
   const { t } = useTranslation();
@@ -31,20 +21,13 @@ const ProductListPage: React.FC = () => {
   const canManage = hasRole('ADMIN', 'STAFF');
 
   const [search, setSearch] = useState('');
-  const [material, setMaterial] = useState<string | undefined>();
-  const [categoryId, setCategoryId] = useState<string | undefined>();
   const [supplierId, setSupplierId] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const { data, isLoading, refetch } = useProducts({ search, material, category_id: categoryId, supplier_id: supplierId, page, limit: pageSize });
-  const { data: categoriesData } = useQuery<Category[]>({
-    queryKey: ['product-categories'],
-    queryFn: () => productApi.list({ type: 'categories' }).then((r) => r.data.data ?? []),
-  });
-  const categoryOptions = (categoriesData ?? []).map((c: Category) => ({ value: c.id, label: c.name }));
+  const { data, isLoading, refetch } = useProducts({ search, supplier_id: supplierId, page, limit: pageSize });
   const { data: suppliersData } = useQuery({
     queryKey: ['suppliers-for-filter'],
     queryFn: () => apiClient.get('/suppliers', { params: { limit: 100 } }).then((r) => r.data.data ?? []),
@@ -205,30 +188,6 @@ const ProductListPage: React.FC = () => {
               setSearch(e.target.value);
               setPage(1);
             }}
-          />
-          <Select
-            placeholder={t('product.material')}
-            allowClear
-            style={{ width: 150, borderRadius: 8 }}
-            options={materialOptions}
-            value={material}
-            onChange={(v) => {
-              setMaterial(v);
-              setPage(1);
-            }}
-          />
-          <Select
-            placeholder={t('product.category')}
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            style={{ width: 200, borderRadius: 8 }}
-            value={categoryId}
-            onChange={(v) => {
-              setCategoryId(v);
-              setPage(1);
-            }}
-            options={categoryOptions}
           />
           <Select
             placeholder={t('product.supplier')}
