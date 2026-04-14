@@ -5,7 +5,7 @@ import { t } from '../../locales';
 import { delCache } from '../../lib/redis';
 
 interface RecordPaymentInput {
-  payable_id: string;
+  supplier_id: string;
   amount: number;
   payment_date?: string;
   method: PaymentMethod;
@@ -13,6 +13,88 @@ interface RecordPaymentInput {
 }
 
 export class PayableService {
+  // ── Group by supplier ──
+  static async listBySupplier(filters: { page?: number; limit?: number; status?: string; search?: string }) {
+    const page = Number(filters.page) || 1;
+    const limit = Number(filters.limit) || 20;
+
+    const where: any = { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE', 'PAID'] } };
+    if (filters.status === 'OUTSTANDING') {
+      where.status = { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] };
+    } else if (filters.status && filters.status !== 'ALL') {
+      where.status = filters.status;
+    }
+    if (filters.search) {
+      where.supplier = { company_name: { contains: filters.search, mode: 'insensitive' } };
+    }
+
+    const payables = await prisma.payable.findMany({
+      where,
+      include: { supplier: { select: { id: true, company_name: true, phone: true } } },
+      orderBy: { due_date: 'asc' },
+    });
+
+    // Group by supplier
+    const supplierMap = new Map<string, any>();
+    for (const pay of payables) {
+      const sid = pay.supplier_id;
+      if (!supplierMap.has(sid)) {
+        supplierMap.set(sid, {
+          supplier_id: sid,
+          supplier: pay.supplier,
+          total_original: 0,
+          total_paid: 0,
+          total_remaining: 0,
+          invoice_count: 0,
+          overdue_count: 0,
+          oldest_due_date: pay.due_date,
+        });
+      }
+      const entry = supplierMap.get(sid)!;
+      entry.total_original += pay.original_amount;
+      entry.total_paid += pay.paid_amount;
+      entry.total_remaining += pay.remaining;
+      entry.invoice_count += 1;
+      if (pay.status === 'OVERDUE') entry.overdue_count += 1;
+      if (pay.due_date < entry.oldest_due_date) entry.oldest_due_date = pay.due_date;
+    }
+
+    let rows = Array.from(supplierMap.values());
+    rows.sort((a, b) => b.total_remaining - a.total_remaining);
+
+    const total = rows.length;
+    const paged = rows.slice((page - 1) * limit, page * limit);
+
+    return { suppliers: paged, total, page, limit, total_pages: Math.ceil(total / limit) };
+  }
+
+  // ── All invoices for a supplier ──
+  static async getSupplierDetail(supplierId: string) {
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: supplierId },
+      select: { id: true, company_name: true, contact_name: true, phone: true, email: true, address: true },
+    });
+    if (!supplier) throw new AppError(t('supplier.notFound'), 404);
+
+    const payables = await prisma.payable.findMany({
+      where: { supplier_id: supplierId },
+      include: {
+        purchase_order: { select: { id: true, order_code: true } },
+        payments: { orderBy: { payment_date: 'desc' } },
+      },
+      orderBy: { due_date: 'asc' },
+    });
+
+    const summary = payables.reduce((acc, p) => ({
+      total_original: acc.total_original + p.original_amount,
+      total_paid: acc.total_paid + p.paid_amount,
+      total_remaining: acc.total_remaining + p.remaining,
+    }), { total_original: 0, total_paid: 0, total_remaining: 0 });
+
+    return { supplier, payables, summary };
+  }
+
+  // ── Flat list (backward compat) ──
   static async list(filters: { page?: number; limit?: number; status?: DebtStatus; supplier_id?: string; supplier_search?: string; from_date?: string; to_date?: string }) {
     const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 20;
@@ -79,33 +161,57 @@ export class PayableService {
     };
   }
 
+  // ── FIFO Payment by supplier ──
   static async recordPayment(input: RecordPaymentInput) {
-    const payable = await prisma.payable.findUnique({ where: { id: input.payable_id } });
-    if (!payable) throw new AppError(t('debt.notFound'), 404);
     if (input.amount <= 0) throw new AppError(t('debt.amountPositive'), 400);
-    if (input.amount > payable.remaining) throw new AppError(t('debt.amountExceedsRemaining'), 400);
 
-    const newPaid = payable.paid_amount + input.amount;
-    const newRemaining = payable.original_amount - newPaid;
-    const newStatus: DebtStatus = newRemaining <= 0 ? 'PAID' : 'PARTIAL';
+    const invoices = await prisma.payable.findMany({
+      where: { supplier_id: input.supplier_id, status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
+      orderBy: [{ due_date: 'asc' }, { created_at: 'asc' }],
+    });
 
-    const [payment] = await prisma.$transaction([
-      prisma.payablePayment.create({
-        data: {
-          payable_id: input.payable_id,
-          amount: input.amount,
-          payment_date: input.payment_date ? new Date(input.payment_date) : new Date(),
-          method: input.method,
-          reference: input.reference,
-        },
-      }),
-      prisma.payable.update({
-        where: { id: input.payable_id },
-        data: { paid_amount: newPaid, remaining: newRemaining, status: newStatus },
-      }),
-    ]);
+    if (invoices.length === 0) throw new AppError(t('debt.noOutstandingDebt'), 400);
+
+    const totalRemaining = invoices.reduce((sum, inv) => sum + inv.remaining, 0);
+    if (input.amount > totalRemaining) throw new AppError(t('debt.amountExceedsRemaining'), 400);
+
+    let remaining = input.amount;
+    const paymentCreates: any[] = [];
+    const payableUpdates: any[] = [];
+
+    for (const inv of invoices) {
+      if (remaining <= 0) break;
+      const allocate = Math.min(remaining, inv.remaining);
+
+      paymentCreates.push(
+        prisma.payablePayment.create({
+          data: {
+            payable_id: inv.id,
+            amount: allocate,
+            payment_date: input.payment_date ? new Date(input.payment_date) : new Date(),
+            method: input.method,
+            reference: input.reference,
+          },
+        })
+      );
+
+      const newPaid = inv.paid_amount + allocate;
+      const newRemaining = inv.original_amount - newPaid;
+      const newStatus: DebtStatus = newRemaining <= 0 ? 'PAID' : 'PARTIAL';
+
+      payableUpdates.push(
+        prisma.payable.update({
+          where: { id: inv.id },
+          data: { paid_amount: newPaid, remaining: newRemaining, status: newStatus },
+        })
+      );
+
+      remaining -= allocate;
+    }
+
+    await prisma.$transaction([...paymentCreates, ...payableUpdates]);
 
     await delCache('cache:/api/payables*', 'cache:/api/dashboard*');
-    return payment;
+    return { allocated: paymentCreates.length, total_amount: input.amount };
   }
 }

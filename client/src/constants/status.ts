@@ -1,12 +1,11 @@
 export const statusColors: Record<string, string> = {
+  // Sales Order
   PENDING: 'gold',
-  NEW: 'blue',
   CONFIRMED: 'cyan',
-  PREPARING: 'orange',
-  PROCESSING: 'orange',
   SHIPPING: 'purple',
   COMPLETED: 'green',
   CANCELLED: 'red',
+  // Debt
   UNPAID: 'orange',
   PARTIAL: 'blue',
   PAID: 'green',

@@ -35,7 +35,8 @@
   "debt": {
     "notFound": "Debt record not found",
     "amountPositive": "Amount must be greater than 0",
-    "amountExceedsRemaining": "Amount exceeds remaining debt"
+    "amountExceedsRemaining": "Amount exceeds remaining debt",
+    "noOutstandingDebt": "No outstanding debt to pay"
   },
   "cost": {
     "categoryNotFound": "Cost category not found",

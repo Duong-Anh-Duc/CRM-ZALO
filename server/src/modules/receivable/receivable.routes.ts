@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate, requireRole } from '../../middleware/auth.middleware';
-import { validate } from '../../middleware/validate.middleware';
+import { validate, validateIdParam } from '../../middleware/validate.middleware';
 import { recordPaymentSchema } from './receivable.validation';
 import { ReceivableController } from './receivable.controller';
 
@@ -8,7 +8,9 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', ReceivableController.list);
+router.get('/by-customer', ReceivableController.listByCustomer);
 router.get('/summary', ReceivableController.getSummary);
+router.get('/customer/:customerId', ReceivableController.getCustomerDetail);
 router.post('/payments', requireRole('ADMIN', 'STAFF'), validate(recordPaymentSchema), ReceivableController.recordPayment);
 
 export default router;

@@ -186,31 +186,71 @@ export class InvoiceService {
     return prisma.invoice.update({ where: { id }, data: updateData });
   }
 
-  // ──── Create purchase invoice (upload from supplier) ────
-  static async createPurchaseInvoice(purchaseOrderId: string, fileUrl: string, fileName: string) {
+  // ──── Create purchase invoice from PO (auto-generate like sales invoice) ────
+  static async createPurchaseInvoice(purchaseOrderId: string, fileUrl?: string, fileName?: string) {
     const po = await prisma.purchaseOrder.findUnique({
       where: { id: purchaseOrderId },
-      include: { supplier: true },
+      include: {
+        supplier: true,
+        items: { include: { product: { select: { name: true, unit_of_sale: true } } } },
+      },
     });
     if (!po) throw new AppError(t('order.purchaseNotFound'), 404);
 
     const existing = await prisma.invoice.findFirst({ where: { purchase_order_id: purchaseOrderId, type: 'PURCHASE', status: { not: 'CANCELLED' } } });
     if (existing) return existing;
 
-    return prisma.invoice.create({
+    const unitMap: Record<string, string> = { PIECE: 'Cái', CARTON: 'Thùng', KG: 'Kg' };
+    const cqtCode = Array.from({ length: 32 }, () => '0123456789ABCDEF'[Math.floor(Math.random() * 16)]).join('');
+
+    const items = po.items.map((item) => ({
+      name: item.product?.name || 'Sản phẩm',
+      unit: unitMap[item.product?.unit_of_sale || 'PIECE'] || 'Cái',
+      quantity: item.quantity,
+      unitPrice: Number(item.unit_price),
+      amount: Number(item.line_total),
+    }));
+
+    const subtotal = Number(po.total);
+    const vatPct = 10;
+    const vatAmount = Math.round(subtotal * vatPct / (100 + vatPct));
+    const beforeVat = subtotal - vatAmount;
+
+    const invoice = await prisma.invoice.create({
       data: {
         type: 'PURCHASE',
         purchase_order_id: purchaseOrderId,
         status: 'DRAFT',
         invoice_number: await this.getNextInvoiceNumber(),
-        invoice_date: new Date(),
-        buyer_company: 'CÔNG TY TNHH TECHLA AI',
+        invoice_date: po.order_date || new Date(),
+        cqt_code: cqtCode,
+        // Seller = Supplier
         seller_name: po.supplier.company_name,
-        total: po.total,
-        file_url: fileUrl,
-        file_name: fileName,
+        seller_tax_code: po.supplier.tax_code || '',
+        seller_address: po.supplier.address || '',
+        seller_phone: po.supplier.phone || '',
+        seller_email: po.supplier.email || '',
+        seller_rep: po.supplier.contact_name || '',
+        seller_position: '',
+        // Buyer = Our company
+        buyer_name: DEFAULT_SELLER.representative,
+        buyer_company: DEFAULT_SELLER.name,
+        buyer_address: DEFAULT_SELLER.address,
+        buyer_tax_code: DEFAULT_SELLER.taxCode,
+        buyer_email: DEFAULT_SELLER.email,
+        buyer_payment: 'Chuyển khoản',
+        items: items as any,
+        subtotal: beforeVat,
+        vat_rate: vatPct,
+        vat_amount: vatAmount,
+        total: subtotal,
+        total_in_words: numberToVietnameseWords(Math.round(subtotal)),
+        ...(fileUrl ? { file_url: fileUrl, file_name: fileName } : {}),
       },
     });
+
+    logger.info(`Purchase invoice created: #${invoice.invoice_number} for PO ${po.order_code}`);
+    return invoice;
   }
 
   // ──── Approve invoice (finalize) ────
@@ -247,11 +287,6 @@ export class InvoiceService {
   static async generatePdf(id: string): Promise<Buffer> {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
     if (!invoice) throw new AppError(t('invoice.notFound'), 404);
-
-    // Purchase invoices are uploaded files, not generated PDFs
-    if (invoice.type === 'PURCHASE' && invoice.file_url) {
-      throw new AppError('Hoá đơn mua có file đính kèm, không tạo PDF', 400);
-    }
 
     const invoiceData: InvoiceData = {
       serial: invoice.serial,

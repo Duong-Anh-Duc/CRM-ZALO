@@ -25,13 +25,9 @@ const PurchaseOrderListPage: React.FC = () => {
 
   const statusOptions = [
     { label: t('common.all'), value: '' },
-    { label: t('purchaseStatusLabels.PENDING'), value: 'PENDING' },
-    { label: t('purchaseStatusLabels.NEW'), value: 'NEW' },
     { label: t('purchaseStatusLabels.CONFIRMED'), value: 'CONFIRMED' },
-    { label: t('purchaseStatusLabels.PROCESSING'), value: 'PROCESSING' },
     { label: t('purchaseStatusLabels.SHIPPING'), value: 'SHIPPING' },
     { label: t('purchaseStatusLabels.COMPLETED'), value: 'COMPLETED' },
-    { label: t('purchaseStatusLabels.CANCELLED'), value: 'CANCELLED' },
   ];
 
   const { data, isLoading } = usePurchaseOrders({

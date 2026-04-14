@@ -1,4 +1,4 @@
-export type CustomerType = 'RETAIL' | 'WHOLESALE' | 'DISTRIBUTOR' | 'OEM';
+export type CustomerType = 'INDIVIDUAL' | 'BUSINESS';
 
 export interface Customer {
   id: string;

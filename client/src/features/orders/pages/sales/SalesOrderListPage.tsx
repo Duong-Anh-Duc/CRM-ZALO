@@ -25,9 +25,7 @@ const SalesOrderListPage: React.FC = () => {
   const statusOptions = [
     { label: t('common.all'), value: '' },
     { label: t('salesStatusLabels.PENDING'), value: 'PENDING' },
-    { label: t('salesStatusLabels.NEW'), value: 'NEW' },
     { label: t('salesStatusLabels.CONFIRMED'), value: 'CONFIRMED' },
-    { label: t('salesStatusLabels.PREPARING'), value: 'PREPARING' },
     { label: t('salesStatusLabels.SHIPPING'), value: 'SHIPPING' },
     { label: t('salesStatusLabels.COMPLETED'), value: 'COMPLETED' },
     { label: t('salesStatusLabels.CANCELLED'), value: 'CANCELLED' },
@@ -100,8 +98,9 @@ const SalesOrderListPage: React.FC = () => {
     {
       title: t('order.suppliers'),
       key: 'suppliers',
-      width: 120,
+      width: 160,
       responsive: ['lg'] as any,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }),
       render: (_: unknown, record: any) => {
         const pos = record.purchase_orders || [];
         if (pos.length === 0) return '-';
@@ -112,8 +111,9 @@ const SalesOrderListPage: React.FC = () => {
       title: t('order.expectedDelivery'),
       dataIndex: 'expected_delivery',
       key: 'expected_delivery',
-      width: 140,
+      width: 160,
       responsive: ['md'],
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }),
       render: (val: string) => formatDate(val),
     },
     {

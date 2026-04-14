@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, Statistic, Row, Col, Table, Spin, Empty } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { Card, Statistic, Row, Col, Table, Spin, Empty, Button } from 'antd';
 import {
   DollarOutlined,
   WarningOutlined,
@@ -23,6 +24,7 @@ const cardStyle: React.CSSProperties = {
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: rawData, isLoading } = useDashboard();
   const data = rawData?.data as DashboardOverview | undefined;
 
@@ -145,7 +147,7 @@ const DashboardPage: React.FC = () => {
               scroll={{ x: 400 }}
               columns={[
                 { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, i: number) => i + 1 },
-                { title: t('dashboard.customerName'), dataIndex: 'name', key: 'name', ellipsis: true },
+                { title: t('dashboard.customerName'), key: 'name', ellipsis: true, render: (_: unknown, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/customers/${r.id}`)}>{r.name}</Button> },
                 {
                   title: t('dashboard.revenue'),
                   dataIndex: 'revenue',
@@ -173,13 +175,14 @@ const DashboardPage: React.FC = () => {
               scroll={{ x: 500 }}
               columns={[
                 { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, i: number) => i + 1 },
-                { title: t('dashboard.productName'), dataIndex: 'name', key: 'name', ellipsis: true },
+                { title: t('dashboard.productName'), key: 'name', ellipsis: true, render: (_: unknown, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/products/${r.id}`)}>{r.name}</Button> },
                 {
                   title: t('dashboard.qty'),
                   dataIndex: 'qty',
                   key: 'qty',
-                  width: 80,
+                  width: 100,
                   align: 'right',
+                  onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }),
                 },
                 {
                   title: t('dashboard.revenue'),
@@ -208,11 +211,11 @@ const DashboardPage: React.FC = () => {
               scroll={{ x: 500 }}
               columns={[
                 { title: 'STT', key: 'stt', width: 60, align: 'center' as const, render: (_: unknown, __: unknown, i: number) => i + 1 },
-                { title: t('order.orderCode'), dataIndex: 'order_code', key: 'order_code' },
+                { title: t('order.orderCode'), key: 'order_code', render: (_: unknown, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/purchase-orders/${r.id}`)}>{r.order_code}</Button> },
                 {
                   title: t('order.supplier'),
-                  dataIndex: ['supplier', 'company_name'],
                   key: 'supplier',
+                  render: (_: unknown, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/suppliers/${r.supplier_id}`)}>{r.supplier?.company_name}</Button>,
                 },
                 {
                   title: t('order.expectedDelivery'),

@@ -4,14 +4,10 @@ import { UserOutlined, BankOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useCreateCustomer, useUpdateCustomer } from '../hooks';
 import { CustomerType } from '@/types';
-import { customerTypeLabels, formatNumber } from '@/utils/format';
+import { getCustomerTypeLabels, formatNumber } from '@/utils/format';
 import { CustomerFormModalProps } from '../types';
 
 const { Text } = Typography;
-
-const customerTypeOptions = (
-  Object.entries(customerTypeLabels) as [CustomerType, string][]
-).map(([value, label]) => ({ value, label }));
 
 const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
   open,
@@ -26,6 +22,10 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
 
   const isIndividual = customerType === 'INDIVIDUAL';
   const isBusiness = customerType === 'BUSINESS';
+
+  const customerTypeOptions = (
+    Object.entries(getCustomerTypeLabels()) as [CustomerType, string][]
+  ).map(([value, label]) => ({ value, label }));
 
   useEffect(() => {
     if (open) {
@@ -185,11 +185,6 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
                 />
               </Form.Item>
             )}
-
-            {/* Zalo */}
-            <Form.Item name="zalo_user_id" label="Zalo">
-              <Input placeholder={t('customer.zaloPlaceholder')} style={{ borderRadius: 8 }} />
-            </Form.Item>
           </>
         )}
       </Form>

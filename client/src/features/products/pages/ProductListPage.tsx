@@ -90,6 +90,7 @@ const ProductListPage: React.FC = () => {
       width: 120,
       responsive: ['lg'],
       align: 'right' as const,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }),
       render: (v: number | undefined) => (v != null ? v : '-'),
     },
     {

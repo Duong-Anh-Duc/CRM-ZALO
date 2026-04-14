@@ -2,8 +2,8 @@ import { Product } from './product';
 import { Customer } from './customer';
 import { Supplier } from './supplier';
 
-export type SalesOrderStatus = 'NEW' | 'CONFIRMED' | 'PREPARING' | 'SHIPPING' | 'COMPLETED' | 'CANCELLED';
-export type PurchaseOrderStatus = 'NEW' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPING' | 'COMPLETED' | 'CANCELLED';
+export type SalesOrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPING' | 'COMPLETED' | 'CANCELLED';
+export type PurchaseOrderStatus = 'CONFIRMED' | 'SHIPPING' | 'COMPLETED';
 export type VATRate = 'VAT_0' | 'VAT_8' | 'VAT_10';
 
 export interface SalesOrderItem {

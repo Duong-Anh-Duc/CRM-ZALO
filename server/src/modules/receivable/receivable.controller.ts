@@ -13,6 +13,24 @@ export class ReceivableController {
     }
   }
 
+  static async listByCustomer(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await ReceivableService.listByCustomer(req.query as never);
+      sendPaginated(res, result.customers, { total: result.total, page: result.page, limit: result.limit });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getCustomerDetail(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await ReceivableService.getCustomerDetail(req.params.customerId);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async getSummary(_req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const summary = await ReceivableService.getSummary();

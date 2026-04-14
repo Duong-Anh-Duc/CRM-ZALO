@@ -66,7 +66,7 @@ export class PurchaseOrderService {
       where: { id },
       include: {
         supplier: true,
-        sales_order: { select: { id: true, order_code: true, customer: { select: { company_name: true, contact_name: true } } } },
+        sales_order: { select: { id: true, order_code: true, status: true, grand_total: true, customer: { select: { company_name: true, contact_name: true } } } },
         items: { include: { product: { select: { id: true, sku: true, name: true } } } },
         invoices: { where: { type: 'PURCHASE' } },
         payables: { include: { payments: true } },

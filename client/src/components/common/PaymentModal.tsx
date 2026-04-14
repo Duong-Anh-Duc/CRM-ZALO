@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { receivableApi, payableApi } from '@/features/debts/api';
-import { RecordPaymentInput, PaymentMethod } from '@/types';
+import { PaymentMethod } from '@/types';
 import { formatVND } from '@/utils/format';
 import { PaymentModalProps } from './types';
 
@@ -24,7 +24,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const mutation = useMutation({
     mutationFn: (values: any) => {
-      const payload: RecordPaymentInput = {
+      const payload: any = {
         amount: values.amount,
         payment_date: values.payment_date?.format('YYYY-MM-DD'),
         method: values.method,
@@ -32,16 +32,22 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       };
 
       if (type === 'receivable') {
-        payload.receivable_id = debtId;
+        payload.customer_id = debtId;
         return receivableApi.recordPayment(payload);
       }
-      payload.payable_id = debtId;
+      payload.supplier_id = debtId;
       return payableApi.recordPayment(payload);
     },
     onSuccess: () => {
       toast.success(t('debt.recordPaymentSuccess'));
-      qc.invalidateQueries({ queryKey: [type === 'receivable' ? 'receivables' : 'payables'] });
-      qc.invalidateQueries({ queryKey: [`${type}-summary`] });
+      qc.invalidateQueries({ queryKey: ['receivables'] });
+      qc.invalidateQueries({ queryKey: ['receivables-by-customer'] });
+      qc.invalidateQueries({ queryKey: ['customer-debt'] });
+      qc.invalidateQueries({ queryKey: ['receivable-summary'] });
+      qc.invalidateQueries({ queryKey: ['payables'] });
+      qc.invalidateQueries({ queryKey: ['payables-by-supplier'] });
+      qc.invalidateQueries({ queryKey: ['supplier-debt'] });
+      qc.invalidateQueries({ queryKey: ['payable-summary'] });
       form.resetFields();
       onClose();
     },

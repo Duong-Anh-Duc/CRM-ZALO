@@ -16,6 +16,10 @@ interface ProductFilters {
 }
 
 export class ProductService {
+  static async listCategories() {
+    return prisma.category.findMany({ where: { is_active: true }, orderBy: { sort_order: 'asc' } });
+  }
+
   static async list(filters: ProductFilters) {
     const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 20;

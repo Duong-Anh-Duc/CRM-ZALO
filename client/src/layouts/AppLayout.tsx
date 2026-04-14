@@ -45,10 +45,7 @@ const getMenuItems = (t: (key: string) => string): MenuProps['items'] => [
   { key: '/purchase-orders', icon: <ImportOutlined />, label: t('menu.purchaseOrders') },
   { type: 'group', label: t('menu.finance') },
   { key: '/debts', icon: <DollarOutlined />, label: t('menu.debts') },
-  { key: '/operating-costs', icon: <AccountBookOutlined />, label: t('menu.operatingCosts') },
-  { type: 'group', label: t('menu.tools') },
-  { key: '/zalo', icon: <MessageOutlined />, label: t('menu.zalo') },
-  { key: '/reports', icon: <BarChartOutlined />, label: t('menu.reports') },
+  // { key: '/operating-costs', icon: <AccountBookOutlined />, label: t('menu.operatingCosts') },
 ];
 
 const AppLayout: React.FC = () => {
@@ -83,10 +80,10 @@ const AppLayout: React.FC = () => {
 
   const menuItems: MenuProps['items'] = [
     ...getMenuItems(t)!,
+    { type: 'group' as const, label: t('menu.toolsAndAdmin') },
+    { key: '/zalo', icon: <MessageOutlined />, label: t('menu.zalo') },
     ...(hasRole('ADMIN')
       ? [
-          { type: 'group' as const, label: t('menu.admin') },
-          { key: '/users', icon: <TeamOutlined />, label: t('settings.userManagement') },
           { key: '/settings', icon: <SettingOutlined />, label: t('menu.settings') },
         ]
       : []),

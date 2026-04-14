@@ -248,7 +248,7 @@ export class SalesOrderService {
     });
 
     // When confirmed: auto-create POs + draft sales invoice
-    if (status === 'CONFIRMED' && (order.status === 'PENDING' || order.status === 'NEW')) {
+    if (status === 'CONFIRMED' && order.status === 'PENDING') {
       this.createPurchaseOrders(id).catch((err) => {
         logger.warn(`Auto PO creation failed for ${id}: ${err.message}`);
       });

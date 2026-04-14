@@ -5,6 +5,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import hpp from 'hpp';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 import { config } from './config';
 import routes from './routes';
 import { errorHandler } from './middleware/error.middleware';
@@ -47,11 +48,21 @@ app.use('/api/auth/login', authLimiter);
 // API rate limit for write operations
 app.use('/api', apiLimiter);
 
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Routes
 app.use('/api', routes);
 
 // Error handling
 app.use(errorHandler);
+
+// Serve frontend static files (production)
+const clientDist = path.join(__dirname, '../../client/dist');
+app.use(express.static(clientDist));
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'));
+});
 
 // Start server
 async function bootstrap() {

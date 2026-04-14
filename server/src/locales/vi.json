@@ -35,7 +35,8 @@
   "debt": {
     "notFound": "Không tìm thấy công nợ",
     "amountPositive": "Số tiền phải lớn hơn 0",
-    "amountExceedsRemaining": "Số tiền vượt quá công nợ còn lại"
+    "amountExceedsRemaining": "Số tiền vượt quá công nợ còn lại",
+    "noOutstandingDebt": "Không có công nợ cần thanh toán"
   },
   "cost": {
     "categoryNotFound": "Không tìm thấy danh mục chi phí",

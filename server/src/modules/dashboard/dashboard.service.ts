@@ -81,7 +81,7 @@ export class DashboardService {
     const startOfMonth = dayjs().startOf('month').toDate();
     const orders = await prisma.salesOrder.findMany({
       where: { order_date: { gte: startOfMonth }, status: { not: 'CANCELLED' } },
-      select: { customer_id: true, grand_total: true, customer: { select: { company_name: true } } },
+      select: { customer_id: true, grand_total: true, customer: { select: { company_name: true, contact_name: true } } },
     });
 
     const grouped = new Map<string, { name: string; revenue: number }>();
@@ -90,7 +90,7 @@ export class DashboardService {
       if (existing) {
         existing.revenue += o.grand_total;
       } else {
-        grouped.set(o.customer_id, { name: o.customer.company_name, revenue: o.grand_total });
+        grouped.set(o.customer_id, { name: o.customer.company_name || o.customer.contact_name || '', revenue: o.grand_total });
       }
     });
 
@@ -129,7 +129,7 @@ export class DashboardService {
   }
 
   private static async getOrdersByStatus() {
-    const statuses = ['NEW', 'CONFIRMED', 'PREPARING', 'SHIPPING', 'COMPLETED', 'CANCELLED'] as const;
+    const statuses = ['PENDING', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED'] as const;
     const counts = await Promise.all(
       statuses.map(async (status) => ({
         status,
@@ -144,7 +144,7 @@ export class DashboardService {
     return prisma.purchaseOrder.findMany({
       where: {
         expected_delivery: { gte: new Date(), lte: nextWeek },
-        status: { in: ['CONFIRMED', 'PROCESSING', 'SHIPPING'] },
+        status: { in: ['CONFIRMED', 'SHIPPING'] },
       },
       include: { supplier: { select: { company_name: true } } },
       orderBy: { expected_delivery: 'asc' },

@@ -63,7 +63,8 @@
     "orders": "ĐƠN HÀNG",
     "finance": "TÀI CHÍNH",
     "tools": "CÔNG CỤ",
-    "admin": "QUẢN TRỊ"
+    "admin": "QUẢN TRỊ",
+    "toolsAndAdmin": "CÔNG CỤ & QUẢN TRỊ"
   },
   "auth": {
     "loginTitle": "Đăng nhập để tiếp tục",
@@ -126,6 +127,7 @@
     "sku": "SKU",
     "skuPlaceholder": "VD: CHAI-PET-500",
     "skuAuto": "Để trống để tự động sinh mã",
+    "tiers": "bậc",
     "skuRequired": "Vui lòng nhập SKU",
     "name": "Tên sản phẩm",
     "nameRequired": "Vui lòng nhập tên",
@@ -186,6 +188,7 @@
     "leadTimeDays": "{{days}} ngày",
     "preferred": "Ưu tiên",
     "noSupplierPrices": "Chưa có giá NCC",
+    "suppliersUnit": "nhà cung cấp",
     "compatibleCaps": "Nắp tương thích",
     "noCompatibleCaps": "Không có nắp tương thích",
     "generalInfo": "Thông tin chung",
@@ -309,6 +312,9 @@
     "totalOrders": "Tổng {{count}} đơn hàng",
     "totalTransactions": "Tổng {{count}} giao dịch",
     "totalReceivables": "Tổng {{count}} khoản phải thu",
+    "orderUnit": "đơn hàng",
+    "transactionUnit": "giao dịch",
+    "debtUnit": "khoản nợ",
     "createdAt": "Ngày tạo",
     "zalo": "Zalo",
     "zaloPlaceholder": "Nhập Zalo User ID"
@@ -339,10 +345,13 @@
     "totalPurchaseOrders": "Tổng {{count}} đơn mua",
     "totalPayables": "Tổng {{count}} khoản phải trả",
     "updatedAt": "Cập nhật",
+    "companyName": "Nhà cung cấp",
     "costPrice": "Giá nhập",
     "unit": "Đơn vị",
     "leadTime": "Thời gian giao",
-    "stock": "Tồn kho"
+    "stock": "Tồn kho",
+    "orderUnit": "đơn mua",
+    "debtUnit": "khoản nợ"
   },
   "paymentTermsLabels": {
     "IMMEDIATE": "Thanh toán ngay",
@@ -355,6 +364,8 @@
     "purchaseOrders": "Đơn mua hàng",
     "salesOrder": "Đơn bán hàng: {{code}}",
     "purchaseOrder": "Đơn mua hàng: {{code}}",
+    "purchaseOrderShort": "Đơn mua",
+    "salesOrderShort": "Đơn bán",
     "createOrder": "Tạo đơn",
     "createSalesSuccess": "Tạo đơn bán hàng thành công",
     "createPurchaseSuccess": "Tạo đơn mua hàng thành công",
@@ -394,6 +405,7 @@
     "supplier": "Nhà cung cấp",
     "customer": "Khách hàng",
     "searchPlaceholder": "Tìm mã đơn, tên KH/NCC...",
+    "searchCode": "Tìm mã đơn...",
     "createSalesOrder": "Tạo đơn bán hàng",
     "createPurchaseOrder": "Tạo đơn mua hàng"
   },
@@ -446,8 +458,19 @@
     "totalRecords": "Tổng {{count}} bản ghi",
     "searchCustomer": "Tìm khách hàng...",
     "searchSupplier": "Tìm nhà cung cấp...",
+    "searchInvoice": "Tìm số hoá đơn...",
     "aiReconciliation": "Đối chiếu AI",
-    "aiReconciliationSoon": "Đối chiếu AI - Sắp ra mắt"
+    "aiReconciliationSoon": "Đối chiếu AI - Sắp ra mắt",
+    "outstanding": "Còn nợ",
+    "invoiceCount": "Số hoá đơn",
+    "invoices": "hoá đơn",
+    "totalDebt": "Tổng công nợ",
+    "totalPaid": "Đã thanh toán",
+    "overdueCount": "Quá hạn",
+    "invoiceList": "Danh sách hoá đơn",
+    "paymentHistory": "Lịch sử thanh toán",
+    "customers": "khách hàng",
+    "suppliers": "nhà cung cấp"
   },
   "payment": {
     "amount": "Số tiền",
@@ -463,7 +486,8 @@
     "methodBankTransfer": "Chuyển khoản",
     "methodOther": "Khác",
     "reference": "Số tham chiếu",
-    "referencePlaceholder": "Mã giao dịch, số phiếu thu..."
+    "referencePlaceholder": "Mã giao dịch, số phiếu thu...",
+    "searchReference": "Tìm mã tham chiếu..."
   },
   "dashboard": {
     "totalReceivable": "Tổng phải thu",
@@ -586,12 +610,17 @@
     "fileAttached": "File đính kèm",
     "uploadDescription": "Tải lên hoá đơn từ nhà cung cấp (PDF hoặc ảnh)",
     "uploadFile": "Tải lên hoá đơn",
+    "uploadSuccess": "Tải hoá đơn thành công",
+    "replaceFile": "Thay thế file",
+    "confirmDelete": "Bạn có chắc muốn xoá hoá đơn này?",
     "viewFile": "Xem file",
     "searchPlaceholder": "Tìm theo công ty, MST, mã đơn...",
     "viewPdf": "Xem PDF",
+    "downloadPdf": "Tải PDF",
     "statusDraft": "Nháp",
     "statusApproved": "Đã duyệt",
-    "statusCancelled": "Đã huỷ"
+    "statusCancelled": "Đã huỷ",
+    "invoiceNumber": "Số HĐ"
   },
   "alert": {
     "title": "Thông báo & Nhắc nhở",

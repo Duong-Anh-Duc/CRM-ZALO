@@ -5,7 +5,10 @@ import {
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { useCreateProduct, useUpdateProduct } from '../hooks';
+import { productApi } from '../api';
+import { Category } from '@/types';
 import ProductImageManager from './ProductImageManager';
 import { ProductFormModalProps } from '../types';
 
@@ -41,6 +44,12 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
       }
     }
   }, [open, product, form]);
+
+  const { data: categoriesData } = useQuery<Category[]>({
+    queryKey: ['product-categories'],
+    queryFn: () => productApi.list({ type: 'categories' }).then((r) => r.data.data ?? []),
+  });
+  const categoryOptions = (categoriesData ?? []).map((c: Category) => ({ value: c.id, label: c.name }));
 
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
@@ -85,7 +94,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
             <Input style={fieldStyle} />
           </Form.Item>
           <Form.Item name="category_id" label={t('product.category')}>
-            <Select allowClear showSearch optionFilterProp="label" style={fieldStyle} placeholder={t('product.selectCategory')} options={[]} />
+            <Select allowClear showSearch optionFilterProp="label" style={fieldStyle} placeholder={t('product.selectCategory')} options={categoryOptions} />
           </Form.Item>
           <Form.Item name="description" label={t('common.description')}>
             <Input.TextArea rows={3} style={fieldStyle} />

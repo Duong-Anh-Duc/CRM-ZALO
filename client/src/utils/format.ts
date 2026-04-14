@@ -25,9 +25,7 @@ export function getSalesStatusLabels(): Record<string, string> {
   const t = i18n.t;
   return {
     PENDING: t('salesStatusLabels.PENDING'),
-    NEW: t('salesStatusLabels.NEW'),
     CONFIRMED: t('salesStatusLabels.CONFIRMED'),
-    PREPARING: t('salesStatusLabels.PREPARING'),
     SHIPPING: t('salesStatusLabels.SHIPPING'),
     COMPLETED: t('salesStatusLabels.COMPLETED'),
     CANCELLED: t('salesStatusLabels.CANCELLED'),
@@ -37,13 +35,9 @@ export function getSalesStatusLabels(): Record<string, string> {
 export function getPurchaseStatusLabels(): Record<string, string> {
   const t = i18n.t;
   return {
-    PENDING: t('purchaseStatusLabels.PENDING'),
-    NEW: t('purchaseStatusLabels.NEW'),
     CONFIRMED: t('purchaseStatusLabels.CONFIRMED'),
-    PROCESSING: t('purchaseStatusLabels.PROCESSING'),
     SHIPPING: t('purchaseStatusLabels.SHIPPING'),
     COMPLETED: t('purchaseStatusLabels.COMPLETED'),
-    CANCELLED: t('purchaseStatusLabels.CANCELLED'),
   };
 }
 

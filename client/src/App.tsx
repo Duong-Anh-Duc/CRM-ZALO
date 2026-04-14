@@ -14,6 +14,8 @@ import SalesOrderDetailPage from '@/features/orders/pages/sales/SalesOrderDetail
 import PurchaseOrderListPage from '@/features/orders/pages/purchase/PurchaseOrderListPage';
 import PurchaseOrderDetailPage from '@/features/orders/pages/purchase/PurchaseOrderDetailPage';
 import DebtPage from '@/features/debts/pages/DebtPage';
+import CustomerDebtDetailPage from '@/features/debts/pages/CustomerDebtDetailPage';
+import SupplierDebtDetailPage from '@/features/debts/pages/SupplierDebtDetailPage';
 import OperatingCostPage from '@/features/operating-costs/pages/OperatingCostPage';
 import ReportsPage from '@/features/reports/pages/ReportsPage';
 import SettingsPage from '@/features/settings/pages/SettingsPage';
@@ -55,6 +57,8 @@ export default function App() {
         <Route path="purchase-orders" element={<PurchaseOrderListPage />} />
         <Route path="purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
         <Route path="debts" element={<DebtPage />} />
+        <Route path="receivables/customer/:customerId" element={<CustomerDebtDetailPage />} />
+        <Route path="payables/supplier/:supplierId" element={<SupplierDebtDetailPage />} />
         <Route path="operating-costs" element={<OperatingCostPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="alerts" element={<AlertsPage />} />

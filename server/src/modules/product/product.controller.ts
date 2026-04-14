@@ -7,6 +7,11 @@ import { sendSuccess, sendCreated, sendPaginated, sendMessage } from '../../util
 export class ProductController {
   static async list(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
+      // Special: return categories list
+      if (req.query.type === 'categories') {
+        const categories = await ProductService.listCategories();
+        return sendSuccess(res, categories);
+      }
       const result = await ProductService.list(req.query as never);
       sendPaginated(res, result.products, { total: result.total, page: result.page, limit: result.limit });
     } catch (err) {

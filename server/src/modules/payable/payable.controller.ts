@@ -13,6 +13,24 @@ export class PayableController {
     }
   }
 
+  static async listBySupplier(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await PayableService.listBySupplier(req.query as never);
+      sendPaginated(res, result.suppliers, { total: result.total, page: result.page, limit: result.limit });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getSupplierDetail(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await PayableService.getSupplierDetail(req.params.supplierId);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async getSummary(_req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const summary = await PayableService.getSummary();

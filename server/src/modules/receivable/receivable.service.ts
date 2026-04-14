@@ -5,7 +5,7 @@ import { t } from '../../locales';
 import { delCache } from '../../lib/redis';
 
 interface RecordPaymentInput {
-  receivable_id: string;
+  customer_id: string;
   amount: number;
   payment_date?: string;
   method: PaymentMethod;
@@ -13,6 +13,93 @@ interface RecordPaymentInput {
 }
 
 export class ReceivableService {
+  // ── Group by customer ──
+  static async listByCustomer(filters: { page?: number; limit?: number; status?: string; search?: string }) {
+    const page = Number(filters.page) || 1;
+    const limit = Number(filters.limit) || 20;
+
+    const where: any = { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE', 'PAID'] } };
+    if (filters.status === 'OUTSTANDING') {
+      where.status = { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] };
+    } else if (filters.status && filters.status !== 'ALL') {
+      where.status = filters.status;
+    }
+    if (filters.search) {
+      where.customer = { OR: [
+        { company_name: { contains: filters.search, mode: 'insensitive' } },
+        { contact_name: { contains: filters.search, mode: 'insensitive' } },
+      ]};
+    }
+
+    // Get all receivables grouped by customer
+    const receivables = await prisma.receivable.findMany({
+      where,
+      include: { customer: { select: { id: true, company_name: true, contact_name: true, phone: true } } },
+      orderBy: { due_date: 'asc' },
+    });
+
+    // Group by customer
+    const customerMap = new Map<string, any>();
+    for (const rec of receivables) {
+      const cid = rec.customer_id;
+      if (!customerMap.has(cid)) {
+        customerMap.set(cid, {
+          customer_id: cid,
+          customer: rec.customer,
+          total_original: 0,
+          total_paid: 0,
+          total_remaining: 0,
+          invoice_count: 0,
+          overdue_count: 0,
+          oldest_due_date: rec.due_date,
+        });
+      }
+      const entry = customerMap.get(cid)!;
+      entry.total_original += rec.original_amount;
+      entry.total_paid += rec.paid_amount;
+      entry.total_remaining += rec.remaining;
+      entry.invoice_count += 1;
+      if (rec.status === 'OVERDUE') entry.overdue_count += 1;
+      if (rec.due_date < entry.oldest_due_date) entry.oldest_due_date = rec.due_date;
+    }
+
+    let rows = Array.from(customerMap.values());
+    // Sort: outstanding first (by remaining desc), then by name
+    rows.sort((a, b) => b.total_remaining - a.total_remaining);
+
+    const total = rows.length;
+    const paged = rows.slice((page - 1) * limit, page * limit);
+
+    return { customers: paged, total, page, limit, total_pages: Math.ceil(total / limit) };
+  }
+
+  // ── All invoices for a customer ──
+  static async getCustomerDetail(customerId: string) {
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { id: true, company_name: true, contact_name: true, phone: true, email: true, address: true },
+    });
+    if (!customer) throw new AppError(t('customer.notFound'), 404);
+
+    const receivables = await prisma.receivable.findMany({
+      where: { customer_id: customerId },
+      include: {
+        sales_order: { select: { id: true, order_code: true } },
+        payments: { orderBy: { payment_date: 'desc' } },
+      },
+      orderBy: { due_date: 'asc' },
+    });
+
+    const summary = receivables.reduce((acc, r) => ({
+      total_original: acc.total_original + r.original_amount,
+      total_paid: acc.total_paid + r.paid_amount,
+      total_remaining: acc.total_remaining + r.remaining,
+    }), { total_original: 0, total_paid: 0, total_remaining: 0 });
+
+    return { customer, receivables, summary };
+  }
+
+  // ── Flat list (keep for backward compat) ──
   static async list(filters: { page?: number; limit?: number; status?: DebtStatus; customer_id?: string; customer_search?: string; from_date?: string; to_date?: string }) {
     const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 20;
@@ -79,33 +166,59 @@ export class ReceivableService {
     };
   }
 
+  // ── FIFO Payment by customer ──
   static async recordPayment(input: RecordPaymentInput) {
-    const receivable = await prisma.receivable.findUnique({ where: { id: input.receivable_id } });
-    if (!receivable) throw new AppError(t('debt.notFound'), 404);
     if (input.amount <= 0) throw new AppError(t('debt.amountPositive'), 400);
-    if (input.amount > receivable.remaining) throw new AppError(t('debt.amountExceedsRemaining'), 400);
 
-    const newPaid = receivable.paid_amount + input.amount;
-    const newRemaining = receivable.original_amount - newPaid;
-    const newStatus: DebtStatus = newRemaining <= 0 ? 'PAID' : 'PARTIAL';
+    // Get all unpaid/partial/overdue receivables for this customer, ordered by due_date ASC (FIFO)
+    const invoices = await prisma.receivable.findMany({
+      where: { customer_id: input.customer_id, status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
+      orderBy: [{ due_date: 'asc' }, { created_at: 'asc' }],
+    });
 
-    const [payment] = await prisma.$transaction([
-      prisma.receivablePayment.create({
-        data: {
-          receivable_id: input.receivable_id,
-          amount: input.amount,
-          payment_date: input.payment_date ? new Date(input.payment_date) : new Date(),
-          method: input.method,
-          reference: input.reference,
-        },
-      }),
-      prisma.receivable.update({
-        where: { id: input.receivable_id },
-        data: { paid_amount: newPaid, remaining: newRemaining, status: newStatus },
-      }),
-    ]);
+    if (invoices.length === 0) throw new AppError(t('debt.noOutstandingDebt'), 400);
+
+    const totalRemaining = invoices.reduce((sum, inv) => sum + inv.remaining, 0);
+    if (input.amount > totalRemaining) throw new AppError(t('debt.amountExceedsRemaining'), 400);
+
+    // FIFO allocation
+    let remaining = input.amount;
+    const paymentCreates: any[] = [];
+    const receivableUpdates: any[] = [];
+
+    for (const inv of invoices) {
+      if (remaining <= 0) break;
+      const allocate = Math.min(remaining, inv.remaining);
+
+      paymentCreates.push(
+        prisma.receivablePayment.create({
+          data: {
+            receivable_id: inv.id,
+            amount: allocate,
+            payment_date: input.payment_date ? new Date(input.payment_date) : new Date(),
+            method: input.method,
+            reference: input.reference,
+          },
+        })
+      );
+
+      const newPaid = inv.paid_amount + allocate;
+      const newRemaining = inv.original_amount - newPaid;
+      const newStatus: DebtStatus = newRemaining <= 0 ? 'PAID' : 'PARTIAL';
+
+      receivableUpdates.push(
+        prisma.receivable.update({
+          where: { id: inv.id },
+          data: { paid_amount: newPaid, remaining: newRemaining, status: newStatus },
+        })
+      );
+
+      remaining -= allocate;
+    }
+
+    await prisma.$transaction([...paymentCreates, ...receivableUpdates]);
 
     await delCache('cache:/api/receivables*', 'cache:/api/dashboard*');
-    return payment;
+    return { allocated: paymentCreates.length, total_amount: input.amount };
   }
 }
