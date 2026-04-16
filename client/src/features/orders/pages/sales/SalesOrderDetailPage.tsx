@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Card, Space, Typography, Spin, Empty, Tag, Button, Modal, Tooltip, Row, Col, Statistic, Input, DatePicker, Form, Avatar, Popconfirm, Select, InputNumber, Drawer, Dropdown,
+  Card, Space, Typography, Spin, Empty, Tag, Button, Modal, Tooltip, Row, Col, Statistic, Input, DatePicker, Form, Avatar, Popconfirm, Select, InputNumber, Drawer, Dropdown, Table,
 } from 'antd';
-import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, DollarOutlined, ShopOutlined, SaveOutlined, UserOutlined, PhoneOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, ShoppingOutlined, SearchOutlined, SwapOutlined, MailOutlined } from '@ant-design/icons';
+import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, DollarOutlined, ShopOutlined, SaveOutlined, UserOutlined, PhoneOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, SearchOutlined, SwapOutlined, MailOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
@@ -130,7 +130,7 @@ const SalesOrderDetailPage: React.FC = () => {
         {/* Header */}
         <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 20 }} align="start" wrap>
           <Space size={16}>
-            <Avatar size={48} style={{ background: '#1677ff', fontSize: 20 }} icon={<ShoppingOutlined />} />
+            <Avatar size={48} style={{ background: '#1677ff', fontSize: 18, fontWeight: 700 }}>SO</Avatar>
             <div>
               <Text strong style={{ fontSize: 20, display: 'block' }}>{order.order_code}</Text>
               <Space size={6}>
@@ -198,7 +198,9 @@ const SalesOrderDetailPage: React.FC = () => {
           <Row gutter={[12, 12]}>
             <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><CalendarOutlined style={{ marginRight: 4 }} />{t('order.orderDate')}</Text><Text strong>{formatDate(order.order_date)}</Text></div></Col>
             <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><FieldTimeOutlined style={{ marginRight: 4 }} />{t('order.expectedDelivery')}</Text><Text strong>{formatDate(order.expected_delivery)}</Text></div></Col>
-            <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}>VAT</Text><Text strong>{order.vat_rate === 'VAT_0' ? '0%' : order.vat_rate === 'VAT_8' ? '8%' : '10%'}</Text></div></Col>
+            <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}>VAT</Text><Text strong>{formatVND(order.vat_amount || 0)}</Text></div></Col>
+            {Number(order.shipping_fee) > 0 && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}>{t('order.shippingFee')}</Text><Text strong>{formatVND(order.shipping_fee)}</Text></div></Col>}
+            {Number(order.other_fee) > 0 && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}>{t('order.otherFee')}</Text><Text strong>{formatVND(order.other_fee)}{order.other_fee_note ? ` (${order.other_fee_note})` : ''}</Text></div></Col>}
             <Col xs={24}><div style={fieldStyle}><Text style={fLabel}><FileTextOutlined style={{ marginRight: 4 }} />{t('common.notes')}</Text><Text strong>{order.notes || '—'}</Text></div></Col>
           </Row>
         )}
@@ -222,58 +224,82 @@ const SalesOrderDetailPage: React.FC = () => {
           </Row>
         )}
 
-        {/* Chi tiết sản phẩm — hiển thị trực tiếp */}
+        {/* Chi tiết sản phẩm — Table */}
         <div style={{ marginTop: 20 }}>
           <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
             {t('order.productDetails')} ({order.items?.length || 0})
           </Text>
-          {(() => {
-            const items = order.items || [];
-            const groups = new Map<string, { supplier: any; po: any; items: any[] }>();
-            const noSupplier: any[] = [];
-            for (const item of items) {
-              if (!item.supplier_id) { noSupplier.push(item); continue; }
-              if (!groups.has(item.supplier_id)) {
-                const po = purchaseOrders.find((p: any) => p.supplier_id === item.supplier_id);
-                groups.set(item.supplier_id, { supplier: item.supplier, po, items: [] });
-              }
-              groups.get(item.supplier_id)!.items.push(item);
-            }
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {Array.from(groups.entries()).map(([sid, group]) => (
-                  <Card key={sid} size="small" style={{ borderRadius: 8, border: '1px solid #f0f0f0' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-                      <Space><Text strong>{group.supplier?.company_name || t('order.unknownSupplier')}</Text>{group.po && <StatusTag status={group.po.status} type="purchase" />}</Space>
-                      {group.po && <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/purchase-orders/${group.po.id}`)}>{group.po.order_code} → {formatVND(group.po.total)}</Button>}
+          <Table
+            size="small"
+            dataSource={order.items || []}
+            rowKey="id"
+            scroll={{ x: 'max-content' }}
+            pagination={order.items?.length > 5 ? { pageSize: 5, showSizeChanger: true, pageSizeOptions: ['5', '10', '20'] } : false}
+            columns={[
+              { title: 'STT', key: 'stt', width: 50, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+              { title: 'SKU', key: 'sku', width: 100, render: (_: any, item: any) => <Text type="secondary">{item.product?.sku}</Text> },
+              { title: t('product.name'), key: 'name', ellipsis: true, render: (_: any, item: any) => (
+                <Space size={4}><Text>{item.product?.name}</Text>{item.customer_product_name && <Tag color="orange" style={{ borderRadius: 4, fontSize: 10 }}>{item.customer_product_name}</Tag>}</Space>
+              )},
+              {
+                title: t('supplier.name'), key: 'supplier', width: 160, responsive: ['md'] as any,
+                render: (_: any, item: any) => {
+                  if (!item.supplier) return <Text type="secondary" style={{ color: '#fa8c16' }}>{t('order.noSupplierShort')}</Text>;
+                  const po = purchaseOrders.find((p: any) => p.supplier_id === item.supplier_id);
+                  return (
+                    <div>
+                      <Button type="link" size="small" style={{ padding: 0, fontSize: 12 }} onClick={() => navigate(`/suppliers/${item.supplier_id}`)}>{item.supplier.company_name}</Button>
+                      {po && <Button type="link" size="small" style={{ padding: 0, fontSize: 11, display: 'block' }} onClick={() => navigate(`/purchase-orders/${po.id}`)}>{po.order_code}</Button>}
                     </div>
-                    {group.items.map((item: any, i: number) => (
-                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderTop: i > 0 ? '1px solid #f5f5f5' : 'none', flexWrap: 'wrap', gap: 4 }}>
-                        <Space size={8}><Text type="secondary">{item.product?.sku}</Text><Text>{item.product?.name}</Text></Space>
-                        <Space size={16}><Text>×{item.quantity}</Text><Text>{formatVND(item.unit_price)}</Text>{item.discount_pct > 0 && <Text type="secondary">-{item.discount_pct}%</Text>}<Text strong>{formatVND(item.line_total)}</Text></Space>
-                      </div>
-                    ))}
-                  </Card>
-                ))}
-                {noSupplier.length > 0 && (
-                  <Card size="small" style={{ borderRadius: 8, border: '1px solid #fff2e8' }}>
-                    <Text strong style={{ display: 'block', marginBottom: 8, color: '#fa8c16' }}>{t('order.noSupplierAssigned')}</Text>
-                    {noSupplier.map((item: any, i: number) => (
-                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderTop: i > 0 ? '1px solid #f5f5f5' : 'none', flexWrap: 'wrap', gap: 4 }}>
-                        <Space size={8}><Text type="secondary">{item.product?.sku}</Text><Text>{item.product?.name}</Text></Space>
-                        <Space size={16}><Text>×{item.quantity}</Text><Text strong>{formatVND(item.line_total)}</Text></Space>
-                      </div>
-                    ))}
-                  </Card>
-                )}
-                {order.status === 'DRAFT' && (
-                  <Button type="dashed" icon={<PlusOutlined />} block style={{ borderRadius: 8 }} onClick={() => setDrawerOpen(true)}>
-                    {t('order.addProduct')}
-                  </Button>
-                )}
-              </div>
-            );
-          })()}
+                  );
+                },
+              },
+              { title: 'SL', dataIndex: 'quantity', key: 'qty', width: 60, align: 'right' as const },
+              { title: t('order.unitPrice'), dataIndex: 'unit_price', key: 'price', width: 120, align: 'right' as const, render: (v: number) => formatVND(v) },
+              { title: 'CK%', dataIndex: 'discount_pct', key: 'ck', width: 60, align: 'right' as const, responsive: ['lg'] as any, render: (v: number) => v > 0 ? `${v}%` : '-' },
+              { title: 'VAT', dataIndex: 'vat_rate', key: 'vat', width: 60, align: 'right' as const, render: (v: number) => v > 0 ? <Tag color="blue" style={{ borderRadius: 4, fontSize: 10, margin: 0 }}>{v}%</Tag> : '-' },
+              { title: t('order.lineTotal'), dataIndex: 'line_total', key: 'total', width: 130, align: 'right' as const, render: (v: number) => <Text strong>{formatVND(v)}</Text> },
+            ]}
+            summary={() => {
+              const subtotal = (order.items || []).reduce((s: number, i: any) => s + Number(i.line_total), 0);
+              const vatTotal = (order.items || []).reduce((s: number, i: any) => s + Number(i.vat_amount || 0), 0);
+              return (
+                <>
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0} colSpan={8} align="right"><Text>{t('order.subtotal')}</Text></Table.Summary.Cell>
+                    <Table.Summary.Cell index={1} align="right"><Text>{formatVND(subtotal)}</Text></Table.Summary.Cell>
+                  </Table.Summary.Row>
+                  {vatTotal > 0 && (
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={8} align="right"><Text>VAT</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="right"><Text>{formatVND(vatTotal)}</Text></Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  )}
+                  {Number(order.shipping_fee) > 0 && (
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={8} align="right"><Text>{t('order.shippingFee')}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="right"><Text>{formatVND(order.shipping_fee)}</Text></Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  )}
+                  {Number(order.other_fee) > 0 && (
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={8} align="right"><Text>{t('order.otherFee')}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="right"><Text>{formatVND(order.other_fee)}</Text></Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  )}
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0} colSpan={8} align="right"><Text strong>{t('order.grandTotal')}</Text></Table.Summary.Cell>
+                    <Table.Summary.Cell index={1} align="right"><Text strong style={{ color: '#1890ff', fontSize: 14 }}>{formatVND(order.grand_total)}</Text></Table.Summary.Cell>
+                  </Table.Summary.Row>
+                </>
+              );
+            }}
+          />
+          {order.status === 'DRAFT' && (
+            <Button type="dashed" icon={<PlusOutlined />} block style={{ borderRadius: 8, marginTop: 8 }} onClick={() => setDrawerOpen(true)}>
+              {t('order.addProduct')}
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -350,6 +376,7 @@ const SalesOrderDetailPage: React.FC = () => {
                     <Text>{'\u00d7'}{item.quantity}</Text>
                     <Text>{formatVND(item.unit_price)}</Text>
                     {item.discount_pct > 0 && <Text type="secondary">-{item.discount_pct}%</Text>}
+                    {item.vat_rate > 0 && <Tag color="blue" style={{ borderRadius: 4, fontSize: 10 }}>VAT {item.vat_rate}%</Tag>}
                     <Text strong>{formatVND(item.line_total)}</Text>
                   </Space>
                 )}
@@ -365,6 +392,9 @@ const SalesOrderDetailPage: React.FC = () => {
                   <InputNumber size="small" min={0} max={100} value={Number(item.discount_pct)} style={{ width: 65, borderRadius: 6 }}
                     addonAfter="%"
                     onBlur={(e) => { const v = Number(e.target.value); if (v >= 0 && v !== Number(item.discount_pct)) updateItemMutation.mutate({ itemId: item.id, data: { discount_pct: v } }); }} />
+                  <Select size="small" value={item.vat_rate ?? 0} style={{ width: 85, borderRadius: 6 }}
+                    options={[{ label: 'VAT 0%', value: 0 }, { label: 'VAT 8%', value: 8 }, { label: 'VAT 10%', value: 10 }]}
+                    onChange={(v) => updateItemMutation.mutate({ itemId: item.id, data: { vat_rate: v } })} />
                   <Text strong style={{ minWidth: 80 }}>{formatVND(item.line_total)}</Text>
                   <Select size="small" value={item.supplier_id || undefined}
                     onChange={(v) => {

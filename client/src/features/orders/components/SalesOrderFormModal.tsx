@@ -1,11 +1,17 @@
 import React from 'react';
-import { Modal, Form, Select, DatePicker, Input, InputNumber, Button, Space, Divider } from 'antd';
+import { Modal, Form, Select, DatePicker, Input, InputNumber, Button, Space, Divider, Row, Col } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useCreateSalesOrder } from '../hooks';
 import { useCustomers } from '@/features/customers/hooks';
 import { useProducts } from '@/features/products/hooks';
 import { SalesOrderFormModalProps } from '../types';
+
+const vatOptions = [
+  { label: '0%', value: 0 },
+  { label: '8%', value: 8 },
+  { label: '10%', value: 10 },
+];
 
 const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose, onSuccess }) => {
   const { t } = useTranslation();
@@ -28,12 +34,16 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
         customer_id: values.customer_id,
         expected_delivery: values.expected_delivery?.format('YYYY-MM-DD'),
         notes: values.notes,
-        vat_rate: values.vat_rate,
+        vat_rate: values.vat_rate || 'VAT_0',
+        shipping_fee: values.shipping_fee || 0,
+        other_fee: values.other_fee || 0,
+        other_fee_note: values.other_fee_note,
         items: (values.items || []).map((item: any) => ({
           product_id: item.product_id,
           quantity: item.quantity,
           unit_price: item.unit_price,
           discount_pct: item.discount_pct || 0,
+          vat_rate: item.vat_rate ?? 10,
         })),
       };
       createMutation.mutate(payload, {
@@ -57,7 +67,7 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
     <Modal
       open={open}
       title={t('order.createSalesOrder')}
-      width={800}
+      width={850}
       onCancel={onClose}
       destroyOnClose
       footer={
@@ -67,19 +77,28 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
         </Space>
       }
     >
-      <Form form={form} layout="vertical" initialValues={{ vat_rate: 'VAT_10', items: [{}] }}>
+      <Form form={form} layout="vertical" initialValues={{ vat_rate: 'VAT_10', items: [{ vat_rate: 10 }] }}>
         <Form.Item name="customer_id" label={t('order.customer')} rules={[{ required: true, message: t('validation.customerRequired') }]}>
           <Select showSearch optionFilterProp="label" options={customerOptions} placeholder={t('customer.customerTypePlaceholder')} style={{ borderRadius: 8 }} />
         </Form.Item>
 
-        <Space style={{ width: '100%' }} size="middle">
-          <Form.Item name="expected_delivery" label={t('order.expectedDelivery')} style={{ flex: 1 }}>
-            <DatePicker format="DD/MM/YYYY" style={{ width: '100%', borderRadius: 8 }} />
-          </Form.Item>
-          <Form.Item name="vat_rate" label="VAT" rules={[{ required: true }]} style={{ width: 150 }}>
-            <Select options={[{ label: '0%', value: 'VAT_0' }, { label: '8%', value: 'VAT_8' }, { label: '10%', value: 'VAT_10' }]} />
-          </Form.Item>
-        </Space>
+        <Row gutter={12}>
+          <Col xs={24} sm={12}>
+            <Form.Item name="expected_delivery" label={t('order.expectedDelivery')}>
+              <DatePicker format="DD/MM/YYYY" style={{ width: '100%', borderRadius: 8 }} />
+            </Form.Item>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Form.Item name="shipping_fee" label={t('order.shippingFee')}>
+              <InputNumber min={0} style={{ width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0} />
+            </Form.Item>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Form.Item name="other_fee" label={t('order.otherFee')}>
+              <InputNumber min={0} style={{ width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0} />
+            </Form.Item>
+          </Col>
+        </Row>
 
         <Form.Item name="notes" label={t('common.notes')}>
           <Input.TextArea rows={2} style={{ borderRadius: 8 }} />
@@ -91,28 +110,47 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
           {(fields, { add, remove }) => (
             <>
               {fields.map(({ key, name, ...rest }) => (
-                <Space key={key} align="start" style={{ display: 'flex', marginBottom: 8 }} wrap>
-                  <Form.Item {...rest} name={[name, 'product_id']} rules={[{ required: true, message: t('validation.productRequired') }]} style={{ width: 250 }}>
-                    <Select showSearch optionFilterProp="label" options={productOptions} placeholder={t('product.name')} onChange={(v) => handleProductSelect(v, name)} />
-                  </Form.Item>
-                  <Form.Item {...rest} name={[name, 'quantity']} rules={[{ required: true, message: t('validation.qtyPositive') }]} style={{ width: 100 }}>
-                    <InputNumber min={1} placeholder={t('order.quantity')} style={{ width: '100%' }} />
-                  </Form.Item>
-                  <Form.Item {...rest} name={[name, 'unit_price']} rules={[{ required: true, message: t('validation.unitPricePositive') }]} style={{ width: 150 }}>
-                    <InputNumber min={0} placeholder={t('product.unitPrice')} style={{ width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0} />
-                  </Form.Item>
-                  <Form.Item {...rest} name={[name, 'discount_pct']} style={{ width: 80 }}>
-                    <InputNumber min={0} max={100} placeholder="CK%" style={{ width: '100%' }} />
-                  </Form.Item>
-                  {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f', marginTop: 8 }} />}
-                </Space>
+                <Row key={key} gutter={8} align="top" style={{ marginBottom: 8 }}>
+                  <Col xs={24} sm={7}>
+                    <Form.Item {...rest} name={[name, 'product_id']} rules={[{ required: true, message: t('validation.productRequired') }]}>
+                      <Select showSearch optionFilterProp="label" options={productOptions} placeholder={t('product.name')} onChange={(v) => handleProductSelect(v, name)} size="small" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={6} sm={3}>
+                    <Form.Item {...rest} name={[name, 'quantity']} rules={[{ required: true, message: 'SL' }]}>
+                      <InputNumber min={1} placeholder="SL" style={{ width: '100%' }} size="small" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={8} sm={4}>
+                    <Form.Item {...rest} name={[name, 'unit_price']} rules={[{ required: true, message: t('validation.unitPricePositive') }]}>
+                      <InputNumber min={0} placeholder={t('order.unitPrice')} style={{ width: '100%' }} size="small" formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={5} sm={3}>
+                    <Form.Item {...rest} name={[name, 'discount_pct']}>
+                      <InputNumber min={0} max={100} placeholder="CK%" style={{ width: '100%' }} size="small" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={5} sm={3}>
+                    <Form.Item {...rest} name={[name, 'vat_rate']} initialValue={10}>
+                      <Select options={vatOptions} placeholder="VAT" size="small" />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={3} style={{ display: 'flex', alignItems: 'center', paddingTop: 4 }}>
+                    {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f' }} />}
+                  </Col>
+                </Row>
               ))}
-              <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />} block style={{ borderRadius: 8 }}>
+              <Button type="dashed" onClick={() => add({ vat_rate: 10 })} icon={<PlusOutlined />} block style={{ borderRadius: 8 }}>
                 {t('product.addProduct')}
               </Button>
             </>
           )}
         </Form.List>
+
+        <Form.Item name="vat_rate" hidden initialValue="VAT_0">
+          <Input />
+        </Form.Item>
       </Form>
     </Modal>
   );

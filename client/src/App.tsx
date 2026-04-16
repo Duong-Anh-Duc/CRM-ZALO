@@ -18,7 +18,8 @@ import CreatePurchaseOrderPage from '@/features/orders/pages/purchase/CreatePurc
 import DebtPage from '@/features/debts/pages/DebtPage';
 import CustomerDebtDetailPage from '@/features/debts/pages/CustomerDebtDetailPage';
 import SupplierDebtDetailPage from '@/features/debts/pages/SupplierDebtDetailPage';
-import OperatingCostPage from '@/features/operating-costs/pages/OperatingCostPage';
+import ReturnListPage from '@/features/returns/pages/ReturnListPage';
+import CashBookPage from '@/features/cash-book/pages/CashBookPage';
 import ReportsPage from '@/features/reports/pages/ReportsPage';
 import SettingsPage from '@/features/settings/pages/SettingsPage';
 import AlertsPage from '@/features/alerts/pages/AlertsPage';
@@ -63,7 +64,8 @@ export default function App() {
         <Route path="debts" element={<DebtPage />} />
         <Route path="receivables/customer/:customerId" element={<CustomerDebtDetailPage />} />
         <Route path="payables/supplier/:supplierId" element={<SupplierDebtDetailPage />} />
-        <Route path="operating-costs" element={<OperatingCostPage />} />
+        <Route path="returns" element={<ReturnListPage />} />
+        <Route path="cash-book" element={<CashBookPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="alerts" element={<AlertsPage />} />
         <Route path="zalo" element={<ZaloPage />} />

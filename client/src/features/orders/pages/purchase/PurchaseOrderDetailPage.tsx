@@ -121,6 +121,8 @@ const PurchaseOrderDetailPage: React.FC = () => {
           <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><CalendarOutlined style={{ marginRight: 4 }} />{t('order.orderDate')}</Text><Text strong>{formatDate(order.order_date)}</Text></div></Col>
           <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><FieldTimeOutlined style={{ marginRight: 4 }} />{t('order.expectedDelivery')}</Text><Text strong>{formatDate(order.expected_delivery)}</Text></div></Col>
           {order.sales_order && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><ShoppingOutlined style={{ marginRight: 4 }} />{t('order.linkedSO')}</Text><Text strong style={{ color: '#1677ff', cursor: 'pointer' }} onClick={() => navigate(`/sales-orders/${order.sales_order.id}`)}>{order.sales_order.order_code}</Text></div></Col>}
+          {Number(order.shipping_fee) > 0 && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}>{t('order.shippingFee')}</Text><Text strong>{formatVND(order.shipping_fee)}</Text></div></Col>}
+          {Number(order.other_fee) > 0 && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}>{t('order.otherFee')}</Text><Text strong>{formatVND(order.other_fee)}{order.other_fee_note ? ` (${order.other_fee_note})` : ''}</Text></div></Col>}
           <Col xs={24}><div style={fieldStyle}><Text style={fLabel}><FileTextOutlined style={{ marginRight: 4 }} />{t('common.notes')}</Text><Text strong>{order.notes || '—'}</Text></div></Col>
         </Row>
 

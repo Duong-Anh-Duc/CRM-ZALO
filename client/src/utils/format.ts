@@ -25,7 +25,11 @@ export function getSalesStatusLabels(): Record<string, string> {
   const t = i18n.t;
   return {
     DRAFT: t('salesStatusLabels.DRAFT'),
+    PENDING: t('salesStatusLabels.PENDING'),
+    NEW: t('salesStatusLabels.NEW'),
     CONFIRMED: t('salesStatusLabels.CONFIRMED'),
+    PREPARING: t('salesStatusLabels.PREPARING'),
+    SHIPPING: t('salesStatusLabels.SHIPPING'),
     INVOICED: t('salesStatusLabels.INVOICED'),
     COMPLETED: t('salesStatusLabels.COMPLETED'),
     CANCELLED: t('salesStatusLabels.CANCELLED'),
@@ -36,8 +40,12 @@ export function getPurchaseStatusLabels(): Record<string, string> {
   const t = i18n.t;
   return {
     DRAFT: t('purchaseStatusLabels.DRAFT'),
+    PENDING: t('purchaseStatusLabels.PENDING'),
+    NEW: t('purchaseStatusLabels.NEW'),
     CONFIRMED: t('purchaseStatusLabels.CONFIRMED'),
+    PROCESSING: t('purchaseStatusLabels.PROCESSING'),
     SHIPPING: t('purchaseStatusLabels.SHIPPING'),
+    INVOICED: t('purchaseStatusLabels.INVOICED'),
     COMPLETED: t('purchaseStatusLabels.COMPLETED'),
     CANCELLED: t('purchaseStatusLabels.CANCELLED'),
   };
@@ -50,6 +58,19 @@ export function getDebtStatusLabels(): Record<string, string> {
     PARTIAL: t('debtStatusLabels.PARTIAL'),
     PAID: t('debtStatusLabels.PAID'),
     OVERDUE: t('debtStatusLabels.OVERDUE'),
+  };
+}
+
+export function getReturnStatusLabels(): Record<string, string> {
+  const t = i18n.t;
+  return {
+    PENDING: t('returnStatusLabels.PENDING'),
+    APPROVED: t('returnStatusLabels.APPROVED'),
+    RECEIVING: t('returnStatusLabels.RECEIVING'),
+    SHIPPING: t('returnStatusLabels.SHIPPING'),
+    COMPLETED: t('returnStatusLabels.COMPLETED'),
+    REJECTED: t('returnStatusLabels.REJECTED'),
+    CANCELLED: t('returnStatusLabels.CANCELLED'),
   };
 }
 
@@ -84,6 +105,10 @@ export const purchaseStatusLabels = new Proxy({} as Record<string, string>, {
 
 export const debtStatusLabels = new Proxy({} as Record<string, string>, {
   get: (_, key: string) => getDebtStatusLabels()[key],
+});
+
+export const returnStatusLabels = new Proxy({} as Record<string, string>, {
+  get: (_, key: string) => getReturnStatusLabels()[key],
 });
 
 export const customerTypeLabels = new Proxy({} as Record<string, string>, {

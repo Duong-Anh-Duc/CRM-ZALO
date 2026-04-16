@@ -6,7 +6,7 @@ export class ReportService {
     const from = new Date(fromDate);
     const to = new Date(toDate);
 
-    const [salesOrders, purchaseOrders, operatingCosts] = await Promise.all([
+    const [salesOrders, purchaseOrders, expenses] = await Promise.all([
       prisma.salesOrder.findMany({
         where: { order_date: { gte: from, lte: to }, status: { not: 'CANCELLED' } },
         select: { grand_total: true },
@@ -15,15 +15,15 @@ export class ReportService {
         where: { order_date: { gte: from, lte: to }, status: { not: 'CANCELLED' } },
         select: { total: true },
       }),
-      prisma.operatingCost.findMany({
-        where: { date: { gte: from, lte: to } },
+      prisma.cashTransaction.findMany({
+        where: { date: { gte: from, lte: to }, type: 'EXPENSE' },
         select: { amount: true },
       }),
     ]);
 
     const revenue = salesOrders.reduce((sum, o) => sum + o.grand_total, 0);
     const cogs = purchaseOrders.reduce((sum, o) => sum + o.total, 0);
-    const opex = operatingCosts.reduce((sum, c) => sum + c.amount, 0);
+    const opex = expenses.reduce((sum, c) => sum + c.amount, 0);
     const grossProfit = revenue - cogs;
     const netProfit = grossProfit - opex;
 

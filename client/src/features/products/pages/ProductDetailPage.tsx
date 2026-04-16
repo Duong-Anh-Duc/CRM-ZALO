@@ -35,6 +35,9 @@ const ProductDetailPage: React.FC = () => {
     </div>
   );
 
+  const salesItems = product.sales_order_items || [];
+  const purchaseItems = product.purchase_order_items || [];
+
   const tabItems = [
     {
       key: 'general',
@@ -92,6 +95,44 @@ const ProductDetailPage: React.FC = () => {
         </div>
       ),
     },
+    {
+      key: 'sales',
+      label: <><DollarOutlined /> {t('product.salesHistory')} ({salesItems.length})</>,
+      children: (
+        <Table size="small" dataSource={salesItems} rowKey="id" scroll={{ x: 'max-content' }}
+          pagination={salesItems.length > 10 ? { pageSize: 10 } : false}
+          locale={{ emptyText: <Empty description={t('common.noData')} /> }}
+          columns={[
+            { title: 'STT', key: 'stt', width: 50, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: t('order.orderCode'), key: 'code', width: 170, render: (_: any, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/sales-orders/${r.sales_order?.id}`)}>{r.sales_order?.order_code}</Button> },
+            { title: t('customer.name'), key: 'cust', ellipsis: true, render: (_: any, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/customers/${r.sales_order?.customer?.id}`)}>{r.sales_order?.customer?.company_name || r.sales_order?.customer?.contact_name}</Button> },
+            { title: t('order.orderDate'), key: 'date', width: 110, render: (_: any, r: any) => r.sales_order?.order_date ? new Date(r.sales_order.order_date).toLocaleDateString('vi') : '-' },
+            { title: 'SL', dataIndex: 'quantity', key: 'qty', width: 60, align: 'right' as const },
+            { title: t('order.unitPrice'), dataIndex: 'unit_price', key: 'price', width: 120, align: 'right' as const, render: (v: number) => formatVND(v) },
+            { title: t('order.lineTotal'), dataIndex: 'line_total', key: 'total', width: 130, align: 'right' as const, render: (v: number) => <Text strong>{formatVND(v)}</Text> },
+          ]}
+        />
+      ),
+    },
+    {
+      key: 'purchase',
+      label: <><ShopOutlined /> {t('product.purchaseHistory')} ({purchaseItems.length})</>,
+      children: (
+        <Table size="small" dataSource={purchaseItems} rowKey="id" scroll={{ x: 'max-content' }}
+          pagination={purchaseItems.length > 10 ? { pageSize: 10 } : false}
+          locale={{ emptyText: <Empty description={t('common.noData')} /> }}
+          columns={[
+            { title: 'STT', key: 'stt', width: 50, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: t('order.orderCode'), key: 'code', width: 170, render: (_: any, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/purchase-orders/${r.purchase_order?.id}`)}>{r.purchase_order?.order_code}</Button> },
+            { title: t('supplier.name'), key: 'supp', ellipsis: true, render: (_: any, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/suppliers/${r.purchase_order?.supplier?.id}`)}>{r.purchase_order?.supplier?.company_name}</Button> },
+            { title: t('order.orderDate'), key: 'date', width: 110, render: (_: any, r: any) => r.purchase_order?.order_date ? new Date(r.purchase_order.order_date).toLocaleDateString('vi') : '-' },
+            { title: 'SL', dataIndex: 'quantity', key: 'qty', width: 60, align: 'right' as const },
+            { title: t('order.unitPrice'), dataIndex: 'unit_price', key: 'price', width: 120, align: 'right' as const, render: (v: number) => formatVND(v) },
+            { title: t('order.lineTotal'), dataIndex: 'line_total', key: 'total', width: 130, align: 'right' as const, render: (v: number) => <Text strong>{formatVND(v)}</Text> },
+          ]}
+        />
+      ),
+    },
   ];
 
   return (
@@ -100,7 +141,7 @@ const ProductDetailPage: React.FC = () => {
         <Tabs items={tabItems} />
       </Card>
 
-      {/* 2 Action Buttons */}
+      {/* Pricing + Suppliers */}
       <Card style={cardStyle}>
         <Row gutter={[12, 12]}>
           <Col xs={24} sm={12}>

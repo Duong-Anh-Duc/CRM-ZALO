@@ -5,6 +5,7 @@ import {
   salesStatusLabels,
   purchaseStatusLabels,
   debtStatusLabels,
+  returnStatusLabels,
 } from '@/utils/format';
 import { StatusTagProps } from './types';
 
@@ -12,6 +13,7 @@ const labelMaps: Record<string, Record<string, string>> = {
   sales: salesStatusLabels,
   purchase: purchaseStatusLabels,
   debt: debtStatusLabels,
+  return: returnStatusLabels,
 };
 
 const StatusTag: React.FC<StatusTagProps> = ({ status, type = 'sales' }) => {

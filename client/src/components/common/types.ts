@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 
 export interface StatusTagProps {
   status: string;
-  type?: 'sales' | 'purchase' | 'debt';
+  type?: 'sales' | 'purchase' | 'debt' | 'return';
 }
 
 export interface ConfirmDeleteProps {

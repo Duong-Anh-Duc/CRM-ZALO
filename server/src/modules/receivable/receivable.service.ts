@@ -228,6 +228,27 @@ export class ReceivableService {
 
     await prisma.$transaction([...paymentCreates, ...receivableUpdates]);
 
+    // Auto-sync: create cash book income record
+    try {
+      const customer = await prisma.customer.findUnique({ where: { id: input.customer_id }, select: { company_name: true, contact_name: true } });
+      const custName = customer?.company_name || customer?.contact_name || '';
+      const incomeCat = await prisma.cashCategory.findFirst({ where: { type: 'INCOME', name: { contains: 'khách' } } });
+      if (incomeCat) {
+        await prisma.cashTransaction.create({
+          data: {
+            type: 'INCOME',
+            category_id: incomeCat.id,
+            date: input.payment_date ? new Date(input.payment_date) : new Date(),
+            amount: input.amount,
+            description: `Thu từ ${custName}`,
+            reference: input.reference,
+            payment_method: input.method,
+            is_auto: true,
+          },
+        });
+      }
+    } catch (err) { logger.warn(`Cash book sync failed: ${(err as Error).message}`); }
+
     // Create alert for payment recorded
     AlertService.createAlert({
       type: 'WARNING',
@@ -235,7 +256,7 @@ export class ReceivableService {
       message: t('alert.receivablePaymentRecorded', { amount: input.amount }),
     }).catch((err) => logger.warn(`Alert creation failed: ${err.message}`));
 
-    await delCache('cache:/api/receivables*', 'cache:/api/dashboard*');
+    await delCache('cache:/api/receivables*', 'cache:/api/dashboard*', 'cache:/api/cash-book*');
     return { allocated: paymentCreates.length, total_amount: input.amount };
   }
 

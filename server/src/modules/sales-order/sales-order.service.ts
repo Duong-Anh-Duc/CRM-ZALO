@@ -15,6 +15,9 @@ interface CreateSalesOrderInput {
   expected_delivery?: string;
   notes?: string;
   vat_rate: VATRate;
+  shipping_fee?: number;
+  other_fee?: number;
+  other_fee_note?: string;
   status?: SalesOrderStatus;
   items: Array<{
     product_id?: string;
@@ -23,6 +26,7 @@ interface CreateSalesOrderInput {
     unit_price: number;
     purchase_price?: number;
     discount_pct?: number;
+    vat_rate?: number;
     customer_product_name?: string;
     color_note?: string;
     packaging_note?: string;
@@ -143,6 +147,8 @@ export class SalesOrderService {
 
       const discountPct = item.discount_pct || 0;
       const lineTotal = item.quantity * item.unit_price * (1 - discountPct / 100);
+      const itemVatRate = item.vat_rate ?? 0;
+      const itemVatAmount = lineTotal * (itemVatRate / 100);
 
       return {
         product_id: item.product_id,
@@ -151,7 +157,9 @@ export class SalesOrderService {
         unit_price: item.unit_price,
         purchase_price: purchasePrice || null,
         discount_pct: discountPct,
+        vat_rate: itemVatRate,
         line_total: lineTotal,
+        vat_amount: itemVatAmount,
         customer_product_name: item.customer_product_name || null,
         color_note: item.color_note,
         packaging_note: item.packaging_note,
@@ -160,9 +168,10 @@ export class SalesOrderService {
     }));
 
     const subtotal = enrichedItems.reduce((sum, i) => sum + i.line_total, 0);
-    const vatPct = input.vat_rate === 'VAT_0' ? 0 : input.vat_rate === 'VAT_8' ? 8 : 10;
-    const vatAmount = subtotal * (vatPct / 100);
-    const grandTotal = subtotal + vatAmount;
+    const vatAmount = enrichedItems.reduce((sum, i) => sum + i.vat_amount, 0);
+    const shippingFee = Number(input.shipping_fee) || 0;
+    const otherFee = Number(input.other_fee) || 0;
+    const grandTotal = subtotal + vatAmount + shippingFee + otherFee;
 
     const order = await prisma.salesOrder.create({
       data: {
@@ -174,6 +183,9 @@ export class SalesOrderService {
         subtotal,
         vat_rate: input.vat_rate,
         vat_amount: vatAmount,
+        shipping_fee: shippingFee,
+        other_fee: otherFee,
+        other_fee_note: input.other_fee_note,
         grand_total: grandTotal,
         items: { create: enrichedItems },
       },
@@ -230,18 +242,27 @@ export class SalesOrderService {
     return pos;
   }
 
-  static async update(id: string, data: { notes?: string; expected_delivery?: string; vat_rate?: VATRate }) {
+  static async update(id: string, data: { notes?: string; expected_delivery?: string; vat_rate?: VATRate; shipping_fee?: number; other_fee?: number; other_fee_note?: string }) {
     const order = await prisma.salesOrder.findUnique({ where: { id } });
     if (!order) throw new AppError(t('order.salesNotFound'), 404);
 
     const updateData: any = {};
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.expected_delivery) updateData.expected_delivery = new Date(data.expected_delivery);
-    if (data.vat_rate) {
-      updateData.vat_rate = data.vat_rate;
-      const vatPct = data.vat_rate === 'VAT_0' ? 0 : data.vat_rate === 'VAT_8' ? 8 : 10;
-      updateData.vat_amount = Number(order.subtotal) * (vatPct / 100);
-      updateData.grand_total = Number(order.subtotal) + updateData.vat_amount;
+    if (data.vat_rate) updateData.vat_rate = data.vat_rate;
+    if (data.shipping_fee !== undefined) updateData.shipping_fee = Number(data.shipping_fee) || 0;
+    if (data.other_fee !== undefined) updateData.other_fee = Number(data.other_fee) || 0;
+    if (data.other_fee_note !== undefined) updateData.other_fee_note = data.other_fee_note;
+
+    // Recalculate if financial fields changed
+    if (data.vat_rate || data.shipping_fee !== undefined || data.other_fee !== undefined) {
+      const items = await prisma.salesOrderItem.findMany({ where: { sales_order_id: id } });
+      const vatAmount = items.reduce((sum, i) => sum + Number(i.vat_amount), 0);
+      const subtotal = Number(order.subtotal);
+      const sf = updateData.shipping_fee ?? Number(order.shipping_fee);
+      const of = updateData.other_fee ?? Number(order.other_fee);
+      updateData.vat_amount = vatAmount;
+      updateData.grand_total = subtotal + vatAmount + sf + of;
     }
 
     const updated = await prisma.salesOrder.update({
@@ -302,9 +323,8 @@ export class SalesOrderService {
     if (!so) return;
 
     const subtotal = so.items.reduce((sum, i) => sum + Number(i.line_total), 0);
-    const vatPct = so.vat_rate === 'VAT_0' ? 0 : so.vat_rate === 'VAT_8' ? 8 : 10;
-    const vatAmount = subtotal * (vatPct / 100);
-    const grandTotal = subtotal + vatAmount;
+    const vatAmount = so.items.reduce((sum, i) => sum + Number(i.vat_amount), 0);
+    const grandTotal = subtotal + vatAmount + Number(so.shipping_fee) + Number(so.other_fee);
 
     await prisma.salesOrder.update({
       where: { id: salesOrderId },
@@ -334,6 +354,8 @@ export class SalesOrderService {
 
     const discountPct = input.discount_pct || 0;
     const lineTotal = input.quantity * input.unit_price * (1 - discountPct / 100);
+    const itemVatRate = (input as any).vat_rate ?? 0;
+    const itemVatAmount = lineTotal * (itemVatRate / 100);
 
     const item = await prisma.salesOrderItem.create({
       data: {
@@ -344,7 +366,9 @@ export class SalesOrderService {
         unit_price: input.unit_price,
         purchase_price: purchasePrice,
         discount_pct: discountPct,
+        vat_rate: itemVatRate,
         line_total: lineTotal,
+        vat_amount: itemVatAmount,
         customer_product_name: input.customer_product_name || null,
         supplier_status: 'PENDING',
       },

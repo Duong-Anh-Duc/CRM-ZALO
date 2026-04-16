@@ -192,5 +192,17 @@
     "databaseError": "Lỗi cơ sở dữ liệu",
     "invalidData": "Dữ liệu gửi lên không hợp lệ",
     "serviceUnavailable": "Dịch vụ tạm thời không khả dụng"
+  },
+  "return": {
+    "notFound": "Không tìm thấy phiếu trả hàng",
+    "cannotChangeStatus": "Không thể thay đổi trạng thái phiếu đã hoàn thành hoặc đã huỷ",
+    "cannotDelete": "Chỉ xoá được phiếu trả hàng ở trạng thái Chờ duyệt hoặc Từ chối",
+    "salesReturnCompleted": "Phiếu trả hàng bán {{code}} đã hoàn thành",
+    "purchaseReturnCompleted": "Phiếu trả hàng mua {{code}} đã hoàn thành"
+  },
+  "cashBook": {
+    "amountPositive": "Số tiền phải lớn hơn 0",
+    "notFound": "Không tìm thấy giao dịch",
+    "cannotDeleteAuto": "Không thể xoá giao dịch tự động từ thanh toán công nợ"
   }
 }

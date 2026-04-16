@@ -24,7 +24,7 @@ export class PayableController {
 
   static async getSupplierDetail(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const result = await PayableService.getSupplierDetail(req.params.supplierId);
+      const result = await PayableService.getSupplierDetail(req.params.supplierId as string);
       sendSuccess(res, result);
     } catch (err) {
       next(err);

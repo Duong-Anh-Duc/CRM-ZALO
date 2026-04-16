@@ -13,6 +13,9 @@ interface CreatePurchaseOrderInput {
   sales_order_id?: string;
   expected_delivery?: string;
   notes?: string;
+  shipping_fee?: number;
+  other_fee?: number;
+  other_fee_note?: string;
   status?: PurchaseOrderStatus;
   items: Array<{
     product_id: string;
@@ -94,7 +97,10 @@ export class PurchaseOrderService {
       line_total: item.quantity * item.unit_price,
     }));
 
-    const total = items.reduce((sum, i) => sum + i.line_total, 0);
+    const itemsTotal = items.reduce((sum, i) => sum + i.line_total, 0);
+    const shippingFee = Number(input.shipping_fee) || 0;
+    const otherFee = Number(input.other_fee) || 0;
+    const total = itemsTotal + shippingFee + otherFee;
 
     const order = await prisma.purchaseOrder.create({
       data: {
@@ -105,6 +111,9 @@ export class PurchaseOrderService {
         expected_delivery: input.expected_delivery ? new Date(input.expected_delivery) : null,
         notes: input.notes,
         total,
+        shipping_fee: shippingFee,
+        other_fee: otherFee,
+        other_fee_note: input.other_fee_note,
         items: { create: items },
       },
       include: { supplier: true, items: true },

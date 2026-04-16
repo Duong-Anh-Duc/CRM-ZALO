@@ -203,8 +203,10 @@ model Product {
   images            ProductImage[]
   price_tiers       PriceTier[]
   supplier_prices   SupplierPrice[]
-  sales_order_items SalesOrderItem[]
+  sales_order_items    SalesOrderItem[]
   purchase_order_items PurchaseOrderItem[]
+  sales_return_items   SalesReturnItem[]
+  purchase_return_items PurchaseReturnItem[]
 
   aliases           ProductAlias[]
 
@@ -268,8 +270,9 @@ model Customer {
   created_at   DateTime     @default(now())
   updated_at   DateTime     @updatedAt
 
-  sales_orders SalesOrder[]
-  receivables  Receivable[]
+  sales_orders  SalesOrder[]
+  receivables   Receivable[]
+  sales_returns SalesReturn[]
 
   @@map("customers")
 }
@@ -294,6 +297,7 @@ model Supplier {
   purchase_orders    PurchaseOrder[]
   payables           Payable[]
   sales_order_items  SalesOrderItem[]
+  purchase_returns   PurchaseReturn[]
 
   @@map("suppliers")
 }
@@ -329,6 +333,9 @@ model SalesOrder {
   discount_amount     Float            @default(0)
   vat_rate            VATRate          @default(VAT_0)
   vat_amount          Float            @default(0)
+  shipping_fee        Float            @default(0)
+  other_fee           Float            @default(0)
+  other_fee_note      String?
   grand_total         Float            @default(0)
   status              SalesOrderStatus @default(DRAFT)
   zalo_message_id     String?          // Phase 2
@@ -340,6 +347,7 @@ model SalesOrder {
   purchase_orders PurchaseOrder[]
   receivables     Receivable[]
   invoices        Invoice[]
+  sales_returns   SalesReturn[]
 
   @@map("sales_orders")
 }
@@ -353,7 +361,9 @@ model SalesOrderItem {
   unit_price     Float              // Giá bán cho khách
   purchase_price Float?             // Giá mua từ NCC
   discount_pct   Float   @default(0)
-  line_total     Float
+  vat_rate       Int     @default(0)    // VAT % per item (0, 8, 10)
+  line_total     Float                  // = qty * unit_price * (1 - discount_pct/100)
+  vat_amount     Float   @default(0)    // = line_total * vat_rate / 100
   customer_product_name String? // Tên SP khách gọi (VD: "chai xanh 500")
   color_note     String?
   packaging_note String?
@@ -377,16 +387,20 @@ model PurchaseOrder {
   expected_delivery  DateTime?
   notes              String?
   total              Float               @default(0)
+  shipping_fee       Float               @default(0)
+  other_fee          Float               @default(0)
+  other_fee_note     String?
   status             PurchaseOrderStatus @default(DRAFT)
   zalo_message_id    String?
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
 
-  sales_order SalesOrder?         @relation(fields: [sales_order_id], references: [id])
-  supplier    Supplier            @relation(fields: [supplier_id], references: [id])
-  items       PurchaseOrderItem[]
-  payables    Payable[]
-  invoices    Invoice[]
+  sales_order      SalesOrder?         @relation(fields: [sales_order_id], references: [id])
+  supplier         Supplier            @relation(fields: [supplier_id], references: [id])
+  items            PurchaseOrderItem[]
+  payables         Payable[]
+  invoices         Invoice[]
+  purchase_returns PurchaseReturn[]
 
   @@index([sales_order_id])
   @@map("purchase_orders")
@@ -573,6 +587,21 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum CashTransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  RECEIVING
+  SHIPPING
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
 // ─── ALERTS ─────────────────────────────────────────
 
 model Alert {
@@ -698,4 +727,114 @@ model OrderSuggestion {
 
   @@index([status, created_at])
   @@map("order_suggestions")
+}
+
+// ─── RETURNS ───────────────────────────────────────
+
+model SalesReturn {
+  id              String       @id @default(uuid())
+  return_code     String       @unique
+  sales_order_id  String
+  customer_id     String
+  return_date     DateTime     @default(now())
+  total_amount    Float        @default(0)
+  reason          String?
+  notes           String?
+  status          ReturnStatus @default(PENDING)
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+
+  sales_order SalesOrder      @relation(fields: [sales_order_id], references: [id])
+  customer    Customer        @relation(fields: [customer_id], references: [id])
+  items       SalesReturnItem[]
+
+  @@index([sales_order_id])
+  @@index([customer_id])
+  @@map("sales_returns")
+}
+
+model SalesReturnItem {
+  id              String  @id @default(uuid())
+  sales_return_id String
+  product_id      String
+  quantity        Int
+  unit_price      Float
+  line_total      Float
+  reason          String?
+
+  sales_return SalesReturn @relation(fields: [sales_return_id], references: [id], onDelete: Cascade)
+  product      Product     @relation(fields: [product_id], references: [id])
+
+  @@map("sales_return_items")
+}
+
+model PurchaseReturn {
+  id                 String       @id @default(uuid())
+  return_code        String       @unique
+  purchase_order_id  String
+  supplier_id        String
+  return_date        DateTime     @default(now())
+  total_amount       Float        @default(0)
+  reason             String?
+  notes              String?
+  status             ReturnStatus @default(PENDING)
+  created_at         DateTime     @default(now())
+  updated_at         DateTime     @updatedAt
+
+  purchase_order PurchaseOrder      @relation(fields: [purchase_order_id], references: [id])
+  supplier       Supplier           @relation(fields: [supplier_id], references: [id])
+  items          PurchaseReturnItem[]
+
+  @@index([purchase_order_id])
+  @@index([supplier_id])
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnItem {
+  id                  String  @id @default(uuid())
+  purchase_return_id  String
+  product_id          String
+  quantity            Int
+  unit_price          Float
+  line_total          Float
+  reason              String?
+
+  purchase_return PurchaseReturn @relation(fields: [purchase_return_id], references: [id], onDelete: Cascade)
+  product         Product        @relation(fields: [product_id], references: [id])
+
+  @@map("purchase_return_items")
+}
+
+// ─── CASH BOOK (SỔ QUỸ) ───────────────────────────
+
+model CashCategory {
+  id          String  @id @default(uuid())
+  name        String
+  type        CashTransactionType  // INCOME or EXPENSE
+  is_active   Boolean @default(true)
+  created_at  DateTime @default(now())
+
+  transactions CashTransaction[]
+
+  @@map("cash_categories")
+}
+
+model CashTransaction {
+  id            String              @id @default(uuid())
+  type          CashTransactionType
+  category_id   String
+  date          DateTime            @default(now())
+  amount        Float
+  description   String
+  reference     String?             // Mã tham chiếu (hoá đơn, chuyển khoản...)
+  payment_method PaymentMethod      @default(CASH)
+  notes         String?
+  is_auto       Boolean             @default(false) // true = tự tạo từ thanh toán công nợ
+  created_at    DateTime            @default(now())
+  updated_at    DateTime            @updatedAt
+
+  category CashCategory @relation(fields: [category_id], references: [id])
+
+  @@index([type, date])
+  @@map("cash_transactions")
 }

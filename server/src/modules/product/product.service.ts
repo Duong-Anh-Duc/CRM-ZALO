@@ -67,6 +67,16 @@ export class ProductService {
         images: { orderBy: { sort_order: 'asc' } },
         price_tiers: { orderBy: { min_qty: 'asc' } },
         supplier_prices: { include: { supplier: { select: { id: true, company_name: true } } } },
+        sales_order_items: {
+          include: { sales_order: { select: { id: true, order_code: true, order_date: true, status: true, customer: { select: { id: true, company_name: true, contact_name: true } } } } },
+          orderBy: { sales_order: { order_date: 'desc' } },
+          take: 20,
+        },
+        purchase_order_items: {
+          include: { purchase_order: { select: { id: true, order_code: true, order_date: true, status: true, supplier: { select: { id: true, company_name: true } } } } },
+          orderBy: { purchase_order: { order_date: 'desc' } },
+          take: 20,
+        },
       },
     });
     if (!product) throw new AppError(t('product.notFound'), 404);

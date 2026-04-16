@@ -24,7 +24,7 @@ export class ReceivableController {
 
   static async getCustomerDetail(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const result = await ReceivableService.getCustomerDetail(req.params.customerId);
+      const result = await ReceivableService.getCustomerDetail(req.params.customerId as string);
       sendSuccess(res, result);
     } catch (err) {
       next(err);

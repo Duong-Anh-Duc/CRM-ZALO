@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import Chatbot from '@/components/Chatbot';
 import { Layout, Menu, Dropdown, Avatar, Typography, Space, Select, Drawer, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -19,7 +20,8 @@ import {
   GlobalOutlined,
   MessageOutlined,
   CloseOutlined,
-  AccountBookOutlined,
+  RollbackOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -42,9 +44,10 @@ const getMenuItems = (t: (key: string) => string): MenuProps['items'] => [
   { type: 'group', label: t('menu.orders') },
   { key: '/sales-orders', icon: <FileTextOutlined />, label: t('menu.salesOrders') },
   { key: '/purchase-orders', icon: <ImportOutlined />, label: t('menu.purchaseOrders') },
+  { key: '/returns', icon: <RollbackOutlined />, label: t('menu.returns') },
   { type: 'group', label: t('menu.finance') },
   { key: '/debts', icon: <DollarOutlined />, label: t('menu.debts') },
-  { key: '/operating-costs', icon: <AccountBookOutlined />, label: t('menu.operatingCosts') },
+  { key: '/cash-book', icon: <WalletOutlined />, label: t('menu.cashBook') },
 ];
 
 const AppLayout: React.FC = () => {
@@ -271,6 +274,7 @@ const AppLayout: React.FC = () => {
         defaultTab={profileTab}
         onClose={() => setProfileOpen(false)}
       />
+      <Chatbot />
     </Layout>
   );
 };

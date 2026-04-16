@@ -158,8 +158,8 @@ export class DashboardService {
       select: { order_date: true, grand_total: true },
     });
 
-    const costs = await prisma.operatingCost.findMany({
-      where: { date: { gte: since } },
+    const costs = await prisma.cashTransaction.findMany({
+      where: { date: { gte: since }, type: 'EXPENSE' },
       select: { date: true, amount: true },
     });
 

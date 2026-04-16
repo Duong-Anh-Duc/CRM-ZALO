@@ -6,6 +6,7 @@ import { seedCustomers } from './seeds/customers';
 import { seedSuppliers } from './seeds/suppliers';
 import { seedOrders } from './seeds/orders';
 import { seedOperatingCosts } from './seeds/operating-costs';
+import { seedCashBook } from './seeds/cash-book';
 
 const prisma = new PrismaClient();
 
@@ -72,6 +73,10 @@ async function main() {
   // Orders, receivables, payables
   await seedOrders(prisma, customers, suppliers);
   console.log('✅ Orders seeded');
+
+  // Cash book categories + sample transactions
+  await seedCashBook();
+  console.log('✅ Cash book seeded');
 
   console.log('🎉 Seeding complete!');
 }

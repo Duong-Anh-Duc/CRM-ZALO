@@ -83,16 +83,5 @@ export async function seedProducts(prisma: PrismaClient, suppliers: Array<{ id: 
   }
 
   // Set up cap compatibilities
-  const bottles24 = await prisma.product.findMany({ where: { neck_spec: '24/410', category: { parent_id: { not: 'phụ-kiện' } } } });
-  const caps24 = await prisma.product.findMany({ where: { neck_spec: '24/410', category: { parent_id: 'phụ-kiện' } } });
-
-  for (const bottle of bottles24) {
-    for (const cap of caps24) {
-      await prisma.capCompatibility.upsert({
-        where: { bottle_id_cap_id: { bottle_id: bottle.id, cap_id: cap.id } },
-        update: {},
-        create: { bottle_id: bottle.id, cap_id: cap.id },
-      }).catch(() => { /* skip duplicates */ });
-    }
-  }
+  // capCompatibility model removed from schema
 }

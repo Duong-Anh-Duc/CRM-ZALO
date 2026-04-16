@@ -221,6 +221,27 @@ export class PayableService {
 
     await prisma.$transaction([...paymentCreates, ...payableUpdates]);
 
+    // Auto-sync: create cash book expense record
+    try {
+      const supplier = await prisma.supplier.findUnique({ where: { id: input.supplier_id }, select: { company_name: true } });
+      const suppName = supplier?.company_name || '';
+      const expenseCat = await prisma.cashCategory.findFirst({ where: { type: 'EXPENSE', name: { contains: 'NCC' } } });
+      if (expenseCat) {
+        await prisma.cashTransaction.create({
+          data: {
+            type: 'EXPENSE',
+            category_id: expenseCat.id,
+            date: input.payment_date ? new Date(input.payment_date) : new Date(),
+            amount: input.amount,
+            description: `TT NCC ${suppName}`,
+            reference: input.reference,
+            payment_method: input.method,
+            is_auto: true,
+          },
+        });
+      }
+    } catch (err) { logger.warn(`Cash book sync failed: ${(err as Error).message}`); }
+
     // Create alert for payment recorded
     AlertService.createAlert({
       type: 'WARNING',
@@ -228,7 +249,7 @@ export class PayableService {
       message: t('alert.payablePaymentRecorded', { amount: input.amount }),
     }).catch((err) => logger.warn(`Alert creation failed: ${err.message}`));
 
-    await delCache('cache:/api/payables*', 'cache:/api/dashboard*');
+    await delCache('cache:/api/payables*', 'cache:/api/dashboard*', 'cache:/api/cash-book*');
     return { allocated: paymentCreates.length, total_amount: input.amount };
   }
 

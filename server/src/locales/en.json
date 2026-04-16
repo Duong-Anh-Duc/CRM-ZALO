@@ -192,5 +192,17 @@
     "databaseError": "Database error",
     "invalidData": "Invalid data submitted",
     "serviceUnavailable": "Service temporarily unavailable"
+  },
+  "return": {
+    "notFound": "Return not found",
+    "cannotChangeStatus": "Cannot change status of completed or cancelled return",
+    "cannotDelete": "Can only delete returns with Pending or Rejected status",
+    "salesReturnCompleted": "Sales return {{code}} completed",
+    "purchaseReturnCompleted": "Purchase return {{code}} completed"
+  },
+  "cashBook": {
+    "amountPositive": "Amount must be positive",
+    "notFound": "Transaction not found",
+    "cannotDeleteAuto": "Cannot delete auto-created transaction from debt payment"
   }
 }

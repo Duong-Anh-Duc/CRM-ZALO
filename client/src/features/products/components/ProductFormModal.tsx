@@ -87,9 +87,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
       label: t('product.generalInfo'),
       children: (
         <>
-          <Form.Item name="sku" label={t('product.sku')}>
-            <Input style={fieldStyle} placeholder={t('product.skuAuto')} />
-          </Form.Item>
           <Form.Item name="name" label={t('product.name')} rules={[{ required: true, message: t('product.nameRequired') }]}>
             <Input style={fieldStyle} />
           </Form.Item>

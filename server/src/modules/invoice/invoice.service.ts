@@ -131,15 +131,18 @@ export class InvoiceService {
   }
 
   // ──── List invoices ────
-  static async list(filters: { status?: string; search?: string; from_date?: string; to_date?: string; page?: number; limit?: number }) {
+  static async list(filters: { status?: string; search?: string; from_date?: string; to_date?: string; page?: number; limit?: number; sales_order_id?: string; purchase_order_id?: string }) {
     const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 20;
 
     const conditions: any[] = [];
     if (filters.status) conditions.push({ status: filters.status });
+    if (filters.sales_order_id) conditions.push({ sales_order_id: filters.sales_order_id });
+    if (filters.purchase_order_id) conditions.push({ purchase_order_id: filters.purchase_order_id });
     if (filters.search) {
       conditions.push({
         OR: [
+          { invoice_number: { contains: filters.search, mode: 'insensitive' } },
           { buyer_company: { contains: filters.search, mode: 'insensitive' } },
           { buyer_name: { contains: filters.search, mode: 'insensitive' } },
           { buyer_tax_code: { contains: filters.search } },

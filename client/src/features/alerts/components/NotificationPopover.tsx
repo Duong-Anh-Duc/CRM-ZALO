@@ -68,10 +68,11 @@ const NotificationPopover: React.FC<Props> = ({ children }) => {
                   key={alert.id}
                   style={{
                     padding: '10px 16px',
-                    borderLeft: `3px solid ${borderColors[cfg.color] || '#d9d9d9'}`,
-                    background: alert.is_read ? 'transparent' : '#f6ffed',
+                    margin: '4px 8px',
+                    border: `1px solid ${borderColors[cfg.color] || '#d9d9d9'}`,
+                    borderRadius: 8,
+                    background: alert.is_read ? 'transparent' : '#fffbe6',
                     cursor: 'pointer',
-                    borderBottom: '1px solid #f5f5f5',
                     transition: 'background 0.2s',
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = '#fafafa'; }}
