@@ -1,5 +1,6 @@
-import React from 'react';
-import { Modal, Form, InputNumber, DatePicker, Select, Input } from 'antd';
+import React, { useState } from 'react';
+import { Modal, Form, InputNumber, DatePicker, Select, Input, Upload, message } from 'antd';
+import { InboxOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -9,12 +10,15 @@ import { PaymentMethod } from '@/types';
 import { formatVND } from '@/utils/format';
 import { PaymentModalProps } from './types';
 
+const { Dragger } = Upload;
+
 const PaymentModal: React.FC<PaymentModalProps> = ({
   open, onClose, type, debtId, maxAmount,
 }) => {
   const [form] = Form.useForm();
   const qc = useQueryClient();
   const { t } = useTranslation();
+  const [evidenceUrl, setEvidenceUrl] = useState<string | null>(null);
 
   const methodOptions = [
     { label: t('payment.methodCash'), value: 'CASH' as PaymentMethod },
@@ -29,6 +33,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         payment_date: values.payment_date?.format('YYYY-MM-DD'),
         method: values.method,
         reference: values.reference,
+        evidence_url: evidenceUrl || undefined,
       };
 
       if (type === 'receivable') {
@@ -48,7 +53,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       qc.invalidateQueries({ queryKey: ['payables-by-supplier'] });
       qc.invalidateQueries({ queryKey: ['supplier-debt'] });
       qc.invalidateQueries({ queryKey: ['payable-summary'] });
+      qc.invalidateQueries({ queryKey: ['cash-book'] });
+      qc.invalidateQueries({ queryKey: ['cash-summary'] });
       form.resetFields();
+      setEvidenceUrl(null);
       onClose();
     },
     onError: () => {
@@ -62,15 +70,22 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     });
   };
 
+  const handleUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEvidenceUrl(reader.result as string);
+      message.success(t('payment.evidenceUploaded'));
+    };
+    reader.readAsDataURL(file);
+    return false;
+  };
+
   return (
     <Modal
       title={type === 'receivable' ? t('debt.recordReceivable') : t('debt.recordPayment')}
       open={open}
       onOk={handleOk}
-      onCancel={() => {
-        form.resetFields();
-        onClose();
-      }}
+      onCancel={() => { form.resetFields(); setEvidenceUrl(null); onClose(); }}
       confirmLoading={mutation.isPending}
       okText={t('common.confirm')}
       cancelText={t('common.cancel')}
@@ -81,51 +96,40 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         {t('payment.fifoNote', { max: formatVND(maxAmount) })}
       </div>
       <Form form={form} layout="vertical" initialValues={{ method: 'BANK_TRANSFER', payment_date: dayjs() }}>
-        <Form.Item
-          label={t('payment.amount')}
-          name="amount"
-          rules={[
-            { required: true, message: t('payment.amountRequired') },
-            {
-              type: 'number',
-              max: maxAmount,
-              message: t('payment.amountMax', { max: formatVND(maxAmount) }),
-            },
-          ]}
+        <Form.Item label={t('payment.amount')} name="amount"
+          rules={[{ required: true, message: t('payment.amountRequired') }, { type: 'number', max: maxAmount, message: t('payment.amountMax', { max: formatVND(maxAmount) }) }]}
         >
-          <InputNumber
-            style={{ width: '100%', borderRadius: 8 }}
-            min={1}
-            max={maxAmount}
+          <InputNumber style={{ width: '100%', borderRadius: 8 }} min={1} max={maxAmount}
             formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
             parser={(v) => Number(v?.replace(/\./g, '') ?? 0)}
-            placeholder={t('payment.amountPlaceholder')}
-            addonAfter="VND"
-          />
+            placeholder={t('payment.amountPlaceholder')} addonAfter="VND" />
         </Form.Item>
 
-        <Form.Item
-          label={t('payment.paymentDate')}
-          name="payment_date"
-          rules={[{ required: true, message: t('payment.dateRequired') }]}
-        >
-          <DatePicker
-            style={{ width: '100%', borderRadius: 8 }}
-            format="DD/MM/YYYY"
-            placeholder={t('payment.datePlaceholder')}
-          />
+        <Form.Item label={t('payment.paymentDate')} name="payment_date" rules={[{ required: true, message: t('payment.dateRequired') }]}>
+          <DatePicker style={{ width: '100%', borderRadius: 8 }} format="DD/MM/YYYY" placeholder={t('payment.datePlaceholder')} />
         </Form.Item>
 
-        <Form.Item
-          label={t('payment.method')}
-          name="method"
-          rules={[{ required: true, message: t('payment.methodRequired') }]}
-        >
+        <Form.Item label={t('payment.method')} name="method" rules={[{ required: true, message: t('payment.methodRequired') }]}>
           <Select options={methodOptions} style={{ borderRadius: 8 }} />
         </Form.Item>
 
         <Form.Item label={t('payment.reference')} name="reference">
           <Input placeholder={t('payment.referencePlaceholder')} style={{ borderRadius: 8 }} />
+        </Form.Item>
+
+        <Form.Item label={t('payment.evidence')}>
+          {evidenceUrl ? (
+            <div style={{ textAlign: 'center' }}>
+              <img src={evidenceUrl} alt="evidence" style={{ maxHeight: 120, borderRadius: 8, marginBottom: 8 }} />
+              <br />
+              <a onClick={() => setEvidenceUrl(null)} style={{ color: '#ff4d4f', fontSize: 12 }}>{t('common.delete')}</a>
+            </div>
+          ) : (
+            <Dragger accept="image/*,.pdf" showUploadList={false} beforeUpload={handleUpload as any} style={{ borderRadius: 8 }}>
+              <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+              <p className="ant-upload-text" style={{ fontSize: 12 }}>{t('payment.evidenceUploadHint')}</p>
+            </Dragger>
+          )}
         </Form.Item>
       </Form>
     </Modal>

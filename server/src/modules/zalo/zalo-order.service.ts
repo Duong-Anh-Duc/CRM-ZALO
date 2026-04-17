@@ -326,6 +326,7 @@ export class ZaloOrderService {
         phone: phone || '',
         zalo_user_id: senderId || null,
         customer_type: autoType as any,
+        approval_status: 'PENDING',
       },
     });
 

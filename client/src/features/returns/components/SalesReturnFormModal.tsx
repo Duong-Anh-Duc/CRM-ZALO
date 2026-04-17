@@ -126,7 +126,7 @@ const SalesReturnFormModal: React.FC<Props> = ({ open, onClose, onSuccess }) => 
                 render: (_: any, rec: any) => <div><Text>{rec.product_name}</Text><br /><Text type="secondary" style={{ fontSize: 11 }}>{rec.sku}</Text></div>,
               },
               { title: t('order.unitPrice'), dataIndex: 'unit_price', key: 'price', width: 110, align: 'right' as const, render: (v: number) => formatVND(v) },
-              { title: 'SL gốc', dataIndex: 'original_qty', key: 'orig', width: 70, align: 'right' as const },
+              { title: t('return.originalQty'), dataIndex: 'original_qty', key: 'orig', width: 70, align: 'right' as const },
               {
                 title: t('return.returnQuantity'), key: 'return_qty', width: 100,
                 render: (_: any, rec: any, idx: number) => (

@@ -12,6 +12,8 @@ router.get('/by-supplier', PayableController.listBySupplier);
 router.get('/summary', PayableController.getSummary);
 router.get('/supplier/:supplierId', PayableController.getSupplierDetail);
 router.get('/supplier/:supplierId/export-pdf', PayableController.exportSupplierPdf);
+router.get('/supplier/:supplierId/export-excel', PayableController.exportSupplierExcel);
 router.post('/payments', requireRole('ADMIN', 'STAFF'), validate(recordPaymentSchema), PayableController.recordPayment);
+router.patch('/payments/:paymentId/evidence', requireRole('ADMIN', 'STAFF'), PayableController.updatePaymentEvidence);
 
 export default router;

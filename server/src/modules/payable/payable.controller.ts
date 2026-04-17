@@ -62,4 +62,27 @@ export class PayableController {
       next(err);
     }
   }
+
+  static async updatePaymentEvidence(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await PayableService.updatePaymentEvidence(req.params.paymentId as string, req.body.evidence_url);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async exportSupplierExcel(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const buf = await PayableService.exportSupplierExcel(req.params.supplierId as string);
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="payable-${req.params.supplierId}.xlsx"`,
+        'Content-Length': buf.length.toString(),
+      });
+      res.send(buf);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Form, Select, DatePicker, Input, InputNumber, Button, Space, Divider, Row, Col } from 'antd';
+import { Modal, Form, Select, DatePicker, Input, InputNumber, Button, Space, Divider, Row, Col, message } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useCreateSalesOrder } from '../hooks';
@@ -9,6 +9,7 @@ import { SalesOrderFormModalProps } from '../types';
 
 const vatOptions = [
   { label: '0%', value: 0 },
+  { label: '5%', value: 5 },
   { label: '8%', value: 8 },
   { label: '10%', value: 10 },
 ];
@@ -26,19 +27,36 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
 
   const customerOptions = customers.map((c: any) => ({ label: c.company_name || c.contact_name, value: c.id }));
   const productOptions = products.map((p: any) => ({ label: `${p.sku} - ${p.name}`, value: p.id, price: p.retail_price || 0 }));
+  const productIds = new Set(products.map((p: any) => p.id));
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      const items = values.items || [];
+
+      // Validate at least 1 item
+      if (items.length === 0) {
+        message.error(t('order.minOneItem'));
+        return;
+      }
+
+      // Validate all products exist in DB
+      for (const item of items) {
+        if (!item.product_id || !productIds.has(item.product_id)) {
+          message.error(t('order.invalidProduct'));
+          return;
+        }
+      }
+
       const payload = {
         customer_id: values.customer_id,
         expected_delivery: values.expected_delivery?.format('YYYY-MM-DD'),
         notes: values.notes,
-        vat_rate: values.vat_rate || 'VAT_0',
+        vat_rate: 'VAT_0' as any,
         shipping_fee: values.shipping_fee || 0,
         other_fee: values.other_fee || 0,
         other_fee_note: values.other_fee_note,
-        items: (values.items || []).map((item: any) => ({
+        items: items.map((item: any) => ({
           product_id: item.product_id,
           quantity: item.quantity,
           unit_price: item.unit_price,
@@ -50,7 +68,7 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
         onSuccess: () => { form.resetFields(); onSuccess(); },
       });
     } catch {
-      // validation
+      // validation errors handled by form
     }
   };
 
@@ -77,7 +95,7 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
         </Space>
       }
     >
-      <Form form={form} layout="vertical" initialValues={{ vat_rate: 'VAT_10', items: [{ vat_rate: 10 }] }}>
+      <Form form={form} layout="vertical" initialValues={{ items: [{ vat_rate: 10 }] }}>
         <Form.Item name="customer_id" label={t('order.customer')} rules={[{ required: true, message: t('validation.customerRequired') }]}>
           <Select showSearch optionFilterProp="label" options={customerOptions} placeholder={t('customer.customerTypePlaceholder')} style={{ borderRadius: 8 }} />
         </Form.Item>
@@ -106,8 +124,8 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
 
         <Divider>{t('order.productDetails')}</Divider>
 
-        <Form.List name="items">
-          {(fields, { add, remove }) => (
+        <Form.List name="items" rules={[{ validator: async (_, items) => { if (!items || items.length === 0) throw new Error(t('order.minOneItem')); } }]}>
+          {(fields, { add, remove }, { errors }) => (
             <>
               {fields.map(({ key, name, ...rest }) => (
                 <Row key={key} gutter={8} align="top" style={{ marginBottom: 8 }}>
@@ -117,12 +135,12 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
                     </Form.Item>
                   </Col>
                   <Col xs={6} sm={3}>
-                    <Form.Item {...rest} name={[name, 'quantity']} rules={[{ required: true, message: 'SL' }]}>
+                    <Form.Item {...rest} name={[name, 'quantity']} rules={[{ required: true, message: 'SL' }, { type: 'number', min: 1, message: '≥1' }]}>
                       <InputNumber min={1} placeholder="SL" style={{ width: '100%' }} size="small" />
                     </Form.Item>
                   </Col>
                   <Col xs={8} sm={4}>
-                    <Form.Item {...rest} name={[name, 'unit_price']} rules={[{ required: true, message: t('validation.unitPricePositive') }]}>
+                    <Form.Item {...rest} name={[name, 'unit_price']} rules={[{ required: true, message: t('validation.unitPricePositive') }, { type: 'number', min: 1, message: '>0' }]}>
                       <InputNumber min={0} placeholder={t('order.unitPrice')} style={{ width: '100%' }} size="small" formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0} />
                     </Form.Item>
                   </Col>
@@ -141,16 +159,13 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
                   </Col>
                 </Row>
               ))}
+              <Form.ErrorList errors={errors} />
               <Button type="dashed" onClick={() => add({ vat_rate: 10 })} icon={<PlusOutlined />} block style={{ borderRadius: 8 }}>
                 {t('product.addProduct')}
               </Button>
             </>
           )}
         </Form.List>
-
-        <Form.Item name="vat_rate" hidden initialValue="VAT_0">
-          <Input />
-        </Form.Item>
       </Form>
     </Modal>
   );

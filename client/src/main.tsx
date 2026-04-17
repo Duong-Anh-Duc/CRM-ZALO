@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, theme as antTheme } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import enUS from 'antd/locale/en_US';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '@/locales';
 import { useTranslation } from 'react-i18next';
+import { useThemeStore } from '@/stores/theme.store';
 import '@/styles/global.css';
 import '@/styles/login.css';
 import '@/styles/responsive.css';
@@ -27,11 +28,19 @@ const queryClient = new QueryClient({
 function AppWrapper() {
   const { i18n } = useTranslation();
   const antdLocale = i18n.language === 'en' ? enUS : viVN;
+  const darkMode = useThemeStore((s) => s.darkMode);
+
+  // Sync body background with theme
+  useEffect(() => {
+    document.body.style.backgroundColor = darkMode ? '#141414' : '#f5f5f5';
+    document.body.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   return (
     <ConfigProvider
       locale={antdLocale}
       theme={{
+        algorithm: darkMode ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
         token: {
           colorPrimary: '#1677ff',
           borderRadius: 8,
@@ -47,7 +56,7 @@ function AppWrapper() {
     >
       <BrowserRouter>
         <App />
-        <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
+        <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme={darkMode ? 'dark' : 'light'} />
       </BrowserRouter>
     </ConfigProvider>
   );

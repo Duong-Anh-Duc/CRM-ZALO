@@ -103,14 +103,15 @@ const InvoiceListPage: React.FC = () => {
               </Tooltip>
               <Tooltip title={t('invoice.finalize')}>
                 <Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                  onClick={() => finalizeMutation.mutate(r.id)} loading={finalizeMutation.isPending} />
+                  onClick={() => Modal.confirm({ title: t('invoice.finalize'), content: `${r.invoice_number}`, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => finalizeMutation.mutate(r.id) })}
+                  loading={finalizeMutation.isPending} />
               </Tooltip>
             </>
           )}
           {r.status !== 'CANCELLED' && (
             <Tooltip title={t('common.cancel')}>
               <Button type="text" size="small" danger icon={<CloseCircleOutlined />}
-                onClick={() => cancelMutation.mutate(r.id)} />
+                onClick={() => Modal.confirm({ title: t('invoice.cancelled'), content: `${r.invoice_number}`, okText: t('common.confirm'), cancelText: t('common.cancel'), okButtonProps: { danger: true }, onOk: () => cancelMutation.mutate(r.id) })} />
             </Tooltip>
           )}
         </Space>
@@ -151,7 +152,7 @@ const InvoiceListPage: React.FC = () => {
             onChange={(v) => { setDateRange(v); setPage(1); }}
             format="DD/MM/YYYY"
             style={{ borderRadius: 8 }}
-            placeholder={[t('common.fromDate') || 'Từ ngày', t('common.toDate') || 'Đến ngày']}
+            placeholder={[t('common.fromDate'), t('common.toDate')]}
           />
         </Space>
 

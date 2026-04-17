@@ -41,6 +41,13 @@ export class CustomerController {
     }
   }
 
+  static async approve(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await CustomerService.approve(req.params.id as string);
+      sendSuccess(res, result);
+    } catch (err) { next(err); }
+  }
+
   static async softDelete(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       await CustomerService.softDelete(req.params.id as string);

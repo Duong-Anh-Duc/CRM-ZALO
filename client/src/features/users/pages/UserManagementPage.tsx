@@ -55,7 +55,7 @@ const UserManagementPage: React.FC = () => {
   const columns: ColumnsType<AuthUser> = [
     { title: 'STT', key: 'stt', width: 60, align: 'center', render: (_: unknown, __: unknown, i: number) => (page - 1) * pageSize + i + 1 },
     { title: t('user.fullName'), dataIndex: 'full_name', key: 'full_name', ellipsis: true },
-    { title: 'Email', dataIndex: 'email', key: 'email', ellipsis: true },
+    { title: t('auth.email'), dataIndex: 'email', key: 'email', ellipsis: true },
     {
       title: t('user.role'), dataIndex: 'role', key: 'role', width: 130, align: 'center',
       render: (r: UserRole) => <Tag color={roleColors[r]} style={{ borderRadius: 8 }}>{roleLabels[r]}</Tag>,

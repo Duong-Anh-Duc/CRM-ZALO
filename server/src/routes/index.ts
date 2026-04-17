@@ -17,6 +17,7 @@ import invoiceRoutes from '../modules/invoice/invoice.route';
 import returnRoutes from '../modules/return/return.routes';
 import cashBookRoutes from '../modules/cash-book/cash-book.routes';
 import chatbotRoutes from '../modules/ai/chatbot.route';
+import payrollRoutes from '../modules/payroll/payroll.routes';
 
 const router = Router();
 
@@ -40,5 +41,6 @@ router.use('/invoice', invoiceRoutes);
 router.use('/returns', returnRoutes);
 router.use('/cash-book', cashBookRoutes);
 router.use('/chatbot', chatbotRoutes);
+router.use('/payroll', payrollRoutes);
 
 export default router;

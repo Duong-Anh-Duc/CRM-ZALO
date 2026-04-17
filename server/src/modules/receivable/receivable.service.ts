@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma';
 import puppeteer from 'puppeteer';
 import dayjs from 'dayjs';
+import * as XLSX from 'xlsx';
 import { AppError } from '../../middleware/error.middleware';
 import { DebtStatus, PaymentMethod } from '@prisma/client';
 import { t } from '../../locales';
@@ -15,11 +16,12 @@ interface RecordPaymentInput {
   payment_date?: string;
   method: PaymentMethod;
   reference?: string;
+  evidence_url?: string;
 }
 
 export class ReceivableService {
   // ── Group by customer ──
-  static async listByCustomer(filters: { page?: number; limit?: number; status?: string; search?: string }) {
+  static async listByCustomer(filters: { page?: number; limit?: number; status?: string; search?: string; from_date?: string; to_date?: string }) {
     const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 20;
 
@@ -34,6 +36,12 @@ export class ReceivableService {
         { company_name: { contains: filters.search, mode: 'insensitive' } },
         { contact_name: { contains: filters.search, mode: 'insensitive' } },
       ]};
+    }
+    if (filters.from_date || filters.to_date) {
+      where.invoice_date = {
+        ...(filters.from_date && { gte: new Date(filters.from_date) }),
+        ...(filters.to_date && { lte: new Date(filters.to_date) }),
+      };
     }
 
     // Get all receivables grouped by customer
@@ -208,6 +216,7 @@ export class ReceivableService {
             payment_date: input.payment_date ? new Date(input.payment_date) : new Date(),
             method: input.method,
             reference: input.reference,
+            evidence_url: input.evidence_url,
           },
         })
       );
@@ -320,5 +329,71 @@ export class ReceivableService {
     } finally {
       await browser.close();
     }
+  }
+
+  // ── Update payment evidence ──
+  static async updatePaymentEvidence(paymentId: string, evidenceUrl: string) {
+    const result = await prisma.receivablePayment.update({
+      where: { id: paymentId },
+      data: { evidence_url: evidenceUrl },
+    });
+    await delCache('cache:/api/receivables*');
+    return result;
+  }
+
+  // ── Export customer debt report as Excel ──
+  static async exportCustomerExcel(customerId: string): Promise<Buffer> {
+    const detail = await this.getCustomerDetail(customerId);
+    const { customer, receivables, summary } = detail;
+
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Customer info + Invoices
+    const headerRows = [
+      ['BÁO CÁO CÔNG NỢ PHẢI THU'],
+      [`Ngày xuất: ${dayjs().format('DD/MM/YYYY HH:mm')}`],
+      [],
+      ['THÔNG TIN KHÁCH HÀNG'],
+      ['Tên', customer.company_name || customer.contact_name || ''],
+      ...(customer.contact_name && customer.company_name ? [['Người liên hệ', customer.contact_name]] : []),
+      ...(customer.phone ? [['Điện thoại', customer.phone]] : []),
+      ...(customer.email ? [['Email', customer.email]] : []),
+      ...(customer.address ? [['Địa chỉ', customer.address]] : []),
+      [],
+      ['TỔNG HỢP'],
+      ['Tổng công nợ', Number(summary.total_original)],
+      ['Đã thanh toán', Number(summary.total_paid)],
+      ['Còn lại', Number(summary.total_remaining)],
+      [],
+      ['STT', 'Số hoá đơn', 'Mã đơn hàng', 'Ngày HĐ', 'Hạn thanh toán', 'Số tiền gốc', 'Đã thanh toán', 'Còn lại', 'Trạng thái'],
+    ];
+    const dataRows = receivables.map((r: any, idx: number) => [
+      idx + 1, r.invoice_number, r.sales_order?.order_code || '-',
+      dayjs(r.invoice_date).format('DD/MM/YYYY'), dayjs(r.due_date).format('DD/MM/YYYY'),
+      Number(r.original_amount), Number(r.paid_amount), Number(r.remaining), r.status,
+    ]);
+    dataRows.push(['', 'TỔNG CỘNG', '', '', '', Number(summary.total_original), Number(summary.total_paid), Number(summary.total_remaining), '']);
+
+    const ws1 = XLSX.utils.aoa_to_sheet([...headerRows, ...dataRows]);
+    ws1['!cols'] = [{ wch: 6 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Công nợ');
+
+    // Sheet 2: Payments
+    const paymentHeader = [['STT', 'Số hoá đơn', 'Ngày thanh toán', 'Số tiền', 'Phương thức', 'Tham chiếu']];
+    const paymentData = receivables.flatMap((r: any) =>
+      (r.payments || []).map((p: any, idx: number) => [
+        idx + 1, r.invoice_number, dayjs(p.payment_date).format('DD/MM/YYYY'),
+        Number(p.amount), p.method === 'BANK_TRANSFER' ? 'Chuyển khoản' : p.method === 'CASH' ? 'Tiền mặt' : p.method,
+        p.reference || '',
+      ])
+    );
+    if (paymentData.length > 0) {
+      const ws2 = XLSX.utils.aoa_to_sheet([...paymentHeader, ...paymentData]);
+      ws2['!cols'] = [{ wch: 5 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Lịch sử TT');
+    }
+
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    return Buffer.from(buf);
   }
 }

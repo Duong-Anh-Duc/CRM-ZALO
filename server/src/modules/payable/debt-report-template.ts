@@ -1,8 +1,8 @@
 import dayjs from 'dayjs';
 
 const DEFAULT_COMPANY = {
-  name: 'CONG TY TNHH TECHLA AI',
-  address: 'Tang 8, Toa nha Licogi, so 164 Khuat Duy Tien, Thanh Xuan, Ha Noi',
+  name: 'CÔNG TY TNHH TECHLA AI',
+  address: 'Tầng 8, Toà nhà Licogi, số 164 Khuất Duy Tiến, Thanh Xuân, Hà Nội',
   phone: '0868287651',
   email: 'admin@techlaai.com',
 };
@@ -27,16 +27,21 @@ function formatMoney(n: number): string {
 }
 
 const STATUS_MAP: Record<string, string> = {
-  UNPAID: 'Chua thanh toan',
-  PARTIAL: 'Thanh toan mot phan',
-  PAID: 'Da thanh toan',
-  OVERDUE: 'Qua han',
+  UNPAID: 'Chưa thanh toán',
+  PARTIAL: 'Thanh toán một phần',
+  PAID: 'Đã thanh toán',
+  OVERDUE: 'Quá hạn',
+};
+
+const METHOD_MAP: Record<string, string> = {
+  BANK_TRANSFER: 'Chuyển khoản',
+  CASH: 'Tiền mặt',
 };
 
 export function buildDebtReportHtml(data: DebtReportData): string {
   const isReceivable = data.type === 'receivable';
-  const title = isReceivable ? 'BAO CAO CONG NO PHAI THU' : 'BAO CAO CONG NO PHAI TRA';
-  const entityLabel = isReceivable ? 'Khach hang' : 'Nha cung cap';
+  const title = isReceivable ? 'BÁO CÁO CÔNG NỢ PHẢI THU' : 'BÁO CÁO CÔNG NỢ PHẢI TRẢ';
+  const entityLabel = isReceivable ? 'Khách hàng' : 'Nhà cung cấp';
   const now = dayjs().format('DD/MM/YYYY HH:mm');
 
   const invoiceRows = data.invoices.map((inv, i) => `
@@ -59,7 +64,7 @@ export function buildDebtReportHtml(data: DebtReportData): string {
       <td style="text-align:center">${p.payment_date}</td>
       <td>${p.invoice_number}</td>
       <td style="text-align:right">${formatMoney(p.amount)}</td>
-      <td>${p.method}</td>
+      <td>${METHOD_MAP[p.method] || p.method}</td>
       <td>${p.reference}</td>
     </tr>
   `).join('');
@@ -68,9 +73,10 @@ export function buildDebtReportHtml(data: DebtReportData): string {
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #333; line-height: 1.5; }
+  body { font-family: 'Roboto', 'Noto Sans', Arial, sans-serif; font-size: 13px; color: #333; line-height: 1.5; }
   .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #1677ff; padding-bottom: 12px; }
   .header .company { font-size: 15px; font-weight: 700; color: #1677ff; }
   .header .info { font-size: 11px; color: #666; }
@@ -101,68 +107,68 @@ export function buildDebtReportHtml(data: DebtReportData): string {
   <div class="header">
     <div class="company">${DEFAULT_COMPANY.name}</div>
     <div class="info">${DEFAULT_COMPANY.address}</div>
-    <div class="info">DT: ${DEFAULT_COMPANY.phone} | Email: ${DEFAULT_COMPANY.email}</div>
+    <div class="info">ĐT: ${DEFAULT_COMPANY.phone} | Email: ${DEFAULT_COMPANY.email}</div>
   </div>
 
   <div class="title">${title}</div>
-  <div class="subtitle">Ngay xuat: ${now}</div>
+  <div class="subtitle">Ngày xuất: ${now}</div>
 
   <div class="entity-box">
     <div class="label">${entityLabel}</div>
     <div class="value">${data.entity.name}</div>
     <div class="entity-row">
-      ${data.entity.phone ? `<span>DT: ${data.entity.phone}</span>` : ''}
+      ${data.entity.phone ? `<span>ĐT: ${data.entity.phone}</span>` : ''}
       ${data.entity.email ? `<span>Email: ${data.entity.email}</span>` : ''}
     </div>
-    ${data.entity.address ? `<div style="font-size:12px;color:#555;margin-top:4px">Dia chi: ${data.entity.address}</div>` : ''}
+    ${data.entity.address ? `<div style="font-size:12px;color:#555;margin-top:4px">Địa chỉ: ${data.entity.address}</div>` : ''}
   </div>
 
   <div class="summary-row">
     <div class="summary-card">
-      <div class="s-label">Tong cong no</div>
-      <div class="s-value blue">${formatMoney(data.summary.total_original)} VND</div>
+      <div class="s-label">Tổng công nợ</div>
+      <div class="s-value blue">${formatMoney(data.summary.total_original)} VNĐ</div>
     </div>
     <div class="summary-card success">
-      <div class="s-label">Da thanh toan</div>
-      <div class="s-value green">${formatMoney(data.summary.total_paid)} VND</div>
+      <div class="s-label">Đã thanh toán</div>
+      <div class="s-value green">${formatMoney(data.summary.total_paid)} VNĐ</div>
     </div>
     <div class="summary-card${data.summary.total_remaining > 0 ? ' danger' : ' success'}">
-      <div class="s-label">Con lai</div>
-      <div class="s-value ${data.summary.total_remaining > 0 ? 'red' : 'green'}">${formatMoney(data.summary.total_remaining)} VND</div>
+      <div class="s-label">Còn lại</div>
+      <div class="s-value ${data.summary.total_remaining > 0 ? 'red' : 'green'}">${formatMoney(data.summary.total_remaining)} VNĐ</div>
     </div>
   </div>
 
-  <div class="section-title">Danh sach hoa don (${data.invoices.length})</div>
+  <div class="section-title">Danh sách hoá đơn (${data.invoices.length})</div>
   <table>
     <thead>
       <tr>
         <th style="width:35px;text-align:center">STT</th>
-        <th>So HD</th>
-        <th>Ma don</th>
-        <th style="text-align:center">Ngay HD</th>
-        <th style="text-align:center">Han TT</th>
-        <th style="text-align:right">Goc</th>
-        <th style="text-align:right">Da TT</th>
-        <th style="text-align:right">Con lai</th>
-        <th style="text-align:center">Trang thai</th>
+        <th>Số HĐ</th>
+        <th>Mã đơn</th>
+        <th style="text-align:center">Ngày HĐ</th>
+        <th style="text-align:center">Hạn TT</th>
+        <th style="text-align:right">Gốc</th>
+        <th style="text-align:right">Đã TT</th>
+        <th style="text-align:right">Còn lại</th>
+        <th style="text-align:center">Trạng thái</th>
       </tr>
     </thead>
     <tbody>
-      ${invoiceRows || '<tr><td colspan="9" style="text-align:center;color:#999">Khong co hoa don</td></tr>'}
+      ${invoiceRows || '<tr><td colspan="9" style="text-align:center;color:#999">Không có hoá đơn</td></tr>'}
     </tbody>
   </table>
 
   ${data.payments.length > 0 ? `
-  <div class="section-title">Lich su thanh toan (${data.payments.length})</div>
+  <div class="section-title">Lịch sử thanh toán (${data.payments.length})</div>
   <table>
     <thead>
       <tr>
         <th style="width:35px;text-align:center">STT</th>
-        <th style="text-align:center">Ngay TT</th>
-        <th>So HD</th>
-        <th style="text-align:right">So tien</th>
-        <th>Phuong thuc</th>
-        <th>Tham chieu</th>
+        <th style="text-align:center">Ngày TT</th>
+        <th>Số HĐ</th>
+        <th style="text-align:right">Số tiền</th>
+        <th>Phương thức</th>
+        <th>Tham chiếu</th>
       </tr>
     </thead>
     <tbody>
@@ -172,7 +178,7 @@ export function buildDebtReportHtml(data: DebtReportData): string {
   ` : ''}
 
   <div class="footer">
-    Xuat boi PackFlow CRM &mdash; ${now}
+    Xuất bởi PackFlow CRM &mdash; ${now}
   </div>
 </body>
 </html>`;

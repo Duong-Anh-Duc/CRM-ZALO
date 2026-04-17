@@ -204,5 +204,16 @@
     "amountPositive": "Số tiền phải lớn hơn 0",
     "notFound": "Không tìm thấy giao dịch",
     "cannotDeleteAuto": "Không thể xoá giao dịch tự động từ thanh toán công nợ"
+  },
+  "payroll": {
+    "periodExists": "Kỳ lương tháng này đã tồn tại",
+    "periodNotFound": "Không tìm thấy kỳ lương",
+    "cannotCalculate": "Chỉ tính lương cho kỳ Nháp hoặc Đã tính",
+    "cannotApprove": "Chỉ duyệt kỳ đã tính",
+    "cannotPay": "Chỉ chi lương cho kỳ đã duyệt",
+    "cannotDelete": "Không thể xoá kỳ lương đã duyệt hoặc đã chi",
+    "employeeNotFound": "Không tìm thấy hồ sơ nhân viên",
+    "profileExists": "Nhân viên đã có hồ sơ lương",
+    "recordNotFound": "Không tìm thấy phiếu lương"
   }
 }

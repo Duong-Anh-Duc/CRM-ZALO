@@ -62,4 +62,27 @@ export class ReceivableController {
       next(err);
     }
   }
+
+  static async updatePaymentEvidence(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await ReceivableService.updatePaymentEvidence(req.params.paymentId as string, req.body.evidence_url);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async exportCustomerExcel(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const buf = await ReceivableService.exportCustomerExcel(req.params.customerId as string);
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="receivable-${req.params.customerId}.xlsx"`,
+        'Content-Length': buf.length.toString(),
+      });
+      res.send(buf);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

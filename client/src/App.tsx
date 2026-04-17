@@ -25,6 +25,7 @@ import SettingsPage from '@/features/settings/pages/SettingsPage';
 import AlertsPage from '@/features/alerts/pages/AlertsPage';
 import ZaloPage from '@/features/zalo/pages/ZaloPage';
 import UserManagementPage from '@/features/users/pages/UserManagementPage';
+import PayrollPage from '@/features/payroll/pages/PayrollPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuth = useAuthStore((s) => s.isAuthenticated());
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="payables/supplier/:supplierId" element={<SupplierDebtDetailPage />} />
         <Route path="returns" element={<ReturnListPage />} />
         <Route path="cash-book" element={<CashBookPage />} />
+        <Route path="payroll" element={<PayrollPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="alerts" element={<AlertsPage />} />
         <Route path="zalo" element={<ZaloPage />} />

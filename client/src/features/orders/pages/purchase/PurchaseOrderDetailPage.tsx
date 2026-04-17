@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Table, Space, Typography, Spin, Empty, Tag, Button, Tooltip, Row, Col, Avatar, Statistic, Modal, Popconfirm, Dropdown,
+  Card, Table, Space, Typography, Spin, Empty, Tag, Button, Tooltip, Row, Col, Avatar, Statistic, Modal, Popconfirm, Dropdown, Upload,
 } from 'antd';
-import { FilePdfOutlined, DollarOutlined, ShopOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, DeleteOutlined, DownloadOutlined, CheckCircleOutlined, PlusOutlined, ShoppingOutlined, SwapOutlined, UserOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { FilePdfOutlined, DollarOutlined, ShopOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, DeleteOutlined, DownloadOutlined, CheckCircleOutlined, ShoppingOutlined, SwapOutlined, UserOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, InboxOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
@@ -31,8 +31,8 @@ const PurchaseOrderDetailPage: React.FC = () => {
   const order = orderData?.data as any;
 
   const createInvMutation = useMutation({
-    mutationFn: () => apiClient.post(`/invoice/purchase/${id}`),
-    onSuccess: () => { toast.success(t('invoice.draftCreated')); qc.invalidateQueries({ queryKey: ['purchase-orders'] }); },
+    mutationFn: (fileData: string) => apiClient.post(`/invoice/purchase/${id}`, { file_url: fileData }),
+    onSuccess: () => { toast.success(t('invoice.uploadSuccess')); qc.invalidateQueries({ queryKey: ['purchase-orders'] }); },
   });
   const approveInvMutation = useMutation({
     mutationFn: (invId: string) => apiClient.post(`/invoice/${invId}/finalize`),
@@ -71,7 +71,7 @@ const PurchaseOrderDetailPage: React.FC = () => {
         {/* Total */}
         <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
           <Col xs={24}>
-            <Card size="small" style={{ borderRadius: 10, border: '1px solid #fff2e8' }}>
+            <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <Statistic title={<><DollarOutlined style={{ marginRight: 4, color: '#fa541c' }} />{t('order.total')}</>} value={Number(order.total)} formatter={(v) => formatVND(v as number)} valueStyle={{ color: '#fa541c', fontSize: 20 }} />
             </Card>
           </Col>
@@ -94,13 +94,34 @@ const PurchaseOrderDetailPage: React.FC = () => {
               SHIPPING: [{ key: 'COMPLETED', label: t('order.actionComplete') }],
             };
             const options = NEXT[order.status] || [];
-            if (options.length === 0) return null;
+            const showInvoice = order.status !== 'DRAFT';
+            if (options.length === 0 && !showInvoice) return null;
             return (
-              <Dropdown menu={{ items: options.map((o) => ({ key: o.key, label: o.label, danger: o.danger })), onClick: ({ key }) => statusMutation.mutate(key) }} trigger={['click']}>
-                <Button icon={<SwapOutlined />} style={{ borderRadius: 8 }} loading={statusMutation.isPending}>
-                  {t('order.changeStatus')}
-                </Button>
-              </Dropdown>
+              <Space>
+                {showInvoice && (
+                  <Button icon={<FilePdfOutlined />} style={{ borderRadius: 8 }} onClick={() => setActiveModal('invoice')}>
+                    {invoice ? t('invoice.viewInvoice') : t('invoice.uploadFile')}
+                  </Button>
+                )}
+                {options.length > 0 && (
+                  <Dropdown menu={{ items: options.map((o) => ({ key: o.key, label: o.label, danger: o.danger })), onClick: ({ key }) => {
+                    const opt = options.find((o) => o.key === key);
+                    Modal.confirm({
+                      title: t('order.confirmStatusChange'),
+                      icon: <ExclamationCircleOutlined />,
+                      content: `${order.order_code}: ${opt?.label}`,
+                      okText: t('common.confirm'),
+                      cancelText: t('common.cancel'),
+                      okButtonProps: { danger: opt?.danger },
+                      onOk: () => statusMutation.mutate(key),
+                    });
+                  }}} trigger={['click']}>
+                    <Button type="primary" icon={<SwapOutlined />} style={{ borderRadius: 8 }} loading={statusMutation.isPending}>
+                      {t('order.changeStatus')}
+                    </Button>
+                  </Dropdown>
+                )}
+              </Space>
             );
           })()}
         </Space>
@@ -126,14 +147,6 @@ const PurchaseOrderDetailPage: React.FC = () => {
           <Col xs={24}><div style={fieldStyle}><Text style={fLabel}><FileTextOutlined style={{ marginRight: 4 }} />{t('common.notes')}</Text><Text strong>{order.notes || '—'}</Text></div></Col>
         </Row>
 
-        {/* Nút hoá đơn */}
-        <Row gutter={[12, 12]} style={{ marginTop: 20 }}>
-          <Col xs={24}>
-            <Button block icon={<FilePdfOutlined />} style={{ borderRadius: 8, height: 44 }} onClick={() => setActiveModal('invoice')}>
-              {invoice ? t('invoice.viewInvoice') : t('invoice.issueInvoice')} ({invoice ? 1 : 0})
-            </Button>
-          </Col>
-        </Row>
 
         {/* Chi tiết sản phẩm — hiển thị trực tiếp */}
         <div style={{ marginTop: 20 }}>
@@ -144,32 +157,61 @@ const PurchaseOrderDetailPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Invoice Modal — with PDF preview */}
+      {/* Invoice Modal — upload file for purchase */}
       <Modal open={activeModal === 'invoice'} onCancel={() => setActiveModal(null)} footer={null}
-        title={t('invoice.purchaseInvoice')} width={window.innerWidth < 640 ? '95vw' : 900}
-        styles={{ body: { padding: 0 } }}>
+        title={t('invoice.purchaseInvoice')} width={window.innerWidth < 640 ? '95vw' : 700}>
         {!invoice ? (
-          <div style={{ padding: 24 }}>
-            <Button icon={<PlusOutlined />} onClick={() => createInvMutation.mutate()} loading={createInvMutation.isPending} style={{ borderRadius: 8 }}>
-              {t('invoice.issueInvoice')}
-            </Button>
+          <div style={{ padding: 16, textAlign: 'center' }}>
+            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>{t('invoice.uploadDescription')}</Text>
+            <Upload.Dragger
+              accept="image/*,.pdf"
+              showUploadList={false}
+              beforeUpload={(file) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  // Create invoice with uploaded file
+                  createInvMutation.mutate(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+                return false;
+              }}
+              style={{ borderRadius: 8 }}
+            >
+              <p className="ant-upload-drag-icon"><InboxOutlined style={{ fontSize: 40, color: '#1677ff' }} /></p>
+              <p className="ant-upload-text">{t('invoice.uploadDragText')}</p>
+              <p className="ant-upload-hint" style={{ fontSize: 12 }}>{t('invoice.uploadAccept')}</p>
+            </Upload.Dragger>
           </div>
         ) : (
           <div>
-            <iframe src={`${invoiceApi.getPdfUrl(invoice.id)}?token=${localStorage.getItem('token')}`}
-              style={{ width: '100%', height: '60vh', border: 'none' }} title="Invoice" />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderTop: '1px solid #f0f0f0', flexWrap: 'wrap', gap: 8 }}>
+            {/* Show uploaded file or PDF preview */}
+            {invoice.file_url ? (
+              invoice.file_url.endsWith('.pdf') || invoice.file_url.includes('application/pdf') ? (
+                <iframe src={invoice.file_url.startsWith('data:') ? invoice.file_url : `${invoice.file_url}?token=${localStorage.getItem('token')}`}
+                  style={{ width: '100%', height: '50vh', border: 'none', borderRadius: 8 }} title="Invoice" />
+              ) : (
+                <div style={{ textAlign: 'center', padding: 16 }}>
+                  <img src={invoice.file_url} alt="Invoice" style={{ maxWidth: '100%', maxHeight: '50vh', borderRadius: 8 }} />
+                </div>
+              )
+            ) : (
+              <iframe src={`${invoiceApi.getPdfUrl(invoice.id)}?token=${localStorage.getItem('token')}`}
+                style={{ width: '100%', height: '50vh', border: 'none' }} title="Invoice" />
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid #f0f0f0', flexWrap: 'wrap', gap: 8 }}>
               <Space size={8}>
                 <Text strong>{t('invoice.invoiceNumber')}: {invoice.invoice_number}</Text>
                 <Tag color={invoice.status === 'APPROVED' ? 'green' : 'orange'} style={{ borderRadius: 6 }}>
                   {invoice.status === 'APPROVED' ? t('invoice.statusApproved') : t('invoice.statusDraft')}
                 </Tag>
-                <Text strong>{formatVND(invoice.total)}</Text>
               </Space>
               <Space size={4}>
-                <Tooltip title={t('invoice.downloadPdf')}><Button type="text" size="small" icon={<DownloadOutlined />} onClick={() => window.open(`${invoiceApi.getPdfUrl(invoice.id)}?token=${localStorage.getItem('token')}`, '_blank')} /></Tooltip>
+                {invoice.file_url && (
+                  <Tooltip title={t('invoice.downloadPdf')}><Button type="text" size="small" icon={<DownloadOutlined />} onClick={() => window.open(invoice.file_url, '_blank')} /></Tooltip>
+                )}
                 {invoice.status === 'DRAFT' && (
-                  <Tooltip title={t('invoice.finalize')}><Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />} onClick={() => approveInvMutation.mutate(invoice.id)} /></Tooltip>
+                  <Tooltip title={t('invoice.finalize')}><Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                    onClick={() => Modal.confirm({ title: t('invoice.finalize'), content: invoice.invoice_number, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => approveInvMutation.mutate(invoice.id) })} /></Tooltip>
                 )}
                 {invoice.status === 'DRAFT' && (
                   <Popconfirm title={t('invoice.confirmDelete')} onConfirm={() => cancelInvMutation.mutate(invoice.id)} okText={t('common.confirm')} cancelText={t('common.cancel')}>

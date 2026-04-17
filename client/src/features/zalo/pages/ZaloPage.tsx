@@ -118,7 +118,7 @@ const ChatTab: React.FC = () => {
       {syncMutation.isPending && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(255,255,255,0.85)', zIndex: 9999,
+          background: 'rgba(0,0,0,0.45)', zIndex: 9999,
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           backdropFilter: 'blur(4px)',
         }}>
@@ -129,7 +129,7 @@ const ChatTab: React.FC = () => {
       )}
 
       {/* Sync banner */}
-      <Card size="small" style={{ borderRadius: 12, background: '#f6f8fa', marginBottom: 16 }}>
+      <Card size="small" style={{ borderRadius: 12, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography.Text type="secondary">{t('zalo.syncBanner')}</Typography.Text>
           <Button

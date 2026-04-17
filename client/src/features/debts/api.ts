@@ -18,6 +18,12 @@ export const receivableApi = {
 
   exportPdf: (customerId: string) =>
     apiClient.get(`/receivables/customer/${customerId}/export-pdf`, { responseType: 'blob' }),
+
+  exportExcel: (customerId: string) =>
+    apiClient.get(`/receivables/customer/${customerId}/export-excel`, { responseType: 'blob' }),
+
+  updatePaymentEvidence: (paymentId: string, evidenceUrl: string) =>
+    apiClient.patch(`/receivables/payments/${paymentId}/evidence`, { evidence_url: evidenceUrl }),
 };
 
 export const payableApi = {
@@ -38,4 +44,10 @@ export const payableApi = {
 
   exportPdf: (supplierId: string) =>
     apiClient.get(`/payables/supplier/${supplierId}/export-pdf`, { responseType: 'blob' }),
+
+  exportExcel: (supplierId: string) =>
+    apiClient.get(`/payables/supplier/${supplierId}/export-excel`, { responseType: 'blob' }),
+
+  updatePaymentEvidence: (paymentId: string, evidenceUrl: string) =>
+    apiClient.patch(`/payables/payments/${paymentId}/evidence`, { evidence_url: evidenceUrl }),
 };

@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
-import { Modal, Form, Select, DatePicker, Input, InputNumber, Radio } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Modal, Form, Select, DatePicker, Input, InputNumber, Radio, Upload, message } from 'antd';
+import { InboxOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { useCashCategories, useCreateCashTransaction } from '../hooks';
 
 const { TextArea } = Input;
+const { Dragger } = Upload;
 
 interface Props {
   open: boolean;
@@ -19,10 +21,13 @@ const CashTransactionFormModal: React.FC<Props> = ({ open, defaultType, onClose,
   const type = Form.useWatch('type', form) || defaultType || 'EXPENSE';
   const { data: categories } = useCashCategories(type);
   const createMutation = useCreateCashTransaction();
+  const [evidenceUrl, setEvidenceUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (open) {
       form.resetFields();
+      setEvidenceUrl(null);
       if (defaultType) form.setFieldValue('type', defaultType);
     }
   }, [open, defaultType, form]);
@@ -32,8 +37,29 @@ const CashTransactionFormModal: React.FC<Props> = ({ open, defaultType, onClose,
     await createMutation.mutateAsync({
       ...values,
       date: values.date?.format('YYYY-MM-DD'),
+      evidence_url: evidenceUrl || undefined,
     });
     onSuccess();
+  };
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      // Use a simple endpoint or Cloudinary direct upload
+      // For now, convert to base64 data URL as fallback
+      const reader = new FileReader();
+      reader.onload = () => {
+        setEvidenceUrl(reader.result as string);
+        setUploading(false);
+        message.success(t('cashBook.evidenceUploaded'));
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploading(false);
+    }
+    return false; // prevent default upload
   };
 
   const categoryOptions = (categories?.data ?? categories ?? []).map((c: any) => ({ value: c.id, label: c.name }));
@@ -65,7 +91,7 @@ const CashTransactionFormModal: React.FC<Props> = ({ open, defaultType, onClose,
         <Form.Item name="amount" label={t('cashBook.amount')} rules={[{ required: true }]}>
           <InputNumber style={{ width: '100%' }} min={0} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={(v) => Number(v!.replace(/,/g, '')) as any} addonAfter="VND" />
         </Form.Item>
-        <Form.Item name="description" label={t('cashBook.description')} rules={[{ required: true }]}>
+        <Form.Item name="description" label={t('cashBook.content')} rules={[{ required: true }]}>
           <Input />
         </Form.Item>
         <Form.Item name="payment_method" label={t('payment.method')}>
@@ -74,8 +100,25 @@ const CashTransactionFormModal: React.FC<Props> = ({ open, defaultType, onClose,
             { value: 'BANK_TRANSFER', label: t('payment.methodBankTransfer') },
           ]} />
         </Form.Item>
-        <Form.Item name="reference" label={t('cashBook.reference')}>
-          <Input />
+        <Form.Item label={t('cashBook.evidence')}>
+          {evidenceUrl ? (
+            <div style={{ textAlign: 'center' }}>
+              <img src={evidenceUrl} alt="evidence" style={{ maxHeight: 150, borderRadius: 8, marginBottom: 8 }} />
+              <br />
+              <a onClick={() => setEvidenceUrl(null)} style={{ color: '#ff4d4f', fontSize: 12 }}>{t('common.delete')}</a>
+            </div>
+          ) : (
+            <Dragger
+              accept="image/*"
+              showUploadList={false}
+              beforeUpload={handleUpload as any}
+              disabled={uploading}
+              style={{ borderRadius: 8 }}
+            >
+              <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+              <p className="ant-upload-text" style={{ fontSize: 13 }}>{t('cashBook.evidenceUpload')}</p>
+            </Dragger>
+          )}
         </Form.Item>
         <Form.Item name="notes" label={t('cashBook.notes')}>
           <TextArea rows={2} />

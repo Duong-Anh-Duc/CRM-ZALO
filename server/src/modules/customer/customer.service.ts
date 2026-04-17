@@ -8,6 +8,7 @@ interface CustomerFilters {
   limit?: number;
   search?: string;
   customer_type?: string;
+  approval_status?: string;
   is_active?: boolean;
   from_date?: string;
   to_date?: string;
@@ -17,7 +18,7 @@ export class CustomerService {
   static async list(filters: CustomerFilters) {
     const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 20;
-    const { search, customer_type, is_active = true, from_date, to_date } = filters;
+    const { search, customer_type, approval_status, is_active = true, from_date, to_date } = filters;
 
     const where = {
       is_active,
@@ -29,6 +30,7 @@ export class CustomerService {
         ],
       }),
       ...(customer_type && { customer_type: customer_type as never }),
+      ...(approval_status && { approval_status }),
       ...(from_date || to_date ? {
         created_at: {
           ...(from_date && { gte: new Date(from_date) }),
@@ -95,6 +97,12 @@ export class CustomerService {
     const customer = await prisma.customer.update({ where: { id }, data: data as never });
     await delCache('cache:/api/customers*');
     return customer;
+  }
+
+  static async approve(id: string) {
+    const result = await prisma.customer.update({ where: { id }, data: { approval_status: 'APPROVED' } });
+    await delCache('cache:/api/customers*');
+    return result;
   }
 
   static async softDelete(id: string) {

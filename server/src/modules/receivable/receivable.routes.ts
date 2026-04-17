@@ -12,6 +12,8 @@ router.get('/by-customer', ReceivableController.listByCustomer);
 router.get('/summary', ReceivableController.getSummary);
 router.get('/customer/:customerId', ReceivableController.getCustomerDetail);
 router.get('/customer/:customerId/export-pdf', ReceivableController.exportCustomerPdf);
+router.get('/customer/:customerId/export-excel', ReceivableController.exportCustomerExcel);
 router.post('/payments', requireRole('ADMIN', 'STAFF'), validate(recordPaymentSchema), ReceivableController.recordPayment);
+router.patch('/payments/:paymentId/evidence', requireRole('ADMIN', 'STAFF'), ReceivableController.updatePaymentEvidence);
 
 export default router;

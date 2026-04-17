@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma';
 import puppeteer from 'puppeteer';
 import dayjs from 'dayjs';
+import * as XLSX from 'xlsx';
 import { AppError } from '../../middleware/error.middleware';
 import { DebtStatus, PaymentMethod } from '@prisma/client';
 import { t } from '../../locales';
@@ -15,11 +16,12 @@ interface RecordPaymentInput {
   payment_date?: string;
   method: PaymentMethod;
   reference?: string;
+  evidence_url?: string;
 }
 
 export class PayableService {
   // ── Group by supplier ──
-  static async listBySupplier(filters: { page?: number; limit?: number; status?: string; search?: string }) {
+  static async listBySupplier(filters: { page?: number; limit?: number; status?: string; search?: string; from_date?: string; to_date?: string }) {
     const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 20;
 
@@ -31,6 +33,12 @@ export class PayableService {
     }
     if (filters.search) {
       where.supplier = { company_name: { contains: filters.search, mode: 'insensitive' } };
+    }
+    if (filters.from_date || filters.to_date) {
+      where.invoice_date = {
+        ...(filters.from_date && { gte: new Date(filters.from_date) }),
+        ...(filters.to_date && { lte: new Date(filters.to_date) }),
+      };
     }
 
     const payables = await prisma.payable.findMany({
@@ -201,6 +209,7 @@ export class PayableService {
             payment_date: input.payment_date ? new Date(input.payment_date) : new Date(),
             method: input.method,
             reference: input.reference,
+            evidence_url: input.evidence_url,
           },
         })
       );
@@ -313,5 +322,71 @@ export class PayableService {
     } finally {
       await browser.close();
     }
+  }
+
+  // ── Update payment evidence ──
+  static async updatePaymentEvidence(paymentId: string, evidenceUrl: string) {
+    const result = await prisma.payablePayment.update({
+      where: { id: paymentId },
+      data: { evidence_url: evidenceUrl },
+    });
+    await delCache('cache:/api/payables*');
+    return result;
+  }
+
+  // ── Export supplier debt report as Excel ──
+  static async exportSupplierExcel(supplierId: string): Promise<Buffer> {
+    const detail = await this.getSupplierDetail(supplierId);
+    const { supplier, payables, summary } = detail;
+
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Supplier info + Invoices
+    const headerRows = [
+      ['BÁO CÁO CÔNG NỢ PHẢI TRẢ'],
+      [`Ngày xuất: ${dayjs().format('DD/MM/YYYY HH:mm')}`],
+      [],
+      ['THÔNG TIN NHÀ CUNG CẤP'],
+      ['Tên công ty', supplier.company_name || ''],
+      ...(supplier.contact_name ? [['Người liên hệ', supplier.contact_name]] : []),
+      ...(supplier.phone ? [['Điện thoại', supplier.phone]] : []),
+      ...(supplier.email ? [['Email', supplier.email]] : []),
+      ...(supplier.address ? [['Địa chỉ', supplier.address]] : []),
+      [],
+      ['TỔNG HỢP'],
+      ['Tổng công nợ', Number(summary.total_original)],
+      ['Đã thanh toán', Number(summary.total_paid)],
+      ['Còn lại', Number(summary.total_remaining)],
+      [],
+      ['STT', 'Số hoá đơn', 'Mã đơn hàng', 'Ngày HĐ', 'Hạn thanh toán', 'Số tiền gốc', 'Đã thanh toán', 'Còn lại', 'Trạng thái'],
+    ];
+    const dataRows = payables.map((p: any, idx: number) => [
+      idx + 1, p.invoice_number, p.purchase_order?.order_code || '-',
+      dayjs(p.invoice_date).format('DD/MM/YYYY'), dayjs(p.due_date).format('DD/MM/YYYY'),
+      Number(p.original_amount), Number(p.paid_amount), Number(p.remaining), p.status,
+    ]);
+    dataRows.push(['', 'TỔNG CỘNG', '', '', '', Number(summary.total_original), Number(summary.total_paid), Number(summary.total_remaining), '']);
+
+    const ws1 = XLSX.utils.aoa_to_sheet([...headerRows, ...dataRows]);
+    ws1['!cols'] = [{ wch: 6 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Công nợ');
+
+    // Sheet 2: Payments
+    const paymentHeader = [['STT', 'Số hoá đơn', 'Ngày thanh toán', 'Số tiền', 'Phương thức', 'Tham chiếu']];
+    const paymentData = payables.flatMap((p: any) =>
+      (p.payments || []).map((pay: any, idx: number) => [
+        idx + 1, p.invoice_number, dayjs(pay.payment_date).format('DD/MM/YYYY'),
+        Number(pay.amount), pay.method === 'BANK_TRANSFER' ? 'Chuyển khoản' : pay.method === 'CASH' ? 'Tiền mặt' : pay.method,
+        pay.reference || '',
+      ])
+    );
+    if (paymentData.length > 0) {
+      const ws2 = XLSX.utils.aoa_to_sheet([...paymentHeader, ...paymentData]);
+      ws2['!cols'] = [{ wch: 5 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Lịch sử TT');
+    }
+
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    return Buffer.from(buf);
   }
 }

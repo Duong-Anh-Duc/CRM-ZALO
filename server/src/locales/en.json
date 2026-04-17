@@ -204,5 +204,16 @@
     "amountPositive": "Amount must be positive",
     "notFound": "Transaction not found",
     "cannotDeleteAuto": "Cannot delete auto-created transaction from debt payment"
+  },
+  "payroll": {
+    "periodExists": "Payroll period already exists",
+    "periodNotFound": "Payroll period not found",
+    "cannotCalculate": "Can only calculate Draft or Calculated periods",
+    "cannotApprove": "Can only approve Calculated periods",
+    "cannotPay": "Can only pay Approved periods",
+    "cannotDelete": "Cannot delete Approved or Paid periods",
+    "employeeNotFound": "Employee profile not found",
+    "profileExists": "Employee already has a payroll profile",
+    "recordNotFound": "Payroll record not found"
   }
 }

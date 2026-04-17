@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, Table, Typography, Space, Tag, Descriptions, Empty, Spin, Button } from 'antd';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useSalesReturn, usePurchaseReturn, useUpdateSalesReturnStatus, useUpdatePurchaseReturnStatus } from '../hooks';
 import { formatVND, formatDate } from '@/utils/format';
@@ -90,7 +91,17 @@ const ReturnDetailModal: React.FC<Props> = ({ open, returnId, type, onClose }) =
                   size="small"
                   type={s === 'COMPLETED' ? 'primary' : s === 'REJECTED' || s === 'CANCELLED' ? 'default' : 'default'}
                   danger={s === 'REJECTED' || s === 'CANCELLED'}
-                  onClick={() => handleStatusChange(s)}
+                  onClick={() => {
+                    Modal.confirm({
+                      title: t('order.confirmStatusChange'),
+                      icon: <ExclamationCircleOutlined />,
+                      content: `${detail.return_code}: ${t(`returnStatusLabels.${detail.status}`)} → ${t(`returnStatusLabels.${s}`)}`,
+                      okText: t('common.confirm'),
+                      cancelText: t('common.cancel'),
+                      okButtonProps: { danger: s === 'REJECTED' || s === 'CANCELLED' },
+                      onOk: () => handleStatusChange(s),
+                    });
+                  }}
                   loading={updateSalesStatus.isPending || updatePurchaseStatus.isPending}
                 >
                   {t(`returnStatusLabels.${s}`)}

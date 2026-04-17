@@ -153,22 +153,22 @@ const SupplierDetailPage: React.FC = () => {
       {/* Summary bar - lên đầu */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} sm={6}>
-          <Card size="small" style={{ borderRadius: 10, border: '1px solid #e6f4ff' }}>
+          <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <Statistic title={t('order.grandTotal')} value={totalPurchase} formatter={(v) => formatVND(v as number)} valueStyle={{ fontSize: 16, color: '#1890ff' }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small" style={{ borderRadius: 10, border: '1px solid #f6ffed' }}>
+          <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <Statistic title={t('debt.totalPaid')} value={totalPaid} formatter={(v) => formatVND(v as number)} valueStyle={{ fontSize: 16, color: '#52c41a' }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small" style={{ borderRadius: 10, border: totalDebt > 0 ? '1px solid #fff2f0' : '1px solid #f6ffed' }}>
+          <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <Statistic title={t('debt.remaining')} value={totalDebt} formatter={(v) => formatVND(v as number)} valueStyle={{ fontSize: 16, color: totalDebt > 0 ? '#cf1322' : '#52c41a' }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small" style={{ borderRadius: 10, border: overdueCount > 0 ? '1px solid #fff2f0' : '1px solid #f0f0f0' }}>
+          <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <Statistic title={t('debt.overdue')} value={overdueCount} prefix={overdueCount > 0 ? <WarningOutlined /> : undefined} valueStyle={{ fontSize: 18, color: overdueCount > 0 ? '#cf1322' : '#999' }} suffix={t('debt.invoices')} />
           </Card>
         </Col>

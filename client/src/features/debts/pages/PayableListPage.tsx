@@ -1,30 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, Table, Typography, Space, Row, Col, Statistic, Select,
-  Button, Input, Tooltip, Tag,
+  Button, Input, Tooltip, Tag, Empty, DatePicker,
 } from 'antd';
 import {
   DollarOutlined, WarningOutlined, CalendarOutlined,
-  SearchOutlined, EyeOutlined, FilePdfOutlined, DownloadOutlined,
+  SearchOutlined, EyeOutlined,
 } from '@ant-design/icons';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip, Legend } from 'recharts';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
+import dayjs from 'dayjs';
 import { usePayablesBySupplier, usePayableSummary } from '../hooks';
-import { payableApi } from '../api';
-import { formatVND, formatDate, debtStatusLabels } from '@/utils/format';
-import { exportToExcel } from '@/utils/export';
-import { PageHeader } from '@/components/common';
+import { formatVND } from '@/utils/format';
 
 const { Text } = Typography;
+const PIE_COLORS = ['#ff4d4f', '#fa8c16', '#1890ff', '#52c41a', '#722ed1', '#13c2c2', '#eb2f96', '#2f54eb'];
 
-const cardStyle: React.CSSProperties = { borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' };
+function getDateRange(period: string) {
+  const now = dayjs();
+  switch (period) {
+    case 'thisMonth': return { from_date: now.startOf('month').format('YYYY-MM-DD'), to_date: now.format('YYYY-MM-DD') };
+    case 'thisQuarter': { const qm = Math.floor(now.month() / 3) * 3; return { from_date: now.month(qm).startOf('month').format('YYYY-MM-DD'), to_date: now.format('YYYY-MM-DD') }; }
+    case 'thisYear': return { from_date: now.startOf('year').format('YYYY-MM-DD'), to_date: now.format('YYYY-MM-DD') };
+    default: return {};
+  }
+}
 
 const PayableListPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [status, setStatus] = useState('OUTSTANDING');
   const [search, setSearch] = useState('');
+  const [period, setPeriod] = useState('all');
+  const [customRange, setCustomRange] = useState<[any, any] | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -35,17 +45,40 @@ const PayableListPage: React.FC = () => {
     { label: t('debtStatusLabels.OVERDUE'), value: 'OVERDUE' },
   ];
 
+  const dateRange = period === 'custom' && customRange
+    ? { from_date: customRange[0]?.format('YYYY-MM-DD'), to_date: customRange[1]?.format('YYYY-MM-DD') }
+    : getDateRange(period);
   const summaryQuery = usePayableSummary();
   const { data, isLoading } = usePayablesBySupplier({
     status: status || undefined,
     search: search || undefined,
     page,
     limit: pageSize,
+    ...dateRange,
   });
 
   const list: any[] = data?.data ?? [];
   const meta = data?.meta;
   const summary = summaryQuery.data?.data as any;
+
+  // Donut chart: by debt status
+  const chartData = useMemo(() => {
+    if (!list.length) return [];
+    const statusMap: Record<string, number> = {};
+    for (const r of list) {
+      if (r.total_remaining > 0) {
+        if (r.overdue_count > 0) {
+          statusMap[t('debt.statusOverdue')] = (statusMap[t('debt.statusOverdue')] || 0) + r.total_remaining;
+        } else {
+          statusMap[t('debt.statusUnpaid')] = (statusMap[t('debt.statusUnpaid')] || 0) + r.total_remaining;
+        }
+      }
+      if (r.total_paid > 0) {
+        statusMap[t('debt.statusPaid')] = (statusMap[t('debt.statusPaid')] || 0) + r.total_paid;
+      }
+    }
+    return Object.entries(statusMap).map(([name, value]) => ({ name, value })).filter(d => d.value > 0);
+  }, [list, t]);
 
   const columns: ColumnsType<any> = [
     {
@@ -83,101 +116,88 @@ const PayableListPage: React.FC = () => {
         : <Text type="secondary">0</Text>,
     },
     {
-      title: t('common.actions'), key: 'actions', width: 130, fixed: 'right' as const, align: 'center' as const,
+      title: t('common.actions'), key: 'actions', width: 70, fixed: 'right' as const, align: 'center' as const,
       render: (_: unknown, r: any) => (
-        <Space size={2}>
-          <Tooltip title={t('common.viewDetail')}>
-            <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }}
-              onClick={() => navigate(`/payables/supplier/${r.supplier_id}`)} />
-          </Tooltip>
-          <Tooltip title={t('debt.exportExcel')}>
-            <Button type="text" size="small" icon={<DownloadOutlined />} onClick={async () => {
-              try {
-                const detail = await payableApi.getSupplierDetail(r.supplier_id);
-                const d = detail.data?.data;
-                const pays = d?.payables || [];
-                const supp = d?.supplier;
-                const sum = d?.summary;
-                const name = supp?.company_name || '';
-                const rows = [
-                  { [t('debt.payables')]: t('order.supplier') + ': ' + name },
-                  { [t('debt.payables')]: t('customer.phone') + ': ' + (supp?.phone || '-'), '': t('customer.address') + ': ' + (supp?.address || '-') },
-                  { [t('debt.payables')]: t('debt.totalDebt') + ': ' + formatVND(sum?.total_original), '': t('debt.totalPaid') + ': ' + formatVND(sum?.total_paid), ' ': t('debt.remaining') + ': ' + formatVND(sum?.total_remaining) },
-                  {},
-                  ...pays.map((pay: any, i: number) => ({
-                    'STT': i + 1,
-                    [t('debt.invoiceNumber')]: pay.invoice_number || '',
-                    [t('order.orderCode')]: pay.purchase_order?.order_code || '',
-                    [t('debt.invoiceDate')]: formatDate(pay.invoice_date),
-                    [t('debt.dueDate')]: formatDate(pay.due_date),
-                    [t('debt.originalAmount')]: pay.original_amount,
-                    [t('debt.paidShort')]: pay.paid_amount,
-                    [t('debt.remaining')]: pay.remaining,
-                    [t('common.status')]: debtStatusLabels[pay.status] || pay.status,
-                  })),
-                ];
-                exportToExcel(rows, `cong-no-phai-tra-${name}`, t('debt.payables'));
-              } catch { /* ignore */ }
-            }} />
-          </Tooltip>
-          <Tooltip title={t('debt.exportPdf')}>
-            <Button type="text" size="small" icon={<FilePdfOutlined />} onClick={async () => {
-              try {
-                const res = await payableApi.exportPdf(r.supplier_id);
-                const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-                window.open(url, '_blank');
-              } catch { /* ignore */ }
-            }} />
-          </Tooltip>
-        </Space>
+        <Tooltip title={t('common.viewDetail')}>
+          <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }}
+            onClick={() => navigate(`/payables/supplier/${r.supplier_id}`)} />
+        </Tooltip>
       ),
     },
   ];
 
   return (
     <div>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Space style={{ width: '100%', justifyContent: 'flex-end', marginBottom: 12 }} wrap>
+        <Select value={period} onChange={(v) => { setPeriod(v); setPage(1); }} style={{ width: 140 }} options={[
+          { value: 'thisMonth', label: t('dashboard.thisMonth') },
+          { value: 'thisQuarter', label: t('dashboard.thisQuarter') },
+          { value: 'thisYear', label: t('dashboard.thisYear') },
+          { value: 'all', label: t('common.all') },
+          { value: 'custom', label: t('dashboard.custom') },
+        ]} />
+        {period === 'custom' && (
+          <DatePicker.RangePicker format="DD/MM/YYYY" value={customRange} onChange={(dates) => { setCustomRange(dates as any); setPage(1); }}
+            style={{ borderRadius: 8 }} placeholder={[t('common.fromDate'), t('common.toDate')]} />
+        )}
+      </Space>
+
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8}>
-          <Card style={cardStyle}>
+          <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <Statistic title={t('debt.totalPayable')} value={summary?.total_payable ?? 0}
-              formatter={(v) => formatVND(v as number)} prefix={<DollarOutlined />} valueStyle={{ color: '#1890ff' }} />
+              formatter={(v) => formatVND(v as number)} prefix={<DollarOutlined />} valueStyle={{ color: '#1890ff', fontSize: 18 }} />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card style={cardStyle}>
+          <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <Statistic title={t('debt.overdue')} value={summary?.overdue ?? 0}
-              formatter={(v) => formatVND(v as number)} prefix={<WarningOutlined />} valueStyle={{ color: '#cf1322' }} />
+              formatter={(v) => formatVND(v as number)} prefix={<WarningOutlined />} valueStyle={{ color: '#cf1322', fontSize: 18 }} />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card style={cardStyle}>
+          <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <Statistic title={t('debt.dueThisWeek')} value={summary?.due_this_week ?? 0}
-              formatter={(v) => formatVND(v as number)} prefix={<CalendarOutlined />} valueStyle={{ color: '#fa8c16' }} />
+              formatter={(v) => formatVND(v as number)} prefix={<CalendarOutlined />} valueStyle={{ color: '#fa8c16', fontSize: 18 }} />
           </Card>
         </Col>
       </Row>
 
-      <Card style={{ borderRadius: 12 }}>
-        <PageHeader title={t('debt.payables')} />
+      {chartData.length > 0 && (
+        <Card size="small" title={t('debt.debtByStatus')} style={{ borderRadius: 12, marginBottom: 16 }}>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="45%" innerRadius={55} outerRadius={100}
+                label={({ percent }) => `${((percent || 0) * 100).toFixed(0)}%`}
+                labelLine={{ stroke: '#ccc', strokeWidth: 1 }}
+              >
+                {chartData.map((_: any, i: number) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+              </Pie>
+              <RTooltip formatter={(v: any, name: any) => [formatVND(v), name]} />
+              <Legend iconSize={10} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
 
-        <Space wrap style={{ marginBottom: 16 }}>
-          <Select value={status} options={statusOptions}
-            onChange={(val) => { setStatus(val); setPage(1); }} style={{ minWidth: 160 }} />
-          <Input prefix={<SearchOutlined />} placeholder={t('debt.searchSupplier')} allowClear
-            value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            style={{ width: 220, borderRadius: 8 }} />
-        </Space>
+      <Space wrap style={{ marginBottom: 16 }}>
+        <Select value={status} options={statusOptions}
+          onChange={(val) => { setStatus(val); setPage(1); }} style={{ minWidth: 160 }} />
+        <Input prefix={<SearchOutlined />} placeholder={t('debt.searchSupplier')} allowClear
+          value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          style={{ width: 220, borderRadius: 8 }} />
+      </Space>
 
-        <Table rowKey="supplier_id" columns={columns} dataSource={list} loading={isLoading}
-          style={{ borderRadius: 12 }} scroll={{ x: 'max-content' }}
-          onRow={(r) => ({ onClick: () => navigate(`/payables/supplier/${r.supplier_id}`), style: { cursor: 'pointer' } })}
-          pagination={{
-            current: page, pageSize, total: meta?.total ?? 0,
-            onChange: (p, ps) => { setPage(p); setPageSize(ps); },
-            showSizeChanger: true, showTotal: (total) => `${total} ${t('debt.suppliers')}`,
-          }}
-        />
-      </Card>
+      <Table rowKey="supplier_id" columns={columns} dataSource={list} loading={isLoading}
+        style={{ borderRadius: 12 }} scroll={{ x: 'max-content' }}
+        onRow={(r) => ({ onClick: () => navigate(`/payables/supplier/${r.supplier_id}`), style: { cursor: 'pointer' } })}
+        pagination={{
+          current: page, pageSize, total: meta?.total ?? 0,
+          onChange: (p, ps) => { setPage(p); setPageSize(ps); },
+          showSizeChanger: true, showTotal: (total) => `${total} ${t('debt.suppliers')}`,
+        }}
+        locale={{ emptyText: <Empty description={t('common.noData')} /> }}
+      />
     </div>
   );
 };

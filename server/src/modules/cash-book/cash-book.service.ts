@@ -82,6 +82,7 @@ export class CashBookService {
         ...(data.reference !== undefined && { reference: data.reference }),
         ...(data.payment_method && { payment_method: data.payment_method as any }),
         ...(data.notes !== undefined && { notes: data.notes }),
+        ...((data as any).evidence_url !== undefined && { evidence_url: (data as any).evidence_url }),
       },
       include: { category: true },
     });

@@ -11,6 +11,7 @@ router.get('/', CustomerController.list);
 router.get('/:id', validateIdParam, CustomerController.getById);
 router.post('/', requireRole('ADMIN', 'STAFF'), validate(createCustomerSchema), CustomerController.create);
 router.put('/:id', validateIdParam, requireRole('ADMIN', 'STAFF'), validate(updateCustomerSchema), CustomerController.update);
+router.patch('/:id/approve', validateIdParam, requireRole('ADMIN', 'STAFF'), CustomerController.approve);
 router.delete('/:id', validateIdParam, requireRole('ADMIN', 'STAFF'), CustomerController.softDelete);
 router.post('/check-debt-limit', requireRole('ADMIN', 'STAFF'), validate(checkDebtLimitSchema), CustomerController.checkDebtLimit);
 

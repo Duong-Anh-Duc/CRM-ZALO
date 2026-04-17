@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card, Space, Typography, Spin, Empty, Tag, Button, Modal, Tooltip, Row, Col, Statistic, Input, DatePicker, Form, Avatar, Popconfirm, Select, InputNumber, Drawer, Dropdown, Table,
 } from 'antd';
-import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, DollarOutlined, ShopOutlined, SaveOutlined, UserOutlined, PhoneOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, SearchOutlined, SwapOutlined, MailOutlined } from '@ant-design/icons';
+import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, DollarOutlined, ShopOutlined, SaveOutlined, UserOutlined, PhoneOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, SearchOutlined, SwapOutlined, MailOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
@@ -111,17 +111,17 @@ const SalesOrderDetailPage: React.FC = () => {
         {/* Financial summary */}
         <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
           <Col xs={24} sm={8}>
-            <Card size="small" style={{ borderRadius: 10, border: '1px solid #e6f4ff', height: '100%' }}>
+            <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', height: '100%' }}>
               <Statistic title={<><DollarOutlined style={{ marginRight: 4, color: '#1890ff' }} />{t('order.grandTotal')}</>} value={Number(order.grand_total)} formatter={(v) => formatVND(v as number)} valueStyle={{ color: '#1890ff', fontSize: 18 }} />
             </Card>
           </Col>
           <Col xs={24} sm={8}>
-            <Card size="small" style={{ borderRadius: 10, border: '1px solid #fff2e8', height: '100%' }}>
+            <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', height: '100%' }}>
               <Statistic title={<><ShopOutlined style={{ marginRight: 4, color: '#fa541c' }} />{t('order.purchaseTotal')}</>} value={purchaseTotal} formatter={(v) => formatVND(v as number)} valueStyle={{ color: '#fa541c', fontSize: 18 }} />
             </Card>
           </Col>
           <Col xs={24} sm={8}>
-            <Card size="small" style={{ borderRadius: 10, border: profit >= 0 ? '1px solid #f6ffed' : '1px solid #fff2f0', height: '100%' }}>
+            <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', height: '100%' }}>
               <Statistic title={<><DollarOutlined style={{ marginRight: 4, color: profit >= 0 ? '#52c41a' : '#cf1322' }} />{t('order.profit')}</>} value={profit} formatter={(v) => formatVND(v as number)} valueStyle={{ color: profit >= 0 ? '#52c41a' : '#cf1322', fontSize: 18 }} />
             </Card>
           </Col>
@@ -141,9 +141,12 @@ const SalesOrderDetailPage: React.FC = () => {
                   </Tooltip>
                 )}
                 {editing && (
-                  <Button type="primary" icon={<SaveOutlined />} size="small" loading={saveMutation.isPending}
-                    onClick={() => { const v = form.getFieldsValue(); saveMutation.mutate({ notes: v.notes, expected_delivery: v.expected_delivery?.format('YYYY-MM-DD') }); }}
-                    style={{ borderRadius: 8 }}>{t('common.save')}</Button>
+                  <>
+                    <Button size="small" onClick={() => setEditing(false)} style={{ borderRadius: 8 }}>{t('common.cancel')}</Button>
+                    <Button type="primary" icon={<SaveOutlined />} size="small" loading={saveMutation.isPending}
+                      onClick={() => { const v = form.getFieldsValue(); saveMutation.mutate({ notes: v.notes, expected_delivery: v.expected_delivery?.format('YYYY-MM-DD') }); }}
+                      style={{ borderRadius: 8 }}>{t('common.save')}</Button>
+                  </>
                 )}
               </Space>
             </div>
@@ -156,13 +159,41 @@ const SalesOrderDetailPage: React.FC = () => {
               SHIPPING: [{ key: 'COMPLETED', label: t('order.actionComplete') }],
             };
             const options = NEXT[order.status] || [];
-            if (options.length === 0) return null;
+            const showInvoice = order.status !== 'DRAFT';
+            if (options.length === 0 && !showInvoice) return null;
             return (
-              <Dropdown menu={{ items: options.map((o) => ({ key: o.key, label: o.label, danger: o.danger })), onClick: ({ key }) => statusMutation.mutate(key) }} trigger={['click']}>
-                <Button icon={<SwapOutlined />} style={{ borderRadius: 8 }} loading={statusMutation.isPending}>
-                  {t('order.changeStatus')}
-                </Button>
-              </Dropdown>
+              <Space>
+                {showInvoice && (
+                  salesInvoices.length === 0 ? (
+                    <Button icon={<FilePdfOutlined />} style={{ borderRadius: 8 }} loading={createInvMutation.isPending}
+                      onClick={() => Modal.confirm({ title: t('invoice.issueInvoice'), content: order.order_code, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => createInvMutation.mutate() })}>
+                      {t('invoice.issueInvoice')}
+                    </Button>
+                  ) : (
+                    <Button icon={<FilePdfOutlined />} style={{ borderRadius: 8 }} onClick={() => setActiveModal('invoice')}>
+                      {t('invoice.viewInvoice')}
+                    </Button>
+                  )
+                )}
+                {options.length > 0 && (
+                  <Dropdown menu={{ items: options.map((o) => ({ key: o.key, label: o.label, danger: o.danger })), onClick: ({ key }) => {
+                    const opt = options.find((o) => o.key === key);
+                    Modal.confirm({
+                      title: t('order.confirmStatusChange'),
+                      icon: <ExclamationCircleOutlined />,
+                      content: `${order.order_code}: ${opt?.label}`,
+                      okText: t('common.confirm'),
+                      cancelText: t('common.cancel'),
+                      okButtonProps: { danger: opt?.danger },
+                      onOk: () => statusMutation.mutate(key),
+                    });
+                  }}} trigger={['click']}>
+                    <Button type="primary" icon={<SwapOutlined />} style={{ borderRadius: 8 }} loading={statusMutation.isPending}>
+                      {t('order.changeStatus')}
+                    </Button>
+                  </Dropdown>
+                )}
+              </Space>
             );
           })()}
         </Space>
@@ -205,24 +236,6 @@ const SalesOrderDetailPage: React.FC = () => {
           </Row>
         )}
 
-        {/* Nút hoá đơn */}
-        {order.status !== 'DRAFT' && (
-          <Row gutter={[12, 12]} style={{ marginTop: 20 }}>
-            <Col xs={24}>
-              {salesInvoices.length === 0 ? (
-                <Button block type="primary" icon={<FilePdfOutlined />} style={{ borderRadius: 8, height: 44 }}
-                  loading={createInvMutation.isPending}
-                  onClick={() => createInvMutation.mutate()}>
-                  {t('invoice.issueInvoice')}
-                </Button>
-              ) : (
-                <Button block icon={<FilePdfOutlined />} style={{ borderRadius: 8, height: 44 }} onClick={() => setActiveModal('invoice')}>
-                  {t('invoice.viewInvoice')}
-                </Button>
-              )}
-            </Col>
-          </Row>
-        )}
 
         {/* Chi tiết sản phẩm — Table */}
         <div style={{ marginTop: 20 }}>
@@ -309,7 +322,8 @@ const SalesOrderDetailPage: React.FC = () => {
         styles={{ body: { padding: 0 } }}>
         {salesInvoices.length === 0 && (
           <div style={{ padding: 24 }}>
-            <Button icon={<PlusOutlined />} onClick={() => createInvMutation.mutate()} loading={createInvMutation.isPending} style={{ borderRadius: 8 }}>{t('invoice.issueInvoice')}</Button>
+            <Button icon={<PlusOutlined />} loading={createInvMutation.isPending} style={{ borderRadius: 8 }}
+              onClick={() => Modal.confirm({ title: t('invoice.issueInvoice'), content: order.order_code, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => createInvMutation.mutate() })}>{t('invoice.issueInvoice')}</Button>
           </div>
         )}
         {salesInvoices.map((inv: any) => (
@@ -331,13 +345,15 @@ const SalesOrderDetailPage: React.FC = () => {
                   window.open(`${invoiceApi.getPdfUrl(inv.id)}?token=${localStorage.getItem('token')}`, '_blank');
                 }} /></Tooltip>
                 {inv.status === 'DRAFT' && (
-                  <Tooltip title={t('invoice.finalize')}><Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />} onClick={() => approveInvMutation.mutate(inv.id)} /></Tooltip>
+                  <Tooltip title={t('invoice.finalize')}><Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                    onClick={() => Modal.confirm({ title: t('invoice.finalize'), content: inv.invoice_number, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => approveInvMutation.mutate(inv.id) })} /></Tooltip>
                 )}
                 {order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
                   <Tooltip title={t('invoice.editDraft')}><Button type="text" size="small" icon={<EditOutlined />} onClick={() => setEditInvId(inv.id)} /></Tooltip>
                 )}
                 {inv.status === 'DRAFT' && (
-                  <Tooltip title={t('common.delete')}><Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={() => cancelInvMutation.mutate(inv.id)} /></Tooltip>
+                  <Tooltip title={t('common.delete')}><Button type="text" size="small" danger icon={<DeleteOutlined />}
+                    onClick={() => Modal.confirm({ title: t('invoice.confirmDelete'), content: inv.invoice_number, okText: t('common.confirm'), cancelText: t('common.cancel'), okButtonProps: { danger: true }, onOk: () => cancelInvMutation.mutate(inv.id) })} /></Tooltip>
                 )}
               </Space>
             </div>

@@ -121,6 +121,19 @@ enum VATRate {
   VAT_10
 }
 
+enum EmploymentStatus {
+  ACTIVE
+  PROBATION
+  INACTIVE
+}
+
+enum PayrollPeriodStatus {
+  DRAFT
+  CALCULATED
+  APPROVED
+  PAID
+}
+
 // ─── USERS ──────────────────────────────────────────
 
 model User {
@@ -133,8 +146,131 @@ model User {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
+  employee_profile EmployeeProfile?
 
   @@map("users")
+}
+
+// ─── PAYROLL ────────────────────────────────────────
+
+model EmployeeProfile {
+  id                String           @id @default(uuid())
+  user_id           String           @unique
+  base_salary       Float            @default(0)
+  meal_allowance    Float            @default(0)
+  phone_allowance   Float            @default(0)
+  fuel_allowance    Float            @default(0)
+  dependents        Int              @default(0)
+  insurance_number  String?
+  tax_code          String?
+  bank_account      String?
+  bank_name         String?
+  employment_status EmploymentStatus @default(ACTIVE)
+  join_date         DateTime         @default(now())
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+
+  user    User            @relation(fields: [user_id], references: [id])
+  records PayrollRecord[]
+
+  @@map("employee_profiles")
+}
+
+model PayrollConfig {
+  id                  String   @id @default(uuid())
+  base_salary_cap     Float    @default(36000000)
+  personal_deduction  Float    @default(11000000)
+  dependent_deduction Float    @default(4400000)
+  bhxh_employee       Float    @default(8)
+  bhxh_employer       Float    @default(17.5)
+  bhyt_employee       Float    @default(1.5)
+  bhyt_employer       Float    @default(3)
+  bhtn_employee       Float    @default(1)
+  bhtn_employer       Float    @default(1)
+  meal_cap            Float    @default(730000)
+  phone_cap           Float    @default(1000000)
+  fuel_cap            Float    @default(2000000)
+  effective_from      DateTime @default(now())
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  @@map("payroll_configs")
+}
+
+model PayrollPeriod {
+  id          String              @id @default(uuid())
+  year        Int
+  month       Int
+  status      PayrollPeriodStatus @default(DRAFT)
+  notes       String?
+  created_by  String?
+  approved_by String?
+  approved_at DateTime?
+  paid_at     DateTime?
+  created_at  DateTime            @default(now())
+  updated_at  DateTime            @updatedAt
+
+  records PayrollRecord[]
+
+  @@unique([year, month])
+  @@map("payroll_periods")
+}
+
+model PayrollRecord {
+  id                       String           @id @default(uuid())
+  period_id                String
+  employee_id              String
+  // Snapshot
+  base_salary              Float
+  meal_allowance           Float
+  phone_allowance          Float
+  fuel_allowance           Float
+  dependents               Int
+  employment_status        EmploymentStatus
+  // Calculated
+  gross_salary             Float
+  insurance_base           Float
+  bhxh_employee            Float
+  bhyt_employee            Float
+  bhtn_employee            Float
+  total_insurance_employee Float
+  bhxh_employer            Float
+  bhyt_employer            Float
+  bhtn_employer            Float
+  total_insurance_employer Float
+  tax_free_allowances      Float
+  personal_deduction       Float
+  dependent_deduction      Float
+  taxable_income           Float
+  pit                      Float
+  net_salary               Float
+  created_at               DateTime         @default(now())
+  updated_at               DateTime         @updatedAt
+
+  period   PayrollPeriod   @relation(fields: [period_id], references: [id])
+  employee EmployeeProfile @relation(fields: [employee_id], references: [id])
+
+  @@unique([period_id, employee_id])
+  @@map("payroll_records")
+}
+
+// ─── AUDIT LOG ──────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  user_id    String?
+  user_name  String?
+  action     String   // CREATE, UPDATE, DELETE
+  model_name String   // SalesOrder, Customer, etc.
+  record_id  String?
+  old_data   Json?
+  new_data   Json?
+  ip_address String?
+  created_at DateTime @default(now())
+
+  @@index([model_name, record_id])
+  @@index([user_id, created_at])
+  @@map("audit_logs")
 }
 
 // ─── CATEGORIES ─────────────────────────────────────
@@ -266,6 +402,7 @@ model Customer {
   customer_type CustomerType @default(INDIVIDUAL)
   debt_limit   Float        @default(0)
   zalo_user_id String?      // Phase 2
+  approval_status String    @default("APPROVED") // PENDING, APPROVED
   is_active    Boolean      @default(true)
   created_at   DateTime     @default(now())
   updated_at   DateTime     @updatedAt
@@ -450,6 +587,7 @@ model ReceivablePayment {
   payment_date  DateTime      @default(now())
   method        PaymentMethod @default(BANK_TRANSFER)
   reference     String?
+  evidence_url  String?       // Ảnh/file minh chứng thanh toán
   created_at    DateTime      @default(now())
 
   receivable Receivable @relation(fields: [receivable_id], references: [id])
@@ -488,6 +626,7 @@ model PayablePayment {
   payment_date DateTime     @default(now())
   method      PaymentMethod @default(BANK_TRANSFER)
   reference   String?
+  evidence_url String?      // Ảnh/file minh chứng thanh toán
   created_at  DateTime      @default(now())
 
   payable Payable @relation(fields: [payable_id], references: [id])
@@ -827,6 +966,7 @@ model CashTransaction {
   amount        Float
   description   String
   reference     String?             // Mã tham chiếu (hoá đơn, chuyển khoản...)
+  evidence_url  String?             // URL ảnh minh chứng (chuyển khoản, biên lai...)
   payment_method PaymentMethod      @default(CASH)
   notes         String?
   is_auto       Boolean             @default(false) // true = tự tạo từ thanh toán công nợ
