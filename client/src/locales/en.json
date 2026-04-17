@@ -467,6 +467,8 @@
     "unknownSupplier": "Unknown supplier",
     "noSupplierAssigned": "No supplier assigned",
     "noSupplierShort": "No supplier",
+    "supplierTab": "Suppliers",
+    "noPO": "No PO created",
     "addProduct": "Add product",
     "editItems": "Edit items",
     "removeItemConfirm": "Remove this item from order?",

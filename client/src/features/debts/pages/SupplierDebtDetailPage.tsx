@@ -97,16 +97,14 @@ const SupplierDebtDetailPage: React.FC = () => {
   };
 
   const handleUploadEvidence = async (paymentId: string, file: File) => {
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        await payableApi.updatePaymentEvidence(paymentId, reader.result as string);
-        toast.success(t('common.saved'));
-        qc.invalidateQueries({ queryKey: ['supplier-debt'] });
-        setPaymentDetail(null);
-      } catch (err: any) { toast.error(err?.response?.data?.message || t('common.error')); }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const { uploadFile } = await import('@/utils/upload');
+      const url = await uploadFile(file, 'evidence');
+      await payableApi.updatePaymentEvidence(paymentId, url);
+      toast.success(t('common.saved'));
+      qc.invalidateQueries({ queryKey: ['supplier-debt'] });
+      setPaymentDetail(null);
+    } catch (err: any) { toast.error(err?.response?.data?.message || t('common.error')); }
   };
 
   if (isLoading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;

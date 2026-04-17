@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Card, Space, Typography, Spin, Empty, Tag, Button, Modal, Tooltip, Row, Col, Statistic, Input, DatePicker, Form, Avatar, Popconfirm, Select, InputNumber, Drawer, Dropdown, Table,
+  Card, Space, Typography, Spin, Empty, Tag, Button, Modal, Tooltip, Row, Col, Statistic, Input, DatePicker, Form, Avatar, Popconfirm, Select, InputNumber, Drawer, Dropdown, Table, Tabs,
 } from 'antd';
-import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, DollarOutlined, ShopOutlined, SaveOutlined, UserOutlined, PhoneOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, SearchOutlined, SwapOutlined, MailOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, DollarOutlined, ShopOutlined, SaveOutlined, UserOutlined, PhoneOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, SearchOutlined, SwapOutlined, MailOutlined, ExclamationCircleOutlined, LinkOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
@@ -237,11 +237,10 @@ const SalesOrderDetailPage: React.FC = () => {
         )}
 
 
-        {/* Chi tiết sản phẩm — Table */}
-        <div style={{ marginTop: 20 }}>
-          <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
-            {t('order.productDetails')} ({order.items?.length || 0})
-          </Text>
+        {/* Tabs: Sản phẩm | Nhà cung cấp */}
+        <Tabs defaultActiveKey="products" style={{ marginTop: 20 }} items={[
+          { key: 'products', label: `${t('order.productDetails')} (${order.items?.length || 0})`, children: (
+          <div>
           <Table
             size="small"
             dataSource={order.items || []}
@@ -313,7 +312,85 @@ const SalesOrderDetailPage: React.FC = () => {
               {t('order.addProduct')}
             </Button>
           )}
-        </div>
+          </div>
+          )},
+          { key: 'suppliers', label: <><ShopOutlined /> {t('order.supplierTab')} ({(() => {
+            const sids = new Set((order.items || []).filter((i: any) => i.supplier_id).map((i: any) => i.supplier_id));
+            return sids.size;
+          })()})</>, children: (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {(() => {
+                const items = order.items || [];
+                const groups = new Map<string, { supplier: any; po: any; items: any[] }>();
+                const noSupplier: any[] = [];
+                for (const item of items) {
+                  if (!item.supplier_id) { noSupplier.push(item); continue; }
+                  if (!groups.has(item.supplier_id)) {
+                    const po = purchaseOrders.find((p: any) => p.supplier_id === item.supplier_id);
+                    groups.set(item.supplier_id, { supplier: item.supplier, po, items: [] });
+                  }
+                  groups.get(item.supplier_id)!.items.push(item);
+                }
+                return (
+                  <>
+                    {Array.from(groups.entries()).map(([sid, group]) => (
+                      <Card key={sid} size="small" style={{ borderRadius: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                          <Space>
+                            <Avatar size={36} style={{ background: '#722ed1' }} icon={<ShopOutlined />} />
+                            <div>
+                              <Text strong>{group.supplier?.company_name || t('order.unknownSupplier')}</Text>
+                              {group.supplier?.phone && <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{group.supplier.phone}</Text>}
+                            </div>
+                          </Space>
+                          <Space>
+                            {group.po ? (
+                              <>
+                                <StatusTag status={group.po.status} type="purchase" />
+                                <Button type="link" size="small" icon={<LinkOutlined />} onClick={() => navigate(`/purchase-orders/${group.po.id}`)}>
+                                  {group.po.order_code} — {formatVND(group.po.total)}
+                                </Button>
+                              </>
+                            ) : (
+                              <Tag color="warning" style={{ borderRadius: 6 }}>{t('order.noPO')}</Tag>
+                            )}
+                          </Space>
+                        </div>
+                        <Table size="small" dataSource={group.items} rowKey="id" pagination={false} scroll={{ x: 'max-content' }}
+                          columns={[
+                            { title: 'SKU', key: 'sku', width: 100, render: (_: any, i: any) => <Text type="secondary">{i.product?.sku}</Text> },
+                            { title: t('product.name'), key: 'name', ellipsis: true, render: (_: any, i: any) => i.product?.name },
+                            { title: 'SL', dataIndex: 'quantity', key: 'qty', width: 70, align: 'right' as const },
+                            { title: t('order.unitPrice'), dataIndex: 'unit_price', key: 'price', width: 120, align: 'right' as const, render: (v: number) => formatVND(v) },
+                            { title: t('order.lineTotal'), dataIndex: 'line_total', key: 'total', width: 130, align: 'right' as const, render: (v: number) => <Text strong>{formatVND(v)}</Text> },
+                          ]}
+                        />
+                      </Card>
+                    ))}
+                    {noSupplier.length > 0 && (
+                      <Card size="small" style={{ borderRadius: 10, borderColor: '#fa8c16' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                          <Text strong style={{ color: '#fa8c16' }}>{t('order.noSupplierAssigned')}</Text>
+                          <Tag color="warning" style={{ borderRadius: 6 }}>{t('order.noPO')}</Tag>
+                        </div>
+                        <Table size="small" dataSource={noSupplier} rowKey="id" pagination={false} scroll={{ x: 'max-content' }}
+                          columns={[
+                            { title: 'SKU', key: 'sku', width: 100, render: (_: any, i: any) => <Text type="secondary">{i.product?.sku}</Text> },
+                            { title: t('product.name'), key: 'name', ellipsis: true, render: (_: any, i: any) => i.product?.name },
+                            { title: 'SL', dataIndex: 'quantity', key: 'qty', width: 70, align: 'right' as const },
+                            { title: t('order.unitPrice'), dataIndex: 'unit_price', key: 'price', width: 120, align: 'right' as const, render: (v: number) => formatVND(v) },
+                            { title: t('order.lineTotal'), dataIndex: 'line_total', key: 'total', width: 130, align: 'right' as const, render: (v: number) => <Text strong>{formatVND(v)}</Text> },
+                          ]}
+                        />
+                      </Card>
+                    )}
+                    {groups.size === 0 && noSupplier.length === 0 && <Empty description={t('common.noData')} />}
+                  </>
+                );
+              })()}
+            </div>
+          )},
+        ]} />
       </Card>
 
       {/* Invoice Modal */}

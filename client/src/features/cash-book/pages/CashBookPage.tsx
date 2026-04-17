@@ -221,17 +221,15 @@ const CashBookPage: React.FC = () => {
                   <Upload.Dragger
                     accept="image/*,.pdf"
                     showUploadList={false}
-                    beforeUpload={(file) => {
-                      const reader = new FileReader();
-                      reader.onload = async () => {
-                        try {
-                          await cashBookApi.update(detailRecord.id, { evidence_url: reader.result as string });
-                          toast.success(t('common.saved'));
-                          setDetailRecord(null);
-                          refetch();
-                        } catch (err: any) { toast.error(err?.response?.data?.message || t('common.error')); }
-                      };
-                      reader.readAsDataURL(file);
+                    beforeUpload={async (file) => {
+                      try {
+                        const { uploadFile } = await import('@/utils/upload');
+                        const url = await uploadFile(file, 'evidence');
+                        await cashBookApi.update(detailRecord.id, { evidence_url: url });
+                        toast.success(t('common.saved'));
+                        setDetailRecord(null);
+                        refetch();
+                      } catch (err: any) { toast.error(err?.response?.data?.message || t('common.error')); }
                       return false;
                     }}
                     style={{ borderRadius: 8 }}

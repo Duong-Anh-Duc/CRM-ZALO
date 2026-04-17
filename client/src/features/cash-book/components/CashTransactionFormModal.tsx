@@ -45,21 +45,16 @@ const CashTransactionFormModal: React.FC<Props> = ({ open, defaultType, onClose,
   const handleUpload = async (file: File) => {
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      // Use a simple endpoint or Cloudinary direct upload
-      // For now, convert to base64 data URL as fallback
-      const reader = new FileReader();
-      reader.onload = () => {
-        setEvidenceUrl(reader.result as string);
-        setUploading(false);
-        message.success(t('cashBook.evidenceUploaded'));
-      };
-      reader.readAsDataURL(file);
+      const { uploadFile } = await import('@/utils/upload');
+      const url = await uploadFile(file, 'evidence');
+      setEvidenceUrl(url);
+      message.success(t('cashBook.evidenceUploaded'));
     } catch {
+      message.error(t('common.error'));
+    } finally {
       setUploading(false);
     }
-    return false; // prevent default upload
+    return false;
   };
 
   const categoryOptions = (categories?.data ?? categories ?? []).map((c: any) => ({ value: c.id, label: c.name }));

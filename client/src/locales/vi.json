@@ -467,6 +467,8 @@
     "unknownSupplier": "NCC chưa xác định",
     "noSupplierAssigned": "Chưa gán nhà cung cấp",
     "noSupplierShort": "Chưa gán NCC",
+    "supplierTab": "Nhà cung cấp",
+    "noPO": "Chưa tạo PO",
     "addProduct": "Thêm sản phẩm",
     "editItems": "Chỉnh sửa sản phẩm",
     "removeItemConfirm": "Xóa sản phẩm này khỏi đơn?",

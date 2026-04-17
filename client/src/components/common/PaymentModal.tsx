@@ -70,13 +70,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     });
   };
 
-  const handleUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      setEvidenceUrl(reader.result as string);
+  const handleUpload = async (file: File) => {
+    try {
+      const { uploadFile } = await import('@/utils/upload');
+      const url = await uploadFile(file, 'evidence');
+      setEvidenceUrl(url);
       message.success(t('payment.evidenceUploaded'));
-    };
-    reader.readAsDataURL(file);
+    } catch { message.error(t('common.error')); }
     return false;
   };
 

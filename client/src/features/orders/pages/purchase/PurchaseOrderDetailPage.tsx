@@ -166,13 +166,12 @@ const PurchaseOrderDetailPage: React.FC = () => {
             <Upload.Dragger
               accept="image/*,.pdf"
               showUploadList={false}
-              beforeUpload={(file) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                  // Create invoice with uploaded file
-                  createInvMutation.mutate(reader.result as string);
-                };
-                reader.readAsDataURL(file);
+              beforeUpload={async (file) => {
+                try {
+                  const { uploadFile } = await import('@/utils/upload');
+                  const url = await uploadFile(file, 'invoices');
+                  createInvMutation.mutate(url);
+                } catch { /* fallback handled in uploadFile */ }
                 return false;
               }}
               style={{ borderRadius: 8 }}

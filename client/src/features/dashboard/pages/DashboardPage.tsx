@@ -309,7 +309,7 @@ const DashboardPage: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" tickFormatter={(v) => (v / 1000000).toFixed(0) + 'M'} />
                   <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: any, _: any, props: any) => [formatVND(v), props?.payload?.name]} />
+                  <Tooltip formatter={(v: any) => [formatVND(v), null]} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                     {[0,1,2,3,4].map(i => <Cell key={i} fill={['#1890ff','#fa8c16','#ff4d4f','#52c41a','#722ed1'][i]} />)}
                   </Bar>
