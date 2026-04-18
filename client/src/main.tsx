@@ -39,6 +39,14 @@ function AppWrapper() {
   return (
     <ConfigProvider
       locale={antdLocale}
+      form={{
+        requiredMark: (labelNode, { required }) => (
+          <>
+            {labelNode}
+            {required ? <span style={{ color: '#ff4d4f', marginLeft: 4 }}>*</span> : null}
+          </>
+        ),
+      }}
       theme={{
         algorithm: darkMode ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
         token: {

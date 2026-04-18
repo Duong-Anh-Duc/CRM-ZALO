@@ -429,6 +429,232 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  // ─── Invoice ───
+  {
+    type: 'function',
+    function: {
+      name: 'create_sales_invoice',
+      description: 'Tạo hóa đơn bán từ 1 đơn bán đã CONFIRMED trở lên',
+      parameters: {
+        type: 'object',
+        properties: { sales_order_id: { type: 'string' } },
+        required: ['sales_order_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'finalize_invoice',
+      description: 'Duyệt/hoàn tất hóa đơn (DRAFT → APPROVED)',
+      parameters: {
+        type: 'object',
+        properties: { invoice_id: { type: 'string' } },
+        required: ['invoice_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'cancel_invoice',
+      description: 'Hủy hóa đơn',
+      parameters: {
+        type: 'object',
+        properties: { invoice_id: { type: 'string' } },
+        required: ['invoice_id'],
+      },
+    },
+  },
+  // ─── Return ───
+  {
+    type: 'function',
+    function: {
+      name: 'create_sales_return',
+      description: 'Tạo phiếu trả hàng bán (KH trả lại)',
+      parameters: {
+        type: 'object',
+        properties: {
+          sales_order_id: { type: 'string' }, customer_id: { type: 'string' },
+          return_date: { type: 'string' }, reason: { type: 'string' }, notes: { type: 'string' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                product_id: { type: 'string' }, quantity: { type: 'number' }, unit_price: { type: 'number' },
+                reason: { type: 'string' },
+              },
+              required: ['product_id', 'quantity', 'unit_price'],
+            },
+          },
+        },
+        required: ['sales_order_id', 'customer_id', 'items'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_purchase_return',
+      description: 'Tạo phiếu trả hàng mua (trả cho NCC)',
+      parameters: {
+        type: 'object',
+        properties: {
+          purchase_order_id: { type: 'string' }, supplier_id: { type: 'string' },
+          return_date: { type: 'string' }, reason: { type: 'string' }, notes: { type: 'string' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                product_id: { type: 'string' }, quantity: { type: 'number' }, unit_price: { type: 'number' },
+                reason: { type: 'string' },
+              },
+              required: ['product_id', 'quantity', 'unit_price'],
+            },
+          },
+        },
+        required: ['purchase_order_id', 'supplier_id', 'items'],
+      },
+    },
+  },
+  // ─── Delete / Cancel ───
+  {
+    type: 'function',
+    function: {
+      name: 'delete_customer',
+      description: 'Xóa khách hàng (soft delete, chuyển is_active=false)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_supplier',
+      description: 'Xóa NCC (soft delete)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_product',
+      description: 'Xóa sản phẩm (soft delete)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove_sales_order_item',
+      description: 'Gỡ 1 item khỏi đơn bán DRAFT',
+      parameters: {
+        type: 'object',
+        properties: { sales_order_id: { type: 'string' }, item_id: { type: 'string' } },
+        required: ['sales_order_id', 'item_id'],
+      },
+    },
+  },
+  // ─── Create category ───
+  {
+    type: 'function',
+    function: {
+      name: 'create_product_category',
+      description: 'Tạo danh mục sản phẩm mới',
+      parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_cash_category',
+      description: 'Tạo danh mục sổ quỹ (type: INCOME/EXPENSE)',
+      parameters: {
+        type: 'object',
+        properties: { name: { type: 'string' }, type: { type: 'string', enum: ['INCOME', 'EXPENSE'] } },
+        required: ['name', 'type'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_operating_cost_category',
+      description: 'Tạo danh mục chi phí vận hành',
+      parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+    },
+  },
+  // ─── Payroll ───
+  {
+    type: 'function',
+    function: {
+      name: 'create_payroll_period',
+      description: 'Tạo kỳ lương mới (year, month)',
+      parameters: {
+        type: 'object',
+        properties: { year: { type: 'number' }, month: { type: 'number', description: '1-12' } },
+        required: ['year', 'month'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'calculate_payroll',
+      description: 'Tính lương cho 1 kỳ (dựa vào công thức + nhân viên)',
+      parameters: { type: 'object', properties: { period_id: { type: 'string' } }, required: ['period_id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'approve_payroll',
+      description: 'Duyệt kỳ lương đã tính',
+      parameters: { type: 'object', properties: { period_id: { type: 'string' } }, required: ['period_id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'mark_payroll_paid',
+      description: 'Đánh dấu kỳ lương đã trả',
+      parameters: { type: 'object', properties: { period_id: { type: 'string' } }, required: ['period_id'] },
+    },
+  },
+  // ─── Alerts ───
+  {
+    type: 'function',
+    function: {
+      name: 'mark_alert_read',
+      description: 'Đánh dấu alert đã đọc',
+      parameters: { type: 'object', properties: { alert_id: { type: 'string' } }, required: ['alert_id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'take_alert_action',
+      description: 'Ghi nhận action đã thực hiện với alert (VD: ACKNOWLEDGED, RESCHEDULED)',
+      parameters: {
+        type: 'object',
+        properties: {
+          alert_id: { type: 'string' }, action: { type: 'string' },
+          new_expected_date: { type: 'string', description: 'YYYY-MM-DD nếu action = RESCHEDULED' },
+        },
+        required: ['alert_id', 'action'],
+      },
+    },
+  },
+  // ─── Help ───
+  {
+    type: 'function',
+    function: {
+      name: 'help',
+      description: 'Liệt kê tất cả khả năng hiện tại của Aura — trả lời khi user hỏi "em làm được gì", "có những chức năng gì"',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
 ];
 
 // ── Tool implementations ──
@@ -735,6 +961,108 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       }
       return 'type không hợp lệ';
     }
+    // ─── Invoice ───
+    case 'create_sales_invoice': {
+      const { InvoiceService } = await import('../invoice/invoice.service');
+      const inv = await InvoiceService.createFromOrder(args.sales_order_id);
+      return `✅ Đã tạo hóa đơn ${inv.invoice_number} [id:${inv.id}] · status: ${inv.status}`;
+    }
+    case 'finalize_invoice': {
+      const { InvoiceService } = await import('../invoice/invoice.service');
+      const inv = await InvoiceService.finalize(args.invoice_id);
+      return `✅ Đã duyệt HĐ ${inv.invoice_number} [id:${inv.id}]`;
+    }
+    case 'cancel_invoice': {
+      const { InvoiceService } = await import('../invoice/invoice.service');
+      const inv = await InvoiceService.cancel(args.invoice_id);
+      return `✅ Đã hủy HĐ ${inv.invoice_number} [id:${inv.id}]`;
+    }
+    // ─── Return ───
+    case 'create_sales_return': {
+      const { SalesReturnService } = await import('../return/sales-return.service');
+      const r = await SalesReturnService.create(args as any);
+      return `✅ Đã tạo phiếu trả hàng bán ${r.return_code} [id:${r.id}]`;
+    }
+    case 'create_purchase_return': {
+      const { PurchaseReturnService } = await import('../return/purchase-return.service');
+      const r = await PurchaseReturnService.create(args as any);
+      return `✅ Đã tạo phiếu trả hàng mua ${r.return_code} [id:${r.id}]`;
+    }
+    // ─── Soft delete ───
+    case 'delete_customer': {
+      const { CustomerService } = await import('../customer/customer.service');
+      await CustomerService.softDelete(args.id);
+      return `✅ Đã xóa khách hàng [id:${args.id}]`;
+    }
+    case 'delete_supplier': {
+      const { SupplierService } = await import('../supplier/supplier.service');
+      await SupplierService.softDelete(args.id);
+      return `✅ Đã xóa NCC [id:${args.id}]`;
+    }
+    case 'delete_product': {
+      const { ProductService } = await import('../product/product.service');
+      await ProductService.softDelete(args.id);
+      return `✅ Đã xóa sản phẩm [id:${args.id}]`;
+    }
+    case 'remove_sales_order_item': {
+      const { SalesOrderService } = await import('../sales-order/sales-order.service');
+      await SalesOrderService.removeItem(args.sales_order_id, args.item_id);
+      return `✅ Đã gỡ item khỏi đơn bán [id:${args.sales_order_id}]`;
+    }
+    // ─── Create category ───
+    case 'create_product_category': {
+      const c = await prisma.category.create({ data: { name: args.name } });
+      return `✅ Đã tạo danh mục SP "${c.name}" [id:${c.id}]`;
+    }
+    case 'create_cash_category': {
+      const { CashBookService } = await import('../cash-book/cash-book.service');
+      const c = await CashBookService.createCategory({ name: args.name, type: args.type });
+      return `✅ Đã tạo danh mục sổ quỹ [${c.type}] "${c.name}" [id:${c.id}]`;
+    }
+    case 'create_operating_cost_category': {
+      const { OperatingCostService } = await import('../operating-cost/operating-cost.service');
+      const c = await OperatingCostService.createCategory(args.name);
+      return `✅ Đã tạo danh mục chi phí VH "${c.name}" [id:${c.id}]`;
+    }
+    // ─── Payroll ───
+    case 'create_payroll_period': {
+      const { PayrollService } = await import('../payroll/payroll.service');
+      const p = await PayrollService.createPeriod(Number(args.year), Number(args.month));
+      return `✅ Đã tạo kỳ lương ${args.month}/${args.year} [id:${p.id}]`;
+    }
+    case 'calculate_payroll': {
+      const { PayrollService } = await import('../payroll/payroll.service');
+      const r = await PayrollService.calculatePeriod(args.period_id);
+      return `✅ Đã tính lương kỳ [id:${args.period_id}] — ${r.calculated} nhân viên`;
+    }
+    case 'approve_payroll': {
+      const { PayrollService } = await import('../payroll/payroll.service');
+      await PayrollService.approvePeriod(args.period_id, 'chatbot');
+      return `✅ Đã duyệt kỳ lương [id:${args.period_id}]`;
+    }
+    case 'mark_payroll_paid': {
+      const { PayrollService } = await import('../payroll/payroll.service');
+      await PayrollService.markPaid(args.period_id);
+      return `✅ Đã đánh dấu kỳ lương đã trả [id:${args.period_id}]`;
+    }
+    // ─── Alerts ───
+    case 'mark_alert_read': {
+      const { AlertService } = await import('../alert/alert.service');
+      await AlertService.markAsRead(args.alert_id);
+      return `✅ Đã đánh dấu alert đã đọc [id:${args.alert_id}]`;
+    }
+    case 'take_alert_action': {
+      const { AlertService } = await import('../alert/alert.service');
+      await AlertService.takeAction(args.alert_id, args.action, args.new_expected_date);
+      return `✅ Đã ghi nhận action "${args.action}" cho alert [id:${args.alert_id}]`;
+    }
+    // ─── Help ───
+    case 'help': {
+      return tools.map((t) => {
+        const fn = (t as any).function;
+        return `• ${fn.name} — ${fn.description}`;
+      }).join('\n');
+    }
     default: return 'Không hỗ trợ công cụ này.';
   }
 }
@@ -791,18 +1119,22 @@ Format: KHÔNG markdown (**, ##, -). Dùng "•" liệt kê. Số tiền: xxx.xx
 Mở đầu bằng "Dạ,...", kết thúc hỏi thêm.
 
 BẠN CÓ QUYỀN THỰC HIỆN HÀNH ĐỘNG (không chỉ đọc):
-- Tạo/sửa KH: create_customer, update_customer
-- Tạo/sửa NCC: create_supplier, update_supplier
-- Tạo/sửa SP: create_product, update_product
-- Tạo đơn bán: create_sales_order (cần customer_id + items[product_id, quantity, unit_price])
+- Tạo/sửa/XÓA KH: create_customer, update_customer, delete_customer
+- Tạo/sửa/XÓA NCC: create_supplier, update_supplier, delete_supplier
+- Tạo/sửa/XÓA SP: create_product, update_product, delete_product
+- Tạo đơn bán: create_sales_order · thêm item add_sales_order_item · gỡ item remove_sales_order_item
 - Tạo đơn mua: create_purchase_order (cần sales_order_id + supplier_id + items)
 - Đổi trạng thái: update_sales_order_status, update_purchase_order_status
-- Thêm item vào SO: add_sales_order_item
+- Hóa đơn: create_sales_invoice, finalize_invoice, cancel_invoice
+- Trả hàng: create_sales_return, create_purchase_return
 - Ghi nhận thanh toán: record_receivable_payment, record_payable_payment (evidence_url bắt buộc)
-- Sổ quỹ: create_cash_transaction (thu/chi)
-- Chi phí vận hành: create_operating_cost
-- Giá riêng KH: upsert_customer_product_price
-- Giá NCC: upsert_supplier_price
+- Sổ quỹ: create_cash_transaction · create_cash_category
+- Chi phí vận hành: create_operating_cost · create_operating_cost_category
+- Danh mục SP: create_product_category
+- Giá: upsert_customer_product_price, upsert_supplier_price
+- Payroll: create_payroll_period, calculate_payroll, approve_payroll, mark_payroll_paid
+- Alerts: mark_alert_read, take_alert_action
+- Trợ giúp: help (liệt kê mọi tool)
 
 QUY TRÌNH cho hành động có tham chiếu đối tượng:
 1. Gọi search_customer/search_supplier/search_product trước để lấy id THẬT (UUID).

@@ -406,6 +406,7 @@
     "expectedDelivery": "Expected Delivery",
     "shippingFee": "Shipping Fee",
     "otherFee": "Other Fee",
+    "otherFeeNote": "Other fee note",
     "grandTotal": "Grand Total",
     "suppliers": "Suppliers",
     "purchaseOrders": "Purchase Orders",

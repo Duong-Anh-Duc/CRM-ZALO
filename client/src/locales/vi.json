@@ -406,6 +406,7 @@
     "expectedDelivery": "Ngày giao dự kiến",
     "shippingFee": "Phí vận chuyển",
     "otherFee": "Phí khác",
+    "otherFeeNote": "Ghi chú phí khác",
     "grandTotal": "Tổng tiền",
     "suppliers": "Nhà cung cấp",
     "purchaseOrders": "Đơn mua liên kết",
