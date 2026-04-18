@@ -23,6 +23,7 @@ import {
   WalletOutlined,
   SunOutlined,
   MoonOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -62,6 +63,7 @@ const ENFlag = () => (
 
 const getMenuItems = (t: (key: string) => string): MenuProps['items'] => [
   { key: '/', icon: <DashboardOutlined />, label: t('menu.dashboard') },
+  { key: '/universe', icon: <GlobalOutlined />, label: t('menu.universe') },
   { type: 'group', label: t('menu.catalog') },
   { key: '/products', icon: <ShoppingOutlined />, label: t('menu.products') },
   { key: '/customers', icon: <TeamOutlined />, label: t('menu.customers') },
