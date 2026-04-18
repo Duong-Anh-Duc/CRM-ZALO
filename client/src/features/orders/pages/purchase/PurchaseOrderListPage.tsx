@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Table, Typography, Space, Card, Select, Tooltip, Dropdown, Input, DatePicker, Row, Col, Statistic, Modal } from 'antd';
-import { PlusOutlined, TruckOutlined, EyeOutlined, EditOutlined, SwapOutlined, SearchOutlined, ShoppingCartOutlined, CheckCircleOutlined, DollarOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { TruckOutlined, EyeOutlined, EditOutlined, SwapOutlined, SearchOutlined, ShoppingCartOutlined, CheckCircleOutlined, DollarOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip, Legend } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
@@ -106,9 +106,7 @@ const PurchaseOrderListPage: React.FC = () => {
 
   return (
     <Card style={{ borderRadius: 12 }}>
-      <PageHeader title={t('order.purchaseOrders')} extra={
-        <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => navigate('/purchase-orders/create')}>{t('order.createOrder')}</Button>
-      } />
+      <PageHeader title={t('order.purchaseOrders')} />
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} sm={6}><Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}><Statistic title={t('order.orderCount')} value={summary.total} prefix={<ShoppingCartOutlined />} valueStyle={{ color: '#1890ff', fontSize: 18 }} /></Card></Col>

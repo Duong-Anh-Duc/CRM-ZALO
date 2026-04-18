@@ -5,10 +5,10 @@ import {
 } from 'antd';
 import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, DollarOutlined, ShopOutlined, SaveOutlined, UserOutlined, PhoneOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, SearchOutlined, SwapOutlined, MailOutlined, ExclamationCircleOutlined, LinkOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
-import { useSalesOrder } from '../../hooks';
+import { useSalesOrder, useCreatePurchaseOrder } from '../../hooks';
 import { useProducts } from '@/features/products/hooks';
 import { formatVND, formatDate } from '@/utils/format';
 import { StatusTag } from '@/components/common';
@@ -27,6 +27,7 @@ const SalesOrderDetailPage: React.FC = () => {
   const [editInvId, setEditInvId] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<'invoice' | 'products' | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [addItemState, setAddItemState] = useState<{ open: boolean; product: any | null; values: { customer_product_name: string; quantity: number; unit_price: number } }>({ open: false, product: null, values: { customer_product_name: '', quantity: 1, unit_price: 0 } });
   const [productSearch, setProductSearch] = useState('');
   const [productCategory, setProductCategory] = useState('');
   const [productMaterial, setProductMaterial] = useState('');
@@ -35,6 +36,18 @@ const SalesOrderDetailPage: React.FC = () => {
 
   const { data: orderData, isLoading } = useSalesOrder(id);
   const order = orderData?.data as any;
+
+  const { data: customerPricesData } = useQuery({
+    queryKey: ['customer-product-prices', order?.customer_id],
+    queryFn: async () => apiClient.get('/customer-product-prices', { params: { customer_id: order?.customer_id } }),
+    enabled: !!order?.customer_id,
+  });
+  const customerPriceMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    const list = (customerPricesData?.data as any)?.data || [];
+    list.forEach((cp: any) => map.set(cp.product_id, Number(cp.price)));
+    return map;
+  }, [customerPricesData]);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => apiClient.patch(`/sales-orders/${id}`, data),
@@ -82,6 +95,46 @@ const SalesOrderDetailPage: React.FC = () => {
     onSuccess: () => { invalidateOrder(); },
     onError: () => toast.error(t('common.error')),
   });
+
+  const createPOMutation = useCreatePurchaseOrder();
+  const [createPOState, setCreatePOState] = useState<{ supplierId: string; supplierName: string; items: any[] } | null>(null);
+  const [poItems, setPoItems] = useState<any[]>([]);
+  const [poExpectedDelivery, setPoExpectedDelivery] = useState<any>(null);
+  const [poNotes, setPoNotes] = useState('');
+
+  const openCreatePO = (supplierId: string, supplierName: string, items: any[]) => {
+    setCreatePOState({ supplierId, supplierName, items });
+    setPoItems(items.map((it: any) => ({
+      product_id: it.product_id,
+      product_sku: it.product?.sku,
+      product_name: it.product?.name,
+      quantity: Number(it.quantity),
+      unit_price: Number(it.purchase_price || it.unit_price || 0),
+    })));
+    setPoExpectedDelivery(order.expected_delivery ? dayjs(order.expected_delivery) : null);
+    setPoNotes('');
+  };
+
+  const submitCreatePO = () => {
+    if (!createPOState) return;
+    const invalid = poItems.some((i) => !i.quantity || i.quantity <= 0 || !i.unit_price || i.unit_price <= 0);
+    if (invalid) { toast.error(t('validation.qtyPositive')); return; }
+    const payload = {
+      supplier_id: createPOState.supplierId,
+      sales_order_id: id,
+      expected_delivery: poExpectedDelivery?.format('YYYY-MM-DD'),
+      notes: poNotes || undefined,
+      items: poItems.map((it) => ({
+        product_id: it.product_id,
+        quantity: Number(it.quantity),
+        unit_price: Number(it.unit_price),
+      })),
+    };
+    createPOMutation.mutate(payload as any, {
+      onSuccess: () => { toast.success(t('common.saved')); invalidateOrder(); setCreatePOState(null); },
+      onError: (err: any) => toast.error(err?.response?.data?.message || t('common.error')),
+    });
+  };
 
   // Product search for Add Product drawer
   const { data: productsData } = useProducts({
@@ -137,14 +190,37 @@ const SalesOrderDetailPage: React.FC = () => {
                 <StatusTag status={order.status} type="sales" />
                 {!editing && (order.status === 'DRAFT' || order.status === 'CONFIRMED') && (
                   <Tooltip title={t('common.edit')}>
-                    <Button icon={<EditOutlined />} size="small" onClick={() => { setEditing(true); form.setFieldsValue({ notes: order.notes, expected_delivery: order.expected_delivery ? dayjs(order.expected_delivery) : null }); }} style={{ borderRadius: 8 }} />
+                    <Button icon={<EditOutlined />} size="small" onClick={() => {
+                      setEditing(true);
+                      form.setFieldsValue({
+                        notes: order.notes,
+                        expected_delivery: order.expected_delivery ? dayjs(order.expected_delivery) : null,
+                        vat_rate: order.vat_rate,
+                        shipping_fee: Number(order.shipping_fee) || 0,
+                        other_fee: Number(order.other_fee) || 0,
+                        other_fee_note: order.other_fee_note || '',
+                      });
+                    }} style={{ borderRadius: 8 }} />
                   </Tooltip>
                 )}
                 {editing && (
                   <>
                     <Button size="small" onClick={() => setEditing(false)} style={{ borderRadius: 8 }}>{t('common.cancel')}</Button>
                     <Button type="primary" icon={<SaveOutlined />} size="small" loading={saveMutation.isPending}
-                      onClick={() => { const v = form.getFieldsValue(); saveMutation.mutate({ notes: v.notes, expected_delivery: v.expected_delivery?.format('YYYY-MM-DD') }); }}
+                      onClick={() => {
+                        const v = form.getFieldsValue();
+                        const payload: any = {
+                          notes: v.notes,
+                          expected_delivery: v.expected_delivery?.format('YYYY-MM-DD'),
+                          other_fee_note: v.other_fee_note || null,
+                        };
+                        if (order.status === 'DRAFT') {
+                          payload.vat_rate = v.vat_rate;
+                          payload.shipping_fee = Number(v.shipping_fee) || 0;
+                          payload.other_fee = Number(v.other_fee) || 0;
+                        }
+                        saveMutation.mutate(payload);
+                      }}
                       style={{ borderRadius: 8 }}>{t('common.save')}</Button>
                   </>
                 )}
@@ -220,7 +296,31 @@ const SalesOrderDetailPage: React.FC = () => {
                 <div style={fieldStyle}><Text style={fLabel}><CalendarOutlined style={{ marginRight: 4 }} />{t('order.orderDate')}</Text><Text strong>{formatDate(order.order_date)}</Text></div>
               </Col>
               <Col xs={24} sm={8}>
-                <div style={fieldStyle}><Text style={fLabel}>VAT</Text><Text strong>{order.vat_rate === 'VAT_0' ? '0%' : order.vat_rate === 'VAT_8' ? '8%' : '10%'}</Text></div>
+                <Form.Item name="vat_rate" label="VAT">
+                  <Select style={{ borderRadius: 8 }} options={[
+                    { label: '0%', value: 'VAT_0' }, { label: '5%', value: 'VAT_5' },
+                    { label: '8%', value: 'VAT_8' }, { label: '10%', value: 'VAT_10' },
+                  ]} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Form.Item name="shipping_fee" label={t('order.shippingFee')}>
+                  <InputNumber min={0} style={{ width: '100%', borderRadius: 8 }}
+                    formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                    parser={(v) => Number(v?.replace(/\./g, '') ?? 0) as any} addonAfter="VND" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Form.Item name="other_fee" label={t('order.otherFee')}>
+                  <InputNumber min={0} style={{ width: '100%', borderRadius: 8 }}
+                    formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                    parser={(v) => Number(v?.replace(/\./g, '') ?? 0) as any} addonAfter="VND" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Form.Item name="other_fee_note" label={t('order.otherFeeNote') || 'Ghi chú phụ phí'}>
+                  <Input style={{ borderRadius: 8 }} />
+                </Form.Item>
               </Col>
               <Col xs={24}><Form.Item name="notes" label={t('common.notes')}><Input.TextArea rows={2} style={{ borderRadius: 8 }} /></Form.Item></Col>
             </Row>
@@ -352,7 +452,15 @@ const SalesOrderDetailPage: React.FC = () => {
                                 </Button>
                               </>
                             ) : (
-                              <Tag color="warning" style={{ borderRadius: 6 }}>{t('order.noPO')}</Tag>
+                              <>
+                                <Tag color="warning" style={{ borderRadius: 6 }}>{t('order.noPO')}</Tag>
+                                {order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
+                                  <Button type="primary" size="small" icon={<PlusOutlined />}
+                                    style={{ borderRadius: 8 }} onClick={() => openCreatePO(sid, group.supplier?.company_name || '', group.items)}>
+                                    {t('order.createPurchaseOrder')}
+                                  </Button>
+                                )}
+                              </>
                             )}
                           </Space>
                         </div>
@@ -563,14 +671,14 @@ const SalesOrderDetailPage: React.FC = () => {
             {drawerProducts.map((product: any) => (
               <Card key={product.id} size="small" hoverable style={{ borderRadius: 8, cursor: 'pointer' }}
                 onClick={() => {
-                  const preferred = product.supplier_prices?.find((sp: any) => sp.is_preferred);
-                  const supplier = preferred || product.supplier_prices?.[0];
-                  addItemMutation.mutate({
-                    product_id: product.id,
-                    supplier_id: supplier?.supplier_id || undefined,
-                    purchase_price: supplier?.purchase_price || undefined,
-                    quantity: 1,
-                    unit_price: product.retail_price || product.wholesale_price || 0,
+                  const savedPrice = customerPriceMap.get(product.id);
+                  setAddItemState({
+                    open: true, product,
+                    values: {
+                      customer_product_name: '',
+                      quantity: 1,
+                      unit_price: savedPrice ?? (product.retail_price || 0),
+                    },
                   });
                   setDrawerOpen(false);
                 }}>
@@ -590,8 +698,16 @@ const SalesOrderDetailPage: React.FC = () => {
                       {product.capacity_ml && <Text type="secondary">{product.capacity_ml}ml</Text>}
                     </Space>
                     <div style={{ marginTop: 4 }}>
-                      <Text type="success" strong>{formatVND(product.retail_price)}</Text>
-                      {product.wholesale_price && <Text type="secondary" style={{ marginLeft: 8 }}>S{'\u1ec9'}: {formatVND(product.wholesale_price)}</Text>}
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{t('product.retailPrice')}: </Text>
+                        <Text strong>{formatVND(product.retail_price)}</Text>
+                      </div>
+                      {customerPriceMap.has(product.id) && (
+                        <div style={{ marginTop: 2 }}>
+                          <Text type="secondary" style={{ fontSize: 11 }}>{t('product.savedCustomerPrice')}: </Text>
+                          <Text type="success" strong>{formatVND(customerPriceMap.get(product.id)!)}</Text>
+                        </div>
+                      )}
                     </div>
                   </Col>
                 </Row>
@@ -621,6 +737,132 @@ const SalesOrderDetailPage: React.FC = () => {
           saving={updateInvMutation.isPending}
         />
       )}
+
+      {/* Add Item Modal (required: tên khách gọi, SL, giá) */}
+      <Modal open={addItemState.open}
+        title={<><PlusOutlined /> {t('order.addProduct')}{addItemState.product ? ` — ${addItemState.product.name}` : ''}</>}
+        onCancel={() => setAddItemState({ open: false, product: null, values: { customer_product_name: '', quantity: 1, unit_price: 0 } })}
+        okText={t('common.confirm')} cancelText={t('common.cancel')}
+        confirmLoading={addItemMutation.isPending}
+        okButtonProps={{ style: { borderRadius: 8 } }}
+        onOk={() => {
+          const { product, values } = addItemState;
+          if (!product) return;
+          if (!values.customer_product_name?.trim()) { toast.error(t('validation.customerProductNameRequired')); return; }
+          if (!values.quantity || values.quantity <= 0) { toast.error(t('validation.qtyPositive')); return; }
+          if (!values.unit_price || values.unit_price <= 0) { toast.error(t('validation.unitPricePositive')); return; }
+          const preferred = product.supplier_prices?.find((sp: any) => sp.is_preferred);
+          const supplier = preferred || product.supplier_prices?.[0];
+          addItemMutation.mutate({
+            product_id: product.id,
+            supplier_id: supplier?.supplier_id || undefined,
+            purchase_price: supplier?.purchase_price || undefined,
+            customer_product_name: values.customer_product_name.trim(),
+            quantity: values.quantity,
+            unit_price: values.unit_price,
+          }, {
+            onSuccess: () => setAddItemState({ open: false, product: null, values: { customer_product_name: '', quantity: 1, unit_price: 0 } }),
+          });
+        }}>
+        {addItemState.product && (
+          <div>
+            <Row gutter={[12, 12]}>
+              <Col xs={24}>
+                <Text style={{ fontSize: 11, color: '#999', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>
+                  {t('product.name')} <span style={{ color: '#ff4d4f' }}>*</span>
+                </Text>
+                <Input value={addItemState.values.customer_product_name}
+                  onChange={(e) => setAddItemState((s) => ({ ...s, values: { ...s.values, customer_product_name: e.target.value } }))}
+                  placeholder={t('order.customerProductNamePlaceholder')} style={{ borderRadius: 8 }} autoFocus />
+                <Text type="secondary" style={{ fontSize: 11 }}>{t('product.sku')}: {addItemState.product.sku} — {addItemState.product.name}</Text>
+              </Col>
+              <Col xs={12}>
+                <Text style={{ fontSize: 11, color: '#999', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>
+                  {t('order.quantity')} <span style={{ color: '#ff4d4f' }}>*</span>
+                </Text>
+                <InputNumber min={1} value={addItemState.values.quantity}
+                  onChange={(v) => setAddItemState((s) => ({ ...s, values: { ...s.values, quantity: Number(v) || 0 } }))}
+                  style={{ width: '100%', borderRadius: 8 }} />
+              </Col>
+              <Col xs={12}>
+                <Text style={{ fontSize: 11, color: '#999', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>
+                  {t('order.unitPrice')} <span style={{ color: '#ff4d4f' }}>*</span>
+                </Text>
+                <InputNumber min={1} value={addItemState.values.unit_price}
+                  onChange={(v) => setAddItemState((s) => ({ ...s, values: { ...s.values, unit_price: Number(v) || 0 } }))}
+                  style={{ width: '100%', borderRadius: 8 }} addonAfter="VND"
+                  formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                  parser={(val) => Number(val?.replace(/\./g, '') ?? 0)} />
+                <Space size={4} style={{ marginTop: 4 }} wrap>
+                  <Text type="secondary" style={{ fontSize: 11 }}>{t('product.retailPrice')}: {formatVND(addItemState.product.retail_price)}</Text>
+                  {customerPriceMap.has(addItemState.product.id) && (
+                    <Tag color="purple" style={{ fontSize: 10, borderRadius: 4 }}>{t('product.savedCustomerPrice')}: {formatVND(customerPriceMap.get(addItemState.product.id)!)}</Tag>
+                  )}
+                </Space>
+              </Col>
+            </Row>
+          </div>
+        )}
+      </Modal>
+
+      {/* Create PO Review Modal */}
+      <Modal open={!!createPOState} onCancel={() => setCreatePOState(null)}
+        title={<><ShopOutlined /> {t('order.createPurchaseOrder')}{createPOState ? ` — ${createPOState.supplierName}` : ''}</>}
+        width={window.innerWidth < 640 ? '95vw' : 820}
+        okText={t('common.confirm')} cancelText={t('common.cancel')}
+        onOk={submitCreatePO} confirmLoading={createPOMutation.isPending}
+        okButtonProps={{ style: { borderRadius: 8 } }}>
+        {createPOState && (
+          <div>
+            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+              <Col xs={24} sm={12}>
+                <Text style={fLabel}><CalendarOutlined style={{ marginRight: 4 }} />{t('order.expectedDelivery')}</Text>
+                <DatePicker value={poExpectedDelivery} onChange={setPoExpectedDelivery}
+                  format="DD/MM/YYYY" style={{ width: '100%', borderRadius: 8 }} />
+              </Col>
+              <Col xs={24} sm={12}>
+                <Text style={fLabel}><FileTextOutlined style={{ marginRight: 4 }} />{t('order.linkedSO')}</Text>
+                <Input value={order.order_code} disabled style={{ borderRadius: 8 }} />
+              </Col>
+              <Col xs={24}>
+                <Text style={fLabel}><FileTextOutlined style={{ marginRight: 4 }} />{t('common.notes')}</Text>
+                <Input.TextArea rows={2} value={poNotes} onChange={(e) => setPoNotes(e.target.value)} style={{ borderRadius: 8 }} />
+              </Col>
+            </Row>
+            <Text style={fLabel}>{t('order.productDetails')} ({poItems.length})</Text>
+            <Table size="small" dataSource={poItems} rowKey="product_id" pagination={false}
+              scroll={{ x: 'max-content' }} style={{ marginTop: 8 }}
+              columns={[
+                { title: 'SKU', dataIndex: 'product_sku', key: 'sku', width: 100, render: (v: string) => <Text type="secondary">{v}</Text> },
+                { title: t('product.name'), dataIndex: 'product_name', key: 'name', ellipsis: true },
+                { title: 'SL', dataIndex: 'quantity', key: 'qty', width: 100, align: 'right' as const,
+                  render: (v: number, _: any, i: number) => (
+                    <InputNumber size="small" min={1} value={v} style={{ width: '100%', borderRadius: 6 }}
+                      onChange={(nv) => setPoItems((prev) => prev.map((it, idx) => idx === i ? { ...it, quantity: Number(nv) || 0 } : it))} />
+                  ) },
+                { title: t('product.purchasePrice'), dataIndex: 'unit_price', key: 'price', width: 150, align: 'right' as const,
+                  render: (v: number, _: any, i: number) => (
+                    <InputNumber size="small" min={0} value={v} style={{ width: '100%', borderRadius: 6 }}
+                      formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                      parser={(val) => Number(val?.replace(/\./g, '') ?? 0)}
+                      onChange={(nv) => setPoItems((prev) => prev.map((it, idx) => idx === i ? { ...it, unit_price: Number(nv) || 0 } : it))} />
+                  ) },
+                { title: t('order.lineTotal'), key: 'total', width: 140, align: 'right' as const,
+                  render: (_: any, r: any) => <Text strong>{formatVND(Number(r.quantity || 0) * Number(r.unit_price || 0))}</Text> },
+              ]}
+              summary={() => {
+                const total = poItems.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.unit_price || 0), 0);
+                return (
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0} colSpan={4} align="right"><Text strong>{t('order.grandTotal')}</Text></Table.Summary.Cell>
+                    <Table.Summary.Cell index={1} align="right"><Text strong style={{ color: '#1890ff' }}>{formatVND(total)}</Text></Table.Summary.Cell>
+                  </Table.Summary.Row>
+                );
+              }}
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

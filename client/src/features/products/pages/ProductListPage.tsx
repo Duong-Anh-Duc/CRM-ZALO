@@ -86,15 +86,6 @@ const ProductListPage: React.FC = () => {
       render: (v: number | undefined) => (v != null ? formatVND(v) : '-'),
     },
     {
-      title: t('product.wholesalePrice'),
-      dataIndex: 'wholesale_price',
-      key: 'wholesale_price',
-      width: 140,
-      responsive: ['lg'],
-      align: 'right' as const,
-      render: (v: number | undefined) => (v != null ? formatVND(v) : '-'),
-    },
-    {
       title: t('product.status'),
       dataIndex: 'is_active',
       key: 'is_active',

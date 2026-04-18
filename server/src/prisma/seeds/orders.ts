@@ -102,7 +102,7 @@ export async function seedOrders(
 
     const product = products[i % products.length];
     const qty = (1 + Math.floor(Math.random() * 20)) * 100;
-    const price = (product.wholesale_price || 1000) * 0.7;
+    const price = ((product.retail_price as number | null) || 1000) * 0.6;
     const total = qty * price;
 
     const order = await prisma.purchaseOrder.upsert({

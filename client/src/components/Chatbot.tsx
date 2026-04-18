@@ -15,12 +15,24 @@ interface Message {
 const STORAGE_KEY = 'packflow_chatbot_history';
 
 // Parse action buttons from response: [action:/path|Label]
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const ID_REQUIRED_PREFIXES = ['/receivables/customer/', '/payables/supplier/', '/sales-orders/', '/purchase-orders/', '/customers/', '/suppliers/', '/products/'];
+
+function isValidActionPath(path: string): boolean {
+  const needsId = ID_REQUIRED_PREFIXES.find((p) => path.startsWith(p));
+  if (!needsId) return true;
+  const tail = path.slice(needsId.length).split(/[/?#]/)[0];
+  if (!tail) return false;
+  return UUID_RE.test(tail);
+}
+
 function parseActions(text: string): { cleanText: string; actions: { path: string; label: string }[] } {
   const actions: { path: string; label: string }[] = [];
   const cleanText = text.replace(/\[action:([^\]|]+)\|([^\]]+)\]/g, (_, path, label) => {
-    actions.push({ path: path.trim(), label: label.trim() });
+    const p = path.trim();
+    if (isValidActionPath(p)) actions.push({ path: p, label: label.trim() });
     return '';
-  }).trim();
+  }).replace(/\s*\[id:[^\]]+\]/g, '').trim();
   return { cleanText, actions };
 }
 

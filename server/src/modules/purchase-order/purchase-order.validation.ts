@@ -3,6 +3,7 @@ import { t } from '../../locales';
 
 export const createPurchaseOrderSchema = z.object({
   supplier_id: z.string().min(1, t('validation.supplierRequired')),
+  sales_order_id: z.string().optional(),
   expected_delivery: z.string().optional(),
   notes: z.string().optional(),
   items: z.array(z.object({

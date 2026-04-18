@@ -323,10 +323,9 @@ model Product {
   industries      Industry[]
   safety_standards SafetyStandard[]
 
-  // Pricing
+  // Pricing (giá tham khảo — giá gợi ý khi bán; giá thực tế ở sales_order_item.unit_price)
   moq             Int?
-  retail_price    Float?
-  wholesale_price Float?
+  retail_price    Float?   // Giá tham khảo
 
   // Media
   catalog_pdf_url String?
@@ -339,6 +338,7 @@ model Product {
   images            ProductImage[]
   price_tiers       PriceTier[]
   supplier_prices   SupplierPrice[]
+  customer_prices   CustomerProductPrice[]
   sales_order_items    SalesOrderItem[]
   purchase_order_items PurchaseOrderItem[]
   sales_return_items   SalesReturnItem[]
@@ -410,6 +410,7 @@ model Customer {
   sales_orders  SalesOrder[]
   receivables   Receivable[]
   sales_returns SalesReturn[]
+  product_prices CustomerProductPrice[]
 
   @@map("customers")
 }
@@ -455,6 +456,21 @@ model SupplierPrice {
 
   @@unique([supplier_id, product_id])
   @@map("supplier_prices")
+}
+
+model CustomerProductPrice {
+  id          String   @id @default(uuid())
+  customer_id String
+  product_id  String
+  price       Float
+  updated_at  DateTime @default(now()) @updatedAt
+
+  customer Customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@unique([customer_id, product_id])
+  @@index([customer_id])
+  @@map("customer_product_prices")
 }
 
 // ─── SALES ORDERS ───────────────────────────────────

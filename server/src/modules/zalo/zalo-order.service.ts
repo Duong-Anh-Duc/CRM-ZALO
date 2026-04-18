@@ -34,14 +34,14 @@ export class ZaloOrderService {
       const [products, threadMessages] = await Promise.all([
         prisma.product.findMany({
           where: { is_active: true },
-          select: { id: true, name: true, sku: true, retail_price: true, wholesale_price: true },
+          select: { id: true, name: true, sku: true, retail_price: true },
           take: 200,
         }),
         this.loadThreadMessages(senderId),
       ]);
 
       const productList = products.map(
-        (p) => `- ${p.name} (SKU: ${p.sku}, giá lẻ: ${p.retail_price ?? 'N/A'}, giá sỉ: ${p.wholesale_price ?? 'N/A'})`,
+        (p) => `- ${p.name} (SKU: ${p.sku}, giá tham khảo: ${p.retail_price ?? 'N/A'})`,
       );
 
       const extracted = await AIService.extractOrderFromMessage(content, productList, threadMessages);
@@ -215,7 +215,7 @@ export class ZaloOrderService {
 
   private static matchProducts(
     extracted: any,
-    products: Array<{ id: string; name: string; sku: string; retail_price: any; wholesale_price: any }>,
+    products: Array<{ id: string; name: string; sku: string; retail_price: any }>,
   ) {
     const items: Array<{ product_id: string; product_name: string; quantity: number; unit_price: number; note?: string }> = [];
 
@@ -240,7 +240,6 @@ export class ZaloOrderService {
 
       if (matched) {
         const price = extractedItem.unit_price
-          || Number(matched.wholesale_price ?? 0)
           || Number(matched.retail_price ?? 0)
           || 0;
 

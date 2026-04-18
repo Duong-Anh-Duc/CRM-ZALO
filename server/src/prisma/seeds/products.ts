@@ -43,7 +43,6 @@ export async function seedProducts(prisma: PrismaClient, suppliers: Array<{ id: 
         unit_of_sale: rest.unit_of_sale as never,
         pcs_per_carton: rest.pcs_per_carton,
         retail_price: rest.retail_price ?? undefined,
-        wholesale_price: rest.wholesale_price ?? undefined,
         moq: rest.moq,
         industries: industries as never,
         safety_standards: safety_standards as never,
@@ -51,8 +50,8 @@ export async function seedProducts(prisma: PrismaClient, suppliers: Array<{ id: 
           create: [
             { min_qty: 1, price: data.retail_price! },
             { min_qty: 500, price: Math.round(data.retail_price! * 0.9) },
-            { min_qty: 1000, price: data.wholesale_price! },
-            { min_qty: 5000, price: Math.round(data.wholesale_price! * 0.9) },
+            { min_qty: 1000, price: Math.round(data.retail_price! * 0.8) },
+            { min_qty: 5000, price: Math.round(data.retail_price! * 0.7) },
           ],
         },
       },
@@ -61,7 +60,7 @@ export async function seedProducts(prisma: PrismaClient, suppliers: Array<{ id: 
     // Link 2-3 suppliers per product with different prices
     const productSuppliers = suppliers.slice(0, Math.min(3, suppliers.length));
     for (let i = 0; i < productSuppliers.length; i++) {
-      const basePrice = data.wholesale_price! * 0.7;
+      const basePrice = Math.round(data.retail_price! * 0.6);
       await prisma.supplierPrice.upsert({
         where: {
           supplier_id_product_id: {

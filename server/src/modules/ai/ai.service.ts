@@ -146,8 +146,8 @@ record_payment: {"type":"receivable/payable","order_code":"SO-xxx hoac PO-xxx","
 mark_debt_paid: {"type":"receivable/payable","order_code":"SO-xxx hoac PO-xxx"} (danh dau da thanh toan het)
 
 -- SAN PHAM --
-create_product: {"name","sku","category_name","material":"PET/HDPE/PP","retail_price","wholesale_price","moq","description"}
-update_product: {"product_name":"tên hiện tại","updates":{"retail_price","wholesale_price","moq","description"}}
+create_product: {"name","sku","category_name","material":"PET/HDPE/PP","retail_price","moq","description"}
+update_product: {"product_name":"tên hiện tại","updates":{"retail_price","moq","description"}}
 
 -- GIA NCC --
 update_supplier_price: {"supplier_name","product_name","updates":{"purchase_price","moq","lead_time_days","stock_quantity"}}
@@ -279,7 +279,7 @@ async function buildBusinessContext(messageHints?: string[]): Promise<string> {
     const [products, supplierPrices] = await Promise.all([
       prisma.product.findMany({
         where: { is_active: true },
-        select: { id: true, name: true, sku: true, retail_price: true, wholesale_price: true },
+        select: { id: true, name: true, sku: true, retail_price: true },
         take: 100,
       }),
       prisma.supplierPrice.findMany({
@@ -306,7 +306,7 @@ async function buildBusinessContext(messageHints?: string[]): Promise<string> {
     for (const p of products) {
       const sp = supplierPrices.filter((s) => s.product?.sku === p.sku && s.supplier?.is_active);
       const nccInfo = sp.map((s) => `${s.supplier.company_name}:${s.purchase_price}đ${s.is_preferred ? '⭐' : ''}`).join(', ');
-      lines.push(`${p.sku}|${p.name}|lẻ:${p.retail_price||'-'}|sỉ:${p.wholesale_price||'-'}|NCC:[${nccInfo || 'chưa có'}]`);
+      lines.push(`${p.sku}|${p.name}|giá tk:${p.retail_price||'-'}|NCC:[${nccInfo || 'chưa có'}]`);
     }
 
     // Customers — compact

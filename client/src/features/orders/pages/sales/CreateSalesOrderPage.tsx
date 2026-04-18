@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import apiClient from '@/lib/api-client';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, Form, Select, DatePicker, Input, InputNumber, Button, Space, Row, Col, Typography, Drawer, Avatar, Tag, Empty, Divider, message,
@@ -45,16 +47,41 @@ const CreateSalesOrderPage: React.FC = () => {
   const [productSearch, setProductSearch] = useState('');
   const [productCategory, setProductCategory] = useState('');
   const [productMaterial, setProductMaterial] = useState('');
+  const [productColor, setProductColor] = useState('');
+  const [productShape, setProductShape] = useState('');
+  const [productNeck, setProductNeck] = useState('');
+  const [capRange, setCapRange] = useState<[number | null, number | null]>([null, null]);
+  const [priceRange, setPriceRange] = useState<[number | null, number | null]>([null, null]);
 
   const { data: customersData } = useCustomers({ limit: 200 });
   const customers = (customersData?.data ?? []) as any[];
+  const selectedCustomerId = Form.useWatch('customer_id', form);
+
+  const { data: customerPricesData } = useQuery({
+    queryKey: ['customer-product-prices', selectedCustomerId],
+    queryFn: async () => apiClient.get('/customer-product-prices', { params: { customer_id: selectedCustomerId } }),
+    enabled: !!selectedCustomerId,
+  });
+  const customerPriceMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const list = (customerPricesData?.data as any)?.data || [];
+    list.forEach((cp: any) => map.set(cp.product_id, Number(cp.price)));
+    return map;
+  }, [customerPricesData]);
 
   const { data: productsData } = useProducts({
     limit: 50,
     search: productSearch || undefined,
     category_id: productCategory || undefined,
     material: productMaterial || undefined,
-  });
+    color: productColor || undefined,
+    shape: productShape || undefined,
+    neck_type: productNeck || undefined,
+    capacity_ml_min: capRange[0] ?? undefined,
+    capacity_ml_max: capRange[1] ?? undefined,
+    price_min: priceRange[0] ?? undefined,
+    price_max: priceRange[1] ?? undefined,
+  } as any);
   const products = (productsData?.data ?? []) as any[];
 
   const categories = [...new Map<string, any>(products.filter((p: any) => p.category?.id).map((p: any) => [p.category.id, p.category])).values()];
@@ -76,6 +103,7 @@ const CreateSalesOrderPage: React.FC = () => {
     const preferred = product.supplier_prices?.find((sp: any) => sp.is_preferred);
     const firstSupplier = product.supplier_prices?.[0];
     const supplier = preferred || firstSupplier;
+    const savedPrice = customerPriceMap.get(product.id);
 
     setItems((prev) =>
       prev.map((item) => {
@@ -84,7 +112,7 @@ const CreateSalesOrderPage: React.FC = () => {
           ...item,
           product_id: product.id,
           product,
-          unit_price: product.retail_price || product.wholesale_price || 0,
+          unit_price: savedPrice ?? (product.retail_price || 0),
           supplier_id: supplier?.supplier_id || undefined,
           supplier_name: supplier?.supplier?.company_name || undefined,
           purchase_price: supplier?.purchase_price || undefined,
@@ -122,17 +150,11 @@ const CreateSalesOrderPage: React.FC = () => {
       const values = await form.validateFields();
       const validItems = items.filter((item) => item.product_id);
 
-      if (validItems.length === 0) {
-        message.error(t('order.minOneItem'));
-        return;
-      }
-
-      // Check all items have valid products
-      const itemsWithoutProduct = items.filter(item => !item.product_id);
-      if (itemsWithoutProduct.length > 0) {
-        message.error(t('order.invalidProduct'));
-        return;
-      }
+      if (validItems.length === 0) { message.error(t('order.minOneItem')); return; }
+      if (items.some((item) => !item.product_id)) { message.error(t('order.invalidProduct')); return; }
+      if (items.some((item) => !item.customer_name?.trim())) { message.error(t('validation.customerProductNameRequired')); return; }
+      if (items.some((item) => !item.quantity || item.quantity <= 0)) { message.error(t('validation.qtyPositive')); return; }
+      if (items.some((item) => !item.unit_price || item.unit_price <= 0)) { message.error(t('validation.unitPricePositive')); return; }
 
       const shippingFee = values.shipping_fee || 0;
       const otherFee = values.other_fee || 0;
@@ -156,7 +178,11 @@ const CreateSalesOrderPage: React.FC = () => {
         })),
       };
       createMutation.mutate(payload, {
-        onSuccess: () => navigate('/sales-orders'),
+        onSuccess: (res: any) => {
+          const newId = res?.data?.id || res?.id;
+          if (newId) navigate(`/sales-orders/${newId}`);
+          else navigate('/sales-orders');
+        },
       });
     } catch {
       // validation
@@ -242,7 +268,16 @@ const CreateSalesOrderPage: React.FC = () => {
                         {item.product.capacity_ml && <Text type="secondary" style={{ fontSize: 11 }}>{item.product.capacity_ml}ml</Text>}
                       </Space>
                     </div>
-                    <Text type="success" strong>{formatVND(item.product.retail_price)}</Text>
+                    <div style={{ textAlign: 'right' }}>
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{t('product.retailPrice')}</Text>
+                      <Text strong style={{ fontSize: 13 }}>{formatVND(item.product.retail_price)}</Text>
+                      {customerPriceMap.has(item.product.id) && (
+                        <>
+                          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>{t('product.savedCustomerPrice')}</Text>
+                          <Text type="success" strong style={{ fontSize: 13 }}>{formatVND(customerPriceMap.get(item.product.id)!)}</Text>
+                        </>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', justifyContent: 'center', padding: 4 }}>
@@ -255,15 +290,15 @@ const CreateSalesOrderPage: React.FC = () => {
               {/* Form fields */}
               <Row gutter={[10, 10]}>
                 <Col xs={24} sm={12}>
-                  <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('order.customerProductName')}</div>
+                  <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('order.customerProductName')} <span style={{ color: '#ff4d4f' }}>*</span></div>
                   <Input value={item.customer_name} onChange={(e) => updateItem(item.key, 'customer_name', e.target.value)} placeholder={t('order.customerProductName')} style={{ borderRadius: 8 }} />
                 </Col>
                 <Col xs={12} sm={6}>
-                  <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('order.qty')}</div>
+                  <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('order.qty')} <span style={{ color: '#ff4d4f' }}>*</span></div>
                   <InputNumber min={1} value={item.quantity} onChange={(v) => updateItem(item.key, 'quantity', v || 1)} style={{ width: '100%', borderRadius: 8 }} />
                 </Col>
                 <Col xs={12} sm={6}>
-                  <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('order.unitPrice')}</div>
+                  <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('order.unitPrice')} <span style={{ color: '#ff4d4f' }}>*</span></div>
                   <InputNumber min={0} value={item.unit_price} onChange={(v) => updateItem(item.key, 'unit_price', v || 0)} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} parser={(v) => Number(v?.replace(/\./g, '') ?? 0) as any} style={{ width: '100%', borderRadius: 8 }} addonAfter="₫" />
                 </Col>
                 <Col xs={8} sm={4}>
@@ -330,12 +365,64 @@ const CreateSalesOrderPage: React.FC = () => {
       </Card>
 
       {/* Product Search Drawer */}
-      <Drawer title={t('order.searchProduct')} placement="right" width={window.innerWidth < 640 ? '100%' : 600} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <Drawer title={t('order.searchProduct')} placement="right" width={window.innerWidth < 640 ? '100%' : 620} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Input prefix={<SearchOutlined />} placeholder={t('order.searchProductPlaceholder')} value={productSearch} onChange={(e) => setProductSearch(e.target.value)} allowClear size="large" style={{ borderRadius: 8, marginBottom: 12 }} autoFocus />
-        <Space wrap style={{ marginBottom: 16, width: '100%' }}>
-          <Select value={productCategory} onChange={setProductCategory} placeholder={t('product.category')} allowClear style={{ minWidth: 160, borderRadius: 8 }} options={[{ label: t('common.all'), value: '' }, ...categories.map((c: any) => ({ label: c?.name, value: c?.id }))]} />
-          <Select value={productMaterial} onChange={setProductMaterial} placeholder={t('product.material')} allowClear style={{ minWidth: 120, borderRadius: 8 }} options={[{ label: t('common.all'), value: '' }, { label: 'PET', value: 'PET' }, { label: 'HDPE', value: 'HDPE' }, { label: 'PP', value: 'PP' }, { label: 'PVC', value: 'PVC' }]} />
+        <Row gutter={[8, 8]} style={{ marginBottom: 12 }}>
+          <Col xs={12}>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.category')}</div>
+            <Select value={productCategory} onChange={setProductCategory} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
+              options={categories.map((c: any) => ({ label: c?.name, value: c?.id }))} />
+          </Col>
+          <Col xs={12}>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.material')}</div>
+            <Select value={productMaterial} onChange={setProductMaterial} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
+              options={['PET', 'HDPE', 'LDPE', 'PP', 'PVC', 'PS', 'PC', 'OTHER'].map((v) => ({ label: v, value: v }))} />
+          </Col>
+          <Col xs={12}>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.color')}</div>
+            <Select value={productColor} onChange={setProductColor} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
+              options={['TRANSPARENT', 'WHITE', 'BLACK', 'BLUE', 'GREEN', 'RED', 'YELLOW', 'CUSTOM'].map((v) => ({ label: t(`colorLabels.${v}`, v), value: v }))} />
+          </Col>
+          <Col xs={12}>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.shape')}</div>
+            <Select value={productShape} onChange={setProductShape} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
+              options={['ROUND', 'SQUARE', 'OVAL', 'RECTANGLE', 'CUSTOM'].map((v) => ({ label: t(`shapeLabels.${v}`, v), value: v }))} />
+          </Col>
+          <Col xs={12}>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.neckType')}</div>
+            <Select value={productNeck} onChange={setProductNeck} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
+              options={['WIDE', 'NARROW', 'PUMP', 'SPRAY', 'SCREW', 'FLIP', 'CUSTOM'].map((v) => ({ label: t(`neckLabels.${v}`, v), value: v }))} />
+          </Col>
+          <Col xs={12}>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.capacity')} (ml)</div>
+            <Space.Compact style={{ width: '100%' }}>
+              <InputNumber min={0} placeholder={t('common.min')} value={capRange[0]}
+                onChange={(v) => setCapRange([v ?? null, capRange[1]])} style={{ width: '50%' }} />
+              <InputNumber min={0} placeholder={t('common.max')} value={capRange[1]}
+                onChange={(v) => setCapRange([capRange[0], v ?? null])} style={{ width: '50%' }} />
+            </Space.Compact>
+          </Col>
+          <Col xs={24}>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.retailPrice')} (VND)</div>
+            <Space.Compact style={{ width: '100%' }}>
+              <InputNumber min={0} placeholder={t('common.min')} value={priceRange[0]} style={{ width: '50%' }}
+                formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                parser={(v) => Number(v?.replace(/\./g, '') ?? 0) as any}
+                onChange={(v) => setPriceRange([v ?? null, priceRange[1]])} />
+              <InputNumber min={0} placeholder={t('common.max')} value={priceRange[1]} style={{ width: '50%' }}
+                formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                parser={(v) => Number(v?.replace(/\./g, '') ?? 0) as any}
+                onChange={(v) => setPriceRange([priceRange[0], v ?? null])} />
+            </Space.Compact>
+          </Col>
+        </Row>
+        <Space style={{ marginBottom: 12, width: '100%', justifyContent: 'space-between' }}>
           <Text type="secondary">{products.length} {t('product.results')}</Text>
+          <Button size="small" type="link" onClick={() => {
+            setProductSearch(''); setProductCategory(''); setProductMaterial('');
+            setProductColor(''); setProductShape(''); setProductNeck('');
+            setCapRange([null, null]); setPriceRange([null, null]);
+          }}>{t('common.reset')}</Button>
         </Space>
         {products.length === 0 ? <Empty description={t('common.noData')} /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -353,8 +440,16 @@ const CreateSalesOrderPage: React.FC = () => {
                       {product.capacity_ml && <Text type="secondary">{product.capacity_ml}ml</Text>}
                     </Space>
                     <div style={{ marginTop: 4 }}>
-                      <Text type="success" strong>{formatVND(product.retail_price)}</Text>
-                      {product.wholesale_price && <Text type="secondary" style={{ marginLeft: 8 }}>Sỉ: {formatVND(product.wholesale_price)}</Text>}
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{t('product.retailPrice')}: </Text>
+                        <Text strong>{formatVND(product.retail_price)}</Text>
+                      </div>
+                      {customerPriceMap.has(product.id) && (
+                        <div style={{ marginTop: 2 }}>
+                          <Text type="secondary" style={{ fontSize: 11 }}>{t('product.savedCustomerPrice')}: </Text>
+                          <Text type="success" strong>{formatVND(customerPriceMap.get(product.id)!)}</Text>
+                        </div>
+                      )}
                     </div>
                   </Col>
                 </Row>

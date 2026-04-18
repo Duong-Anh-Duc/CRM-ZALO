@@ -379,6 +379,13 @@ export class SalesOrderService {
     });
 
     await this.recalculateTotals(salesOrderId);
+    if (order.customer_id && input.product_id && input.unit_price > 0) {
+      await prisma.customerProductPrice.upsert({
+        where: { customer_id_product_id: { customer_id: order.customer_id, product_id: input.product_id } },
+        update: { price: input.unit_price },
+        create: { customer_id: order.customer_id, product_id: input.product_id, price: input.unit_price },
+      }).catch(() => null);
+    }
     return item;
   }
 
@@ -399,7 +406,7 @@ export class SalesOrderService {
     return { deleted: true };
   }
 
-  static async updateItem(salesOrderId: string, itemId: string, input: { supplier_id?: string; purchase_price?: number; quantity?: number; unit_price?: number; discount_pct?: number }) {
+  static async updateItem(salesOrderId: string, itemId: string, input: { supplier_id?: string; purchase_price?: number; quantity?: number; unit_price?: number; discount_pct?: number; customer_product_name?: string; vat_rate?: number }) {
     const order = await prisma.salesOrder.findUnique({ where: { id: salesOrderId } });
     if (!order) throw new AppError(t('order.salesNotFound'), 404);
     if (order.status !== 'DRAFT') throw new AppError(t('order.onlyEditDraft'), 400);
@@ -413,6 +420,8 @@ export class SalesOrderService {
     if (input.quantity !== undefined) updateData.quantity = input.quantity;
     if (input.unit_price !== undefined) updateData.unit_price = input.unit_price;
     if (input.discount_pct !== undefined) updateData.discount_pct = input.discount_pct;
+    if (input.customer_product_name !== undefined) updateData.customer_product_name = input.customer_product_name || null;
+    if (input.vat_rate !== undefined) updateData.vat_rate = input.vat_rate;
 
     // Recalculate line_total if qty/price/discount changed
     const qty = input.quantity ?? item.quantity;
@@ -430,6 +439,13 @@ export class SalesOrderService {
     });
 
     await this.recalculateTotals(salesOrderId);
+    if (input.unit_price !== undefined && order.customer_id && updated.product_id && input.unit_price > 0) {
+      await prisma.customerProductPrice.upsert({
+        where: { customer_id_product_id: { customer_id: order.customer_id, product_id: updated.product_id } },
+        update: { price: input.unit_price },
+        create: { customer_id: order.customer_id, product_id: updated.product_id, price: input.unit_price },
+      }).catch(() => null);
+    }
     return updated;
   }
 

@@ -13,6 +13,14 @@ interface ProductFilters {
   material?: PlasticMaterial;
   supplier_id?: string;
   is_active?: boolean;
+  color?: string;
+  shape?: string;
+  neck_type?: string;
+  capacity_ml_min?: number;
+  capacity_ml_max?: number;
+  price_min?: number;
+  price_max?: number;
+  industry?: string;
 }
 
 export class ProductService {
@@ -23,9 +31,14 @@ export class ProductService {
   static async list(filters: ProductFilters) {
     const page = Number(filters.page) || 1;
     const limit = Number(filters.limit) || 20;
-    const { search, category_id, material, supplier_id, is_active = true } = filters;
+    const { search, category_id, material, supplier_id, is_active = true, color, shape, neck_type, capacity_ml_min, capacity_ml_max, price_min, price_max, industry } = filters;
 
-    const where = {
+    const capMin = capacity_ml_min != null ? Number(capacity_ml_min) : undefined;
+    const capMax = capacity_ml_max != null ? Number(capacity_ml_max) : undefined;
+    const priceMin = price_min != null ? Number(price_min) : undefined;
+    const priceMax = price_max != null ? Number(price_max) : undefined;
+
+    const where: any = {
       is_active,
       ...(search && {
         OR: [
@@ -36,7 +49,23 @@ export class ProductService {
       }),
       ...(category_id && { category_id }),
       ...(material && { material }),
+      ...(color && { color }),
+      ...(shape && { shape }),
+      ...(neck_type && { neck_type }),
       ...(supplier_id && { supplier_prices: { some: { supplier_id } } }),
+      ...((capMin != null || capMax != null) && {
+        capacity_ml: {
+          ...(capMin != null && { gte: capMin }),
+          ...(capMax != null && { lte: capMax }),
+        },
+      }),
+      ...((priceMin != null || priceMax != null) && {
+        retail_price: {
+          ...(priceMin != null && { gte: priceMin }),
+          ...(priceMax != null && { lte: priceMax }),
+        },
+      }),
+      ...(industry && { industries: { has: industry } }),
     };
 
     const [products, total] = await Promise.all([
@@ -262,7 +291,7 @@ export class ProductService {
     if (!query.trim()) return [];
     return prisma.productAlias.findMany({
       where: { alias: { contains: query.trim(), mode: 'insensitive' } },
-      include: { product: { select: { id: true, sku: true, name: true, retail_price: true, wholesale_price: true, images: { take: 1 } } } },
+      include: { product: { select: { id: true, sku: true, name: true, retail_price: true, images: { take: 1 } } } },
       take: 10,
     });
   }

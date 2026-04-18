@@ -7,4 +7,5 @@ export const recordPaymentSchema = z.object({
   payment_date: z.string().optional(),
   method: z.enum(['CASH', 'BANK_TRANSFER', 'OTHER'], { message: t('validation.paymentMethodRequired') }),
   reference: z.string().optional(),
+  evidence_url: z.string().optional(),
 });

@@ -221,11 +221,9 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
       label: t('product.pricing'),
       children: (
         <>
-          {(['retail_price', 'wholesale_price'] as const).map((field) => (
-            <Form.Item key={field} name={field} label={field === 'retail_price' ? t('product.retailPriceVnd') : t('product.wholesalePriceVnd')}>
-              <InputNumber min={0} style={{ ...fieldStyle, width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0} />
-            </Form.Item>
-          ))}
+          <Form.Item name="retail_price" label={t('product.retailPriceVnd')}>
+            <InputNumber min={0} style={{ ...fieldStyle, width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0} />
+          </Form.Item>
           <Form.Item label={t('product.priceTiers')}>
             <Form.List name="price_tiers">
               {(fields, { add, remove }) => (

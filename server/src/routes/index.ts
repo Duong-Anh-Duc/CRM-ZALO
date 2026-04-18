@@ -19,6 +19,8 @@ import cashBookRoutes from '../modules/cash-book/cash-book.routes';
 import chatbotRoutes from '../modules/ai/chatbot.route';
 import payrollRoutes from '../modules/payroll/payroll.routes';
 import uploadRoutes from '../modules/upload/upload.route';
+import supplierPriceRoutes from '../modules/supplier-price/supplier-price.route';
+import customerProductPriceRoutes from '../modules/customer-product-price/customer-product-price.route';
 
 const router = Router();
 
@@ -44,5 +46,7 @@ router.use('/cash-book', cashBookRoutes);
 router.use('/chatbot', chatbotRoutes);
 router.use('/payroll', payrollRoutes);
 router.use('/upload', uploadRoutes);
+router.use('/supplier-prices', supplierPriceRoutes);
+router.use('/customer-product-prices', customerProductPriceRoutes);
 
 export default router;

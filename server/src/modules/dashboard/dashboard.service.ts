@@ -33,6 +33,7 @@ export class DashboardService {
       payrollSummary,
       cashFlowByMonth,
       orderTrend,
+      expenseByCategory,
     ] = await Promise.all([
       this.getReceivableSummary(),
       this.getPayableSummary(),
@@ -49,6 +50,7 @@ export class DashboardService {
       this.getPayrollSummary(),
       this.getCashFlowByMonth(fromDate, toDate),
       this.getOrderTrend(fromDate, toDate),
+      this.getExpenseByCategory(fromDate, toDate),
     ]);
 
     return {
@@ -67,7 +69,24 @@ export class DashboardService {
       payroll_summary: payrollSummary,
       cash_flow: cashFlowByMonth,
       order_trend: orderTrend,
+      expense_by_category: expenseByCategory,
     };
+  }
+
+  // ─── Expense grouped by category ─────────────────────
+  private static async getExpenseByCategory(fromDate: Date, toDate: Date) {
+    const transactions = await prisma.cashTransaction.findMany({
+      where: { type: 'EXPENSE', date: { gte: fromDate, lte: toDate } },
+      include: { category: { select: { name: true } } },
+    });
+    const map = new Map<string, number>();
+    for (const tx of transactions) {
+      const name = tx.category?.name || 'Khác';
+      map.set(name, (map.get(name) || 0) + Number(tx.amount));
+    }
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   }
 
   private static async getReceivableSummary() {

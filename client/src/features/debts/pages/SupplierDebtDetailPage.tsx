@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Table, Typography, Space, Row, Col, Statistic, Spin, Empty, Button, Tag, Input, Select, Tooltip, Modal, Tabs, Descriptions, Image, Upload } from 'antd';
-import { DollarOutlined, ArrowLeftOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, UserOutlined, WarningOutlined, SearchOutlined, UnorderedListOutlined, DownloadOutlined, FilePdfOutlined, EyeOutlined, InboxOutlined } from '@ant-design/icons';
+import { Card, Table, Typography, Space, Row, Col, Statistic, Spin, Empty, Button, Tag, Input, Select, Tooltip, Modal, Tabs, Descriptions, Image, DatePicker } from 'antd';
+import { DollarOutlined, ArrowLeftOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, UserOutlined, WarningOutlined, SearchOutlined, UnorderedListOutlined, DownloadOutlined, FilePdfOutlined, EyeOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer } from 'recharts';
-import { useQueryClient } from '@tanstack/react-query';
 import { useSupplierDebtDetail } from '../hooks';
 import { payableApi } from '../api';
 import { formatVND, formatDate } from '@/utils/format';
@@ -21,7 +20,6 @@ const SupplierDebtDetailPage: React.FC = () => {
   const { t } = useTranslation();
   const { supplierId } = useParams<{ supplierId: string }>();
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const [showPayment, setShowPayment] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
@@ -31,6 +29,7 @@ const SupplierDebtDetailPage: React.FC = () => {
   const [paymentDetail, setPaymentDetail] = useState<any>(null);
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
   const [activeTab, setActiveTab] = useState('invoices');
+  const [paymentDateRange, setPaymentDateRange] = useState<[any, any] | null>([dayjs().startOf('month'), dayjs().endOf('month')]);
 
   const { data, isLoading } = useSupplierDebtDetail(supplierId);
   const detail = data?.data as any;
@@ -83,6 +82,16 @@ const SupplierDebtDetailPage: React.FC = () => {
     ).sort((a: any, b: any) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
   }, [detail]);
 
+  const filteredPayments = useMemo(() => {
+    if (!paymentDateRange?.[0] || !paymentDateRange?.[1]) return allPayments;
+    const from = paymentDateRange[0].startOf('day');
+    const to = paymentDateRange[1].endOf('day');
+    return allPayments.filter((p: any) => {
+      const d = dayjs(p.payment_date);
+      return d.isAfter(from) && d.isBefore(to) || d.isSame(from) || d.isSame(to);
+    });
+  }, [allPayments, paymentDateRange]);
+
   const handleExport = async (type: 'pdf' | 'excel') => {
     if (!supplierId) return;
     setExporting(type);
@@ -94,17 +103,6 @@ const SupplierDebtDetailPage: React.FC = () => {
       a.download = `cong-no-${detail?.supplier?.company_name || supplierId}.${type === 'pdf' ? 'pdf' : 'xlsx'}`;
       a.click(); URL.revokeObjectURL(url);
     } catch { toast.error(t('common.error')); } finally { setExporting(null); }
-  };
-
-  const handleUploadEvidence = async (paymentId: string, file: File) => {
-    try {
-      const { uploadFile } = await import('@/utils/upload');
-      const url = await uploadFile(file, 'evidence');
-      await payableApi.updatePaymentEvidence(paymentId, url);
-      toast.success(t('common.saved'));
-      qc.invalidateQueries({ queryKey: ['supplier-debt'] });
-      setPaymentDetail(null);
-    } catch (err: any) { toast.error(err?.response?.data?.message || t('common.error')); }
   };
 
   if (isLoading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
@@ -197,10 +195,18 @@ const SupplierDebtDetailPage: React.FC = () => {
                 locale={{ emptyText: <Empty description={t('common.noData')} /> }} />
             </>
           )},
-          { key: 'payments', label: `${t('debt.paymentHistory')} (${allPayments.length})`, children: (
-            <Table dataSource={allPayments} columns={paymentColumns} rowKey="id" size="small" scroll={{ x: 'max-content' }}
-              pagination={allPayments.length > 10 ? { pageSize: 10, showSizeChanger: true, pageSizeOptions: ['5', '10', '20'] } : false}
-              locale={{ emptyText: <Empty description={t('common.noData')} /> }} />
+          { key: 'payments', label: `${t('debt.paymentHistory')} (${filteredPayments.length})`, children: (
+            <>
+              <Space wrap style={{ marginBottom: 12, width: '100%' }}>
+                <DatePicker.RangePicker value={paymentDateRange as any} format="DD/MM/YYYY" style={{ borderRadius: 8 }}
+                  onChange={(d) => setPaymentDateRange(d as any)} placeholder={[t('common.fromDate'), t('common.toDate')]} />
+                <Button size="small" onClick={() => setPaymentDateRange([dayjs().startOf('month'), dayjs().endOf('month')])}>{t('common.thisMonth')}</Button>
+                <Button size="small" onClick={() => setPaymentDateRange(null)}>{t('common.all')}</Button>
+              </Space>
+              <Table dataSource={filteredPayments} columns={paymentColumns} rowKey="id" size="small" scroll={{ x: 'max-content' }}
+                pagination={filteredPayments.length > 10 ? { pageSize: 10, showSizeChanger: true, pageSizeOptions: ['5', '10', '20'] } : false}
+                locale={{ emptyText: <Empty description={t('common.noData')} /> }} />
+            </>
           )},
         ]} />
       </Card>
@@ -237,17 +243,9 @@ const SupplierDebtDetailPage: React.FC = () => {
             {paymentDetail.reference && <Descriptions.Item label={t('payment.reference')}>{paymentDetail.reference}</Descriptions.Item>}
             <Descriptions.Item label={t('cashBook.evidence')}>
               {paymentDetail.evidence_url ? (
-                <Image src={paymentDetail.evidence_url} style={{ maxHeight: 200, borderRadius: 8 }} />
+                <Image src={paymentDetail.evidence_url} style={{ maxHeight: 200, borderRadius: 8 }} preview={{ mask: t('common.viewDetail') }} />
               ) : (
-                <Upload.Dragger
-                  accept="image/*,.pdf"
-                  showUploadList={false}
-                  beforeUpload={(file) => { handleUploadEvidence(paymentDetail.id, file); return false; }}
-                  style={{ borderRadius: 8 }}
-                >
-                  <p className="ant-upload-drag-icon"><InboxOutlined style={{ fontSize: 32, color: '#1677ff' }} /></p>
-                  <p className="ant-upload-text" style={{ fontSize: 13 }}>{t('debt.uploadEvidence')}</p>
-                </Upload.Dragger>
+                <Text type="secondary">—</Text>
               )}
             </Descriptions.Item>
           </Descriptions>

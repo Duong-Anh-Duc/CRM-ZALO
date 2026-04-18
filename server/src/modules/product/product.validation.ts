@@ -18,7 +18,6 @@ export const createProductSchema = z.object({
   pcs_per_carton: z.number().int().positive().optional(),
   moq: z.number().int().positive().optional(),
   retail_price: z.number().positive(t('validation.retailPricePositive')).optional(),
-  wholesale_price: z.number().positive(t('validation.wholesalePricePositive')).optional(),
   category_id: z.string().optional(),
   description: z.string().optional(),
   is_active: z.boolean().optional(),

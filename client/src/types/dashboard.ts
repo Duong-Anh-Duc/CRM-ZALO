@@ -16,6 +16,7 @@ export interface DashboardOverview {
   payroll_summary: { year: number; month: number; status: string; total_gross: number; total_ins_employee: number; total_ins_employer: number; total_pit: number; total_net: number; employee_count: number } | null;
   cash_flow: Array<{ month: string; income_total: number; expense_total: number }>;
   order_trend: Array<{ month: string; count: number }>;
+  expense_by_category: Array<{ name: string; value: number }>;
 }
 
 export interface Alert {

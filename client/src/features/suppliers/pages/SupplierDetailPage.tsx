@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Spin, Table, Tag, Typography, Space, Empty, Row, Col, Avatar, Button, Input, Select, Statistic, Tabs, Tooltip, Modal } from 'antd';
-import { PhoneOutlined, MailOutlined, UserOutlined, AuditOutlined, EnvironmentOutlined, ClockCircleOutlined, SearchOutlined, WarningOutlined, HistoryOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { PhoneOutlined, MailOutlined, UserOutlined, AuditOutlined, EnvironmentOutlined, ClockCircleOutlined, SearchOutlined, WarningOutlined, HistoryOutlined, FilePdfOutlined, WalletOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useSupplier } from '../hooks';
 import { StatusTag } from '@/components/common';
@@ -175,7 +175,8 @@ const SupplierDetailPage: React.FC = () => {
       </Row>
 
       {/* Thông tin NCC */}
-      <Card title={t('supplier.info')} style={{ borderRadius: 12, marginBottom: 16 }}>
+      <Card title={t('supplier.info')} style={{ borderRadius: 12, marginBottom: 16 }}
+        extra={<Button type="primary" icon={<WalletOutlined />} style={{ borderRadius: 8 }} onClick={() => navigate(`/payables/supplier/${supplier.id}`)}>{t('debt.viewDebt')}</Button>}>
         <Space size={16} style={{ marginBottom: 20 }}>
           <Avatar size={56} style={{ background: '#722ed1', fontSize: 20, fontWeight: 600 }}>{initials}</Avatar>
           <div>

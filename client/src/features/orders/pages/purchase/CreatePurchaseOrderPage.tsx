@@ -71,7 +71,7 @@ const CreatePurchaseOrderPage: React.FC = () => {
           ...item,
           product_id: product.id,
           product,
-          unit_price: product.wholesale_price || product.retail_price || 0,
+          unit_price: product.retail_price || 0,
         };
       })
     );
@@ -298,7 +298,7 @@ const CreatePurchaseOrderPage: React.FC = () => {
                       {product.capacity_ml && <Text type="secondary">{product.capacity_ml}ml</Text>}
                     </Space>
                     <div style={{ marginTop: 4 }}>
-                      <Text type="success" strong>{formatVND(product.wholesale_price || product.retail_price)}</Text>
+                      <Text type="success" strong>{formatVND(product.retail_price)}</Text>
                     </div>
                   </Col>
                 </Row>

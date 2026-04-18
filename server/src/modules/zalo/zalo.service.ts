@@ -747,7 +747,7 @@ export class ZaloService {
         } else if (action.type === 'create_order_suggestion') {
           const d = action.data;
           // Match products
-          const products = await prisma.product.findMany({ where: { is_active: true }, select: { id: true, name: true, sku: true, wholesale_price: true } });
+          const products = await prisma.product.findMany({ where: { is_active: true }, select: { id: true, name: true, sku: true, retail_price: true } });
           const matchedItems: any[] = [];
           for (const item of (d.items || [])) {
             const search = item.product_name.toLowerCase();
@@ -760,7 +760,7 @@ export class ZaloService {
                 product_id: matched.id,
                 product_name: matched.name,
                 quantity: item.quantity,
-                unit_price: item.unit_price || Number(matched.wholesale_price) || 0,
+                unit_price: item.unit_price || Number(matched.retail_price) || 0,
               });
             }
           }
@@ -858,7 +858,7 @@ export class ZaloService {
           // Match products + suppliers
           const products = await prisma.product.findMany({
             where: { is_active: true },
-            select: { id: true, name: true, sku: true, wholesale_price: true, retail_price: true },
+            select: { id: true, name: true, sku: true, retail_price: true },
           });
           const supplierPrices = await prisma.supplierPrice.findMany({
             include: { supplier: { select: { id: true, company_name: true } } },
@@ -890,7 +890,7 @@ export class ZaloService {
                 product_id: matched.id,
                 supplier_id: supplierId,
                 quantity: item.quantity,
-                unit_price: item.unit_price || Number(matched.wholesale_price) || Number(matched.retail_price) || 0,
+                unit_price: item.unit_price || Number(matched.retail_price) || 0,
                 purchase_price: purchasePrice,
                 customer_product_name: item.product_name || undefined,
               });
@@ -1069,7 +1069,7 @@ export class ZaloService {
             data: {
               sku, name: d.name, category_id: categoryId, description: d.description || '',
               material: d.material || null, retail_price: d.retail_price || null,
-              wholesale_price: d.wholesale_price || null, moq: d.moq || null,
+              moq: d.moq || null,
             },
           });
           results.push({ success: true, message: t("aiAction.productCreated", { name: product.name, sku: product.sku }) });
@@ -1080,7 +1080,7 @@ export class ZaloService {
           if (!product) { results.push({ success: false, message: t("aiAction.productNotFound", { name: d.product_name }) }); continue; }
           const u = d.updates || {};
           const updates: any = {};
-          for (const k of ['retail_price', 'wholesale_price', 'moq', 'description', 'name']) {
+          for (const k of ['retail_price', 'moq', 'description', 'name']) {
             if (u[k] !== undefined) updates[k] = u[k];
           }
           await prisma.product.update({ where: { id: product.id }, data: updates });

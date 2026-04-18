@@ -19,7 +19,7 @@ const PurchaseOrderFormModal: React.FC<PurchaseOrderFormModalProps> = ({ open, o
   const products = productsData?.data ?? [];
 
   const supplierOptions = suppliers.map((s: any) => ({ label: s.company_name, value: s.id }));
-  const productOptions = products.map((p: any) => ({ label: `${p.sku} - ${p.name}`, value: p.id, price: p.wholesale_price || 0 }));
+  const productOptions = products.map((p: any) => ({ label: `${p.sku} - ${p.name}`, value: p.id, price: p.retail_price || 0 }));
 
   const handleSubmit = async () => {
     try {
@@ -46,7 +46,7 @@ const PurchaseOrderFormModal: React.FC<PurchaseOrderFormModalProps> = ({ open, o
     const product = products.find((p: any) => p.id === productId);
     if (product) {
       const items = form.getFieldValue('items') || [];
-      items[fieldName] = { ...items[fieldName], unit_price: (product as any).wholesale_price || 0 };
+      items[fieldName] = { ...items[fieldName], unit_price: (product as any).retail_price || 0 };
       form.setFieldsValue({ items });
     }
   };

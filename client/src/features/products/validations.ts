@@ -41,7 +41,6 @@ export const productSchema = z.object({
     .positive({ message: i18n.t('validation.moqPositive') })
     .optional(),
   retail_price: z.number().positive({ message: i18n.t('validation.retailPricePositive') }).optional(),
-  wholesale_price: z.number().positive({ message: i18n.t('validation.wholesalePricePositive') }).optional(),
 });
 
 export const priceTierSchema = z.object({

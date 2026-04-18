@@ -59,7 +59,6 @@ export interface Product {
   safety_standards: SafetyStandard[];
   moq?: number;
   retail_price?: number;
-  wholesale_price?: number;
   catalog_pdf_url?: string;
   is_active: boolean;
   images: ProductImage[];

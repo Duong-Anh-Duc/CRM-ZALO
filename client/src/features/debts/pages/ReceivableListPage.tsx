@@ -33,7 +33,7 @@ const ReceivableListPage: React.FC = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState('OUTSTANDING');
   const [search, setSearch] = useState('');
-  const [period, setPeriod] = useState('all');
+  const [period, setPeriod] = useState('thisMonth');
   const [customRange, setCustomRange] = useState<[any, any] | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);

@@ -66,6 +66,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const handleOk = () => {
     form.validateFields().then((values) => {
+      if (!evidenceUrl) { message.error(t('payment.evidenceRequired')); return; }
       mutation.mutate(values);
     });
   };
@@ -117,7 +118,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           <Input placeholder={t('payment.referencePlaceholder')} style={{ borderRadius: 8 }} />
         </Form.Item>
 
-        <Form.Item label={t('payment.evidence')}>
+        <Form.Item label={<span>{t('payment.evidence')} <span style={{ color: '#ff4d4f' }}>*</span></span>} required validateStatus={!evidenceUrl ? undefined : 'success'}>
           {evidenceUrl ? (
             <div style={{ textAlign: 'center' }}>
               <img src={evidenceUrl} alt="evidence" style={{ maxHeight: 120, borderRadius: 8, marginBottom: 8 }} />

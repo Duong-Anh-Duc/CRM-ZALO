@@ -293,25 +293,21 @@ const DashboardPage: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Row 6: Payroll trend + Upcoming deliveries */}
+      {/* Row 6: Expense by category + Upcoming deliveries */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} sm={12}>
-          <Card title={`${t('dashboard.payrollSummary')}${d.payroll_summary ? ` — T${d.payroll_summary.month}/${d.payroll_summary.year}` : ''}`} style={cardStyle}>
-            {d.payroll_summary ? (
+          <Card title={t('dashboard.expenseByCategory')} style={cardStyle}>
+            {d.expense_by_category?.length ? (
               <ResponsiveContainer width="100%" height={CH}>
-                <BarChart data={[
-                  { name: t('payroll.grossSalary'), value: d.payroll_summary.total_gross || 0, fill: '#1890ff' },
-                  { name: t('payroll.insuranceEmployee'), value: d.payroll_summary.total_ins_employee || 0, fill: '#fa8c16' },
-                  { name: t('payroll.pit'), value: d.payroll_summary.total_pit || 0, fill: '#ff4d4f' },
-                  { name: t('payroll.netSalary'), value: d.payroll_summary.total_net || 0, fill: '#52c41a' },
-                  { name: t('payroll.insuranceEmployer'), value: d.payroll_summary.total_ins_employer || 0, fill: '#722ed1' },
-                ]} layout="vertical" margin={{ left: 10 }}>
+                <BarChart data={d.expense_by_category.slice(0, 8)} layout="vertical" margin={{ left: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" tickFormatter={(v) => (v / 1000000).toFixed(0) + 'M'} />
-                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: any) => [formatVND(v), null]} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                    {[0,1,2,3,4].map(i => <Cell key={i} fill={['#1890ff','#fa8c16','#ff4d4f','#52c41a','#722ed1'][i]} />)}
+                    {(d.expense_by_category as any[]).slice(0, 8).map((_: any, i: number) => (
+                      <Cell key={i} fill={['#ff4d4f', '#fa8c16', '#faad14', '#722ed1', '#13c2c2', '#eb2f96', '#2f54eb', '#a0d911'][i % 8]} />
+                    ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
