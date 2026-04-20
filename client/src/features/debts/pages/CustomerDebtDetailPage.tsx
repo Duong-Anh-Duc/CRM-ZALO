@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Table, Typography, Space, Row, Col, Statistic, Spin, Empty, Button, Tag, Input, Switch, Tooltip, Modal, Tabs, Descriptions, Image, DatePicker, Progress } from 'antd';
-import { DollarOutlined, ArrowLeftOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, SearchOutlined, UnorderedListOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { Card, Table, Typography, Space, Row, Col, Statistic, Spin, Empty, Button, Tag, Input, Switch, Tooltip, Modal, DatePicker, Progress } from 'antd';
+import { DollarOutlined, ArrowLeftOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, SearchOutlined, UnorderedListOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer } from 'recharts';
 import { useCustomerDebtDetail } from '../hooks';
@@ -26,13 +26,10 @@ const CustomerDebtDetailPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [modalData, setModalData] = useState<{ type: 'items'; record: any } | null>(null);
-  const [paymentDetail, setPaymentDetail] = useState<any>(null);
   const [exporting, setExporting] = useState<'pdf' | 'excel' | 'preview' | 'preview-excel' | null>(null);
   const [preview, setPreview] = useState<{ type: 'pdf'; url: string } | { type: 'excel'; html: string } | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('invoices');
-  const [paymentDateRange, setPaymentDateRange] = useState<[any, any] | null>([dayjs().startOf('month'), dayjs().endOf('month')]);
-  const [invoiceDateRange, setInvoiceDateRange] = useState<[any, any] | null>(null);
+  const [invoiceDateRange, setInvoiceDateRange] = useState<[any, any] | null>([dayjs().startOf('month'), dayjs().endOf('month')]);
 
   const { data, isLoading } = useCustomerDebtDetail(customerId);
   const detail = data?.data as any;
@@ -62,6 +59,25 @@ const CustomerDebtDetailPage: React.FC = () => {
     return list;
   }, [detail, search, onlyUnpaid, invoiceDateRange]);
 
+  const totals = useMemo(() => {
+    return filteredReceivables.reduce(
+      (acc, r: any) => ({
+        original: acc.original + Number(r.original_amount),
+        paid: acc.paid + (Number(r.original_amount) - Number(r.remaining)),
+        remaining: acc.remaining + Number(r.remaining),
+      }),
+      { original: 0, paid: 0, remaining: 0 },
+    );
+  }, [filteredReceivables]);
+
+  const openingBalance = useMemo(() => {
+    if (!detail || !invoiceDateRange?.[0]) return 0;
+    const from = invoiceDateRange[0].startOf('day');
+    return (detail.receivables as any[])
+      .filter((r: any) => dayjs(r.invoice_date).isBefore(from, 'day'))
+      .reduce((s, r: any) => s + Number(r.remaining), 0);
+  }, [detail, invoiceDateRange]);
+
   const chartData = useMemo(() => {
     if (!detail) return [];
     const receivables = detail.receivables as any[];
@@ -86,24 +102,6 @@ const CustomerDebtDetailPage: React.FC = () => {
       return { date: dayjs(key).format('MM/YYYY'), remaining: Math.max(0, cumDebt - cumPaid) };
     });
   }, [detail]);
-
-  // Flatten all payments
-  const allPayments = useMemo(() => {
-    if (!detail) return [];
-    return (detail.receivables as any[]).flatMap((r: any) =>
-      (r.payments || []).map((p: any) => ({ ...p, invoice_number: r.invoice_number }))
-    ).sort((a: any, b: any) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
-  }, [detail]);
-
-  const filteredPayments = useMemo(() => {
-    if (!paymentDateRange?.[0] || !paymentDateRange?.[1]) return allPayments;
-    const from = paymentDateRange[0].startOf('day');
-    const to = paymentDateRange[1].endOf('day');
-    return allPayments.filter((p: any) => {
-      const d = dayjs(p.payment_date);
-      return d.isAfter(from) && d.isBefore(to) || d.isSame(from) || d.isSame(to);
-    });
-  }, [allPayments, paymentDateRange]);
 
   const handleExport = async (action: 'excel' | 'pdf' | 'preview' | 'preview-excel', range: { from_date?: string; to_date?: string }) => {
     if (!customerId) return;
@@ -152,19 +150,8 @@ const CustomerDebtDetailPage: React.FC = () => {
     { title: t('debt.invoiceNumber'), dataIndex: 'invoice_number', key: 'invoice_number', width: 130 },
     { title: t('order.orderCode'), key: 'order_code', width: 160, responsive: ['md'] as any, render: (_: any, rec: any) => rec.sales_order ? <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/sales-orders/${rec.sales_order.id}`)}>{rec.sales_order.order_code}</Button> : '-' },
     { title: t('debt.invoiceDate'), dataIndex: 'invoice_date', key: 'invoice_date', width: 110, render: (v: string) => formatDate(v) },
-    { title: t('debt.originalAmount'), dataIndex: 'original_amount', key: 'original_amount', width: 140, align: 'right' as const, render: (v: number) => formatVND(v) },
-    { title: t('debt.remaining'), dataIndex: 'remaining', key: 'remaining', width: 140, align: 'right' as const, render: (v: number) => <Text strong style={{ color: v > 0 ? '#cf1322' : '#52c41a' }}>{formatVND(v)}</Text> },
+    { title: t('debt.contractValueShort'), dataIndex: 'original_amount', key: 'original_amount', width: 140, align: 'right' as const, render: (v: number) => formatVND(v) },
     { title: '', key: 'actions', width: 50, align: 'center' as const, fixed: 'right' as const, render: (_: any, rec: any) => rec.sales_order?.items?.length > 0 ? <Tooltip title={t('order.productDetails')}><Button type="text" size="small" icon={<UnorderedListOutlined />} style={{ color: '#1677ff' }} onClick={() => setModalData({ type: 'items', record: rec })} /></Tooltip> : null },
-  ];
-
-  const paymentColumns: any[] = [
-    { title: 'STT', key: 'stt', width: 50, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
-    { title: t('payment.paymentDate'), dataIndex: 'payment_date', key: 'date', width: 120, render: formatDate },
-    { title: t('common.amount'), dataIndex: 'amount', key: 'amount', width: 150, align: 'right' as const, render: (v: number) => <Text strong style={{ color: '#52c41a' }}>{formatVND(v)}</Text> },
-    { title: t('payment.method'), dataIndex: 'method', key: 'method', width: 140, render: (v: string) => <Tag style={{ borderRadius: 4 }}>{v === 'BANK_TRANSFER' ? t('payment.methodBankTransfer') : v === 'CASH' ? t('payment.methodCash') : v}</Tag> },
-    { title: t('payment.reference'), dataIndex: 'reference', key: 'ref', ellipsis: true, render: (v: string) => v || '-' },
-    { title: t('cashBook.evidence'), key: 'evidence', width: 90, align: 'center' as const, render: (_: any, rec: any) => rec.evidence_url ? <Tag color="green" style={{ borderRadius: 4 }}>{t('common.yes')}</Tag> : <Tag style={{ borderRadius: 4 }}>{t('common.no')}</Tag> },
-    { title: '', key: 'actions', width: 50, align: 'center' as const, render: (_: any, rec: any) => <Tooltip title={t('common.viewDetail')}><Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }} onClick={() => setPaymentDetail(rec)} /></Tooltip> },
   ];
 
   return (
@@ -221,38 +208,76 @@ const CustomerDebtDetailPage: React.FC = () => {
         </Card>
       )}
 
-      <Card style={cardStyle}>
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-          { key: 'invoices', label: `${t('debt.invoiceList')} (${filteredReceivables.length})`, children: (
-            <>
-              <Space wrap style={{ marginBottom: 12, width: '100%' }}>
-                <Input placeholder={t('debt.searchInvoice')} prefix={<SearchOutlined />} allowClear style={{ width: 220, borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-                <DatePicker.RangePicker value={invoiceDateRange as any} format="DD/MM/YYYY" style={{ borderRadius: 8 }}
-                  onChange={(d) => { setInvoiceDateRange(d as any); setPage(1); }} placeholder={[t('common.fromDate'), t('common.toDate')]} />
-                <Space size={6}>
-                  <Switch checked={onlyUnpaid} onChange={(v) => { setOnlyUnpaid(v); setPage(1); }} size="small" />
-                  <Text style={{ fontSize: 13 }}>{t('debt.onlyUnpaid')}</Text>
-                </Space>
-              </Space>
-              <Table dataSource={filteredReceivables} columns={invoiceColumns} rowKey="id" size="small" scroll={{ x: 'max-content' }}
-                pagination={{ current: page, pageSize, total: filteredReceivables.length, showSizeChanger: true, pageSizeOptions: ['5', '10', '20'], showTotal: (total) => t('debt.totalInvoices', { count: total }), onChange: (p, ps) => { setPage(p); setPageSize(ps); } }}
-                locale={{ emptyText: <Empty description={t('common.noData')} /> }} />
-            </>
-          )},
-          { key: 'payments', label: `${t('debt.paymentHistory')} (${filteredPayments.length})`, children: (
-            <>
-              <Space wrap style={{ marginBottom: 12, width: '100%' }}>
-                <DatePicker.RangePicker value={paymentDateRange as any} format="DD/MM/YYYY" style={{ borderRadius: 8 }}
-                  onChange={(d) => setPaymentDateRange(d as any)} placeholder={[t('common.fromDate'), t('common.toDate')]} />
-                <Button size="small" onClick={() => setPaymentDateRange([dayjs().startOf('month'), dayjs().endOf('month')])}>{t('common.thisMonth')}</Button>
-                <Button size="small" onClick={() => setPaymentDateRange(null)}>{t('common.all')}</Button>
-              </Space>
-              <Table dataSource={filteredPayments} columns={paymentColumns} rowKey="id" size="small" scroll={{ x: 'max-content' }}
-                pagination={filteredPayments.length > 10 ? { pageSize: 10, showSizeChanger: true, pageSizeOptions: ['5', '10', '20'] } : false}
-                locale={{ emptyText: <Empty description={t('common.noData')} /> }} />
-            </>
-          )},
-        ]} />
+      <Card style={cardStyle} title={<Text strong>{t('debt.invoiceList')}</Text>}>
+        <Space wrap style={{ marginBottom: 12, width: '100%' }}>
+          <Input placeholder={t('debt.searchInvoice')} prefix={<SearchOutlined />} allowClear style={{ width: 220, borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <DatePicker.RangePicker value={invoiceDateRange as any} format="DD/MM/YYYY" style={{ borderRadius: 8 }}
+            onChange={(d) => { setInvoiceDateRange(d as any); setPage(1); }} placeholder={[t('common.fromDate'), t('common.toDate')]} />
+          <Space size={6}>
+            <Switch checked={onlyUnpaid} onChange={(v) => { setOnlyUnpaid(v); setPage(1); }} size="small" />
+            <Text style={{ fontSize: 13 }}>{t('debt.onlyUnpaid')}</Text>
+          </Space>
+        </Space>
+        {openingBalance > 0 && (
+          <div style={{ padding: '10px 14px', background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 8, marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Space direction="vertical" size={0}>
+              <Text strong style={{ fontSize: 13 }}>{t('debt.openingBalance')}</Text>
+              <Text type="secondary" style={{ fontSize: 11 }}>{t('debt.openingBalanceHint')}</Text>
+            </Space>
+            <Text strong style={{ fontSize: 15, color: '#cf1322' }}>{formatVND(openingBalance)}</Text>
+          </div>
+        )}
+        <Table
+          dataSource={filteredReceivables}
+          columns={invoiceColumns}
+          rowKey="id"
+          size="small"
+          scroll={{ x: 'max-content' }}
+          pagination={{ current: page, pageSize, total: filteredReceivables.length, showSizeChanger: true, pageSizeOptions: ['5', '10', '20'], showTotal: (total) => t('debt.totalInvoices', { count: total }), onChange: (p, ps) => { setPage(p); setPageSize(ps); } }}
+          locale={{ emptyText: <Empty description={t('common.noData')} /> }}
+          summary={() => filteredReceivables.length === 0 ? null : (
+            <Table.Summary fixed>
+              <Table.Summary.Row style={{ background: '#fafafa' }}>
+                <Table.Summary.Cell index={0} colSpan={4} align="right">
+                  <Text strong style={{ fontSize: 13 }}>{t('debt.grandTotalRow')} — {t('debt.contractValueShort')}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right">
+                  <Text strong style={{ fontSize: 13 }}>{formatVND(totals.original)}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={2} />
+              </Table.Summary.Row>
+              <Table.Summary.Row style={{ background: '#fafafa' }}>
+                <Table.Summary.Cell index={0} colSpan={4} align="right">
+                  <Text style={{ fontSize: 13 }}>{t('debt.paidShort')}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right">
+                  <Text strong style={{ fontSize: 13, color: '#52c41a' }}>{formatVND(totals.paid)}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={2} />
+              </Table.Summary.Row>
+              <Table.Summary.Row style={{ background: '#fafafa' }}>
+                <Table.Summary.Cell index={0} colSpan={4} align="right">
+                  <Text style={{ fontSize: 13 }}>{t('debt.remaining')}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right">
+                  <Text strong style={{ fontSize: 13, color: totals.remaining > 0 ? '#cf1322' : '#52c41a' }}>{formatVND(totals.remaining)}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={2} />
+              </Table.Summary.Row>
+              <Table.Summary.Row style={{ background: '#fff1f0', borderTop: '2px solid #ffccc7' }}>
+                <Table.Summary.Cell index={0} colSpan={4} align="right">
+                  <Text strong style={{ fontSize: 14 }}>{t('debt.closingBalance')}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right">
+                  <Text strong style={{ fontSize: 14, color: (openingBalance + totals.remaining) > 0 ? '#cf1322' : '#52c41a' }}>
+                    {formatVND(openingBalance + totals.remaining)}
+                  </Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={2} />
+              </Table.Summary.Row>
+            </Table.Summary>
+          )}
+        />
       </Card>
 
       {/* Modal chi tiết sản phẩm */}
@@ -271,31 +296,6 @@ const CustomerDebtDetailPage: React.FC = () => {
             ]} summary={() => rec.sales_order?.grand_total != null ? (<Table.Summary.Row><Table.Summary.Cell index={0} colSpan={4} align="right"><Text strong>{t('order.orderTotal')}</Text></Table.Summary.Cell><Table.Summary.Cell index={1} align="right"><Text strong style={{ color: '#1890ff' }}>{formatVND(rec.sales_order.grand_total)}</Text></Table.Summary.Cell></Table.Summary.Row>) : undefined} />
           </>);
         })()}
-      </Modal>
-
-      {/* Modal chi tiết thanh toán */}
-      <Modal open={!!paymentDetail} title={t('debt.paymentDetail')} footer={null} width={500} onCancel={() => setPaymentDetail(null)}>
-        {paymentDetail && (
-          <>
-            <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
-              <Descriptions.Item label={t('payment.paymentDate')}>{formatDate(paymentDetail.payment_date)}</Descriptions.Item>
-              <Descriptions.Item label={t('common.amount')}>
-                <Text strong style={{ color: '#52c41a', fontSize: 16 }}>{formatVND(paymentDetail.amount)}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label={t('payment.method')}>
-                {paymentDetail.method === 'BANK_TRANSFER' ? t('payment.methodBankTransfer') : paymentDetail.method === 'CASH' ? t('payment.methodCash') : paymentDetail.method}
-              </Descriptions.Item>
-              {paymentDetail.reference && <Descriptions.Item label={t('payment.reference')}>{paymentDetail.reference}</Descriptions.Item>}
-              <Descriptions.Item label={t('cashBook.evidence')}>
-                {paymentDetail.evidence_url ? (
-                  <Image src={paymentDetail.evidence_url} style={{ maxHeight: 200, borderRadius: 8 }} preview={{ mask: t('common.viewDetail') }} />
-                ) : (
-                  <Text type="secondary">—</Text>
-                )}
-              </Descriptions.Item>
-            </Descriptions>
-          </>
-        )}
       </Modal>
 
       {showPayment && (
