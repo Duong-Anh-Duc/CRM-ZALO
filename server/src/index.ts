@@ -10,6 +10,7 @@ import { config } from './config';
 import routes from './routes';
 import { errorHandler } from './middleware/error.middleware';
 import { globalLimiter, authLimiter, apiLimiter } from './middleware/rate-limit.middleware';
+import { requestContextMiddleware } from './middleware/request-context.middleware';
 import logger from './utils/logger';
 import { connectRedis } from './lib/redis';
 import { startOverdueChecker } from './jobs/overdue-checker';
@@ -22,7 +23,9 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "blob:", "https://static.cloudflareinsights.com"],
+      scriptSrcElem: ["'self'", "'unsafe-inline'", "blob:", "https://static.cloudflareinsights.com"],
+      workerSrc: ["'self'", "blob:"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
       connectSrc: ["'self'", "https:", "wss:"],
@@ -50,6 +53,9 @@ if (config.env === 'development') {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Request context (must wrap all routes so AsyncLocalStorage propagates)
+app.use(requestContextMiddleware);
 
 // Global rate limit
 app.use('/api', globalLimiter);

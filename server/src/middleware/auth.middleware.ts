@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { AuthenticatedRequest, JwtPayload } from '../types';
 import { t } from '../locales';
-import { setAuditUser } from './audit.middleware';
+import { requestContext } from '../lib/prisma';
 
 export const authenticate = (
   req: AuthenticatedRequest,
@@ -23,7 +23,11 @@ export const authenticate = (
   try {
     const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
     req.user = decoded;
-    setAuditUser(decoded.userId || null, decoded.email || null);
+    const ctx = requestContext.getStore();
+    if (ctx) {
+      ctx.userId = decoded.userId || null;
+      ctx.userName = decoded.email || null;
+    }
     next();
   } catch {
     res.status(401).json({ success: false, message: t('auth.invalidToken') });

@@ -10,17 +10,20 @@ export const receivableApi = {
   getCustomerDetail: (customerId: string) =>
     apiClient.get(`/receivables/customer/${customerId}`),
 
+  getCustomerLedger: (customerId: string, params?: { from_date?: string; to_date?: string }) =>
+    apiClient.get(`/receivables/customer/${customerId}/ledger`, { params }),
+
   getSummary: () =>
     apiClient.get('/receivables/summary'),
 
   recordPayment: (data: { customer_id: string; amount: number; payment_date?: string; method: string; reference?: string }) =>
     apiClient.post('/receivables/payments', data),
 
-  exportPdf: (customerId: string) =>
-    apiClient.get(`/receivables/customer/${customerId}/export-pdf`, { responseType: 'blob' }),
+  exportPdf: (customerId: string, params?: { from_date?: string; to_date?: string }) =>
+    apiClient.get(`/receivables/customer/${customerId}/export-pdf`, { responseType: 'blob', params }),
 
-  exportExcel: (customerId: string) =>
-    apiClient.get(`/receivables/customer/${customerId}/export-excel`, { responseType: 'blob' }),
+  exportExcel: (customerId: string, params?: { from_date?: string; to_date?: string }) =>
+    apiClient.get(`/receivables/customer/${customerId}/export-excel`, { responseType: 'blob', params }),
 
   updatePaymentEvidence: (paymentId: string, evidenceUrl: string) =>
     apiClient.patch(`/receivables/payments/${paymentId}/evidence`, { evidence_url: evidenceUrl }),
@@ -36,17 +39,20 @@ export const payableApi = {
   getSupplierDetail: (supplierId: string) =>
     apiClient.get(`/payables/supplier/${supplierId}`),
 
+  getSupplierLedger: (supplierId: string, params?: { from_date?: string; to_date?: string }) =>
+    apiClient.get(`/payables/supplier/${supplierId}/ledger`, { params }),
+
   getSummary: () =>
     apiClient.get('/payables/summary'),
 
   recordPayment: (data: { supplier_id: string; amount: number; payment_date?: string; method: string; reference?: string }) =>
     apiClient.post('/payables/payments', data),
 
-  exportPdf: (supplierId: string) =>
-    apiClient.get(`/payables/supplier/${supplierId}/export-pdf`, { responseType: 'blob' }),
+  exportPdf: (supplierId: string, params?: { from_date?: string; to_date?: string }) =>
+    apiClient.get(`/payables/supplier/${supplierId}/export-pdf`, { responseType: 'blob', params }),
 
-  exportExcel: (supplierId: string) =>
-    apiClient.get(`/payables/supplier/${supplierId}/export-excel`, { responseType: 'blob' }),
+  exportExcel: (supplierId: string, params?: { from_date?: string; to_date?: string }) =>
+    apiClient.get(`/payables/supplier/${supplierId}/export-excel`, { responseType: 'blob', params }),
 
   updatePaymentEvidence: (paymentId: string, evidenceUrl: string) =>
     apiClient.patch(`/payables/payments/${paymentId}/evidence`, { evidence_url: evidenceUrl }),

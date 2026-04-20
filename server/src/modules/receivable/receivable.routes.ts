@@ -11,6 +11,7 @@ router.get('/', ReceivableController.list);
 router.get('/by-customer', ReceivableController.listByCustomer);
 router.get('/summary', ReceivableController.getSummary);
 router.get('/customer/:customerId', ReceivableController.getCustomerDetail);
+router.get('/customer/:customerId/ledger', ReceivableController.getCustomerLedger);
 router.get('/customer/:customerId/export-pdf', ReceivableController.exportCustomerPdf);
 router.get('/customer/:customerId/export-excel', ReceivableController.exportCustomerExcel);
 router.post('/payments', requireRole('ADMIN', 'STAFF'), validate(recordPaymentSchema), ReceivableController.recordPayment);

@@ -1,4 +1,11 @@
 {
+  "common": {
+    "notFound": "Not found",
+    "deleted": "Deleted",
+    "created": "Created",
+    "updated": "Updated",
+    "invalidType": "Invalid type"
+  },
   "auth": {
     "notLoggedIn": "Not logged in",
     "invalidToken": "Invalid token",
@@ -25,6 +32,10 @@
   "supplier": {
     "notFound": "Supplier not found",
     "deleted": "Supplier hidden"
+  },
+  "supplierPrice": {
+    "alreadyExists": "Supplier price for this product already exists",
+    "notFound": "Supplier price not found"
   },
   "order": {
     "notFound": "Order not found",
@@ -214,5 +225,44 @@
     "employeeNotFound": "Employee profile not found",
     "profileExists": "Employee already has a payroll profile",
     "recordNotFound": "Payroll record not found"
+  },
+  "ledger": {
+    "receivableTitle": "CUSTOMER RECEIVABLES LEDGER",
+    "payableTitle": "SUPPLIER PAYABLES LEDGER",
+    "receivableSheetName": "RECEIVABLES DETAIL",
+    "payableSheetName": "PAYABLES DETAIL",
+    "subtitleReceivable": "Account: 131, Currency: <<Aggregated>>, Customer: {{name}}, {{period}}",
+    "subtitlePayable": "Account: 331, Currency: <<Aggregated>>, Supplier: {{name}}, {{period}}",
+    "periodAll": "All time",
+    "periodRange": "From {{from}} to {{to}}",
+    "colDocDate": "Doc date",
+    "colDocNumber": "Doc number",
+    "colDescription": "Description",
+    "colAccount": "Account",
+    "colDebit": "Debit",
+    "colCredit": "Credit",
+    "colBalanceDebit": "Balance (Dr)",
+    "colBalanceCredit": "Balance (Cr)",
+    "colUnit": "Unit",
+    "colQuantity": "Quantity",
+    "colUnitPrice": "Unit price",
+    "subConverted": "Converted",
+    "rowCustomerName": "Customer: {{name}}",
+    "rowSupplierName": "Supplier: {{name}}",
+    "rowOpeningBalance": "Opening balance",
+    "rowSubtotal": "Subtotal",
+    "rowTotal": "Total",
+    "vat": "VAT",
+    "shippingFee": "Shipping fee",
+    "otherFee": "Other fee",
+    "collectFrom": "Payment received from {{name}}",
+    "payTo": "Payment made to {{name}}",
+    "salesReturn": "Sales return",
+    "purchaseReturn": "Purchase return",
+    "unitPiece": "Piece",
+    "unitCarton": "Carton",
+    "unitKg": "Kg",
+    "unitTime": "Time",
+    "paymentPrefix": "PMT"
   }
 }

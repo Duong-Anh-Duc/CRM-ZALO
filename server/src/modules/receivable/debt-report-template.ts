@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { createT } from '../../locales';
 
 const DEFAULT_COMPANY = {
   name: 'CÔNG TY TNHH TECHLA AI',
@@ -7,179 +8,175 @@ const DEFAULT_COMPANY = {
   email: 'admin@techlaai.com',
 };
 
-interface DebtReportData {
+export interface LedgerReportData {
   type: 'receivable' | 'payable';
-  entity: { name: string; phone: string; email: string; address: string };
-  summary: { total_original: number; total_paid: number; total_remaining: number };
-  invoices: {
-    invoice_number: string; order_code: string; invoice_date: string;
-    due_date: string; original_amount: number; paid_amount: number;
-    remaining: number; status: string;
+  entityName: string;
+  rows: {
+    date: Date | string;
+    doc_code: string;
+    description: string;
+    debit: number;
+    credit: number;
+    balance: number;
+    unit?: string;
+    quantity?: number;
+    unit_price?: number;
   }[];
-  payments: {
-    payment_date: string; invoice_number: string; amount: number;
-    method: string; reference: string;
-  }[];
+  opening_balance: number;
+  totals: { total_debit: number; total_credit: number; total_quantity: number; ending_balance: number };
+  from_date?: string;
+  to_date?: string;
+  lang?: string;
 }
 
 function formatMoney(n: number): string {
+  if (!n) return '';
   return new Intl.NumberFormat('vi-VN').format(Math.round(n));
 }
 
-const STATUS_MAP: Record<string, string> = {
-  UNPAID: 'Chưa thanh toán',
-  PARTIAL: 'Thanh toán một phần',
-  PAID: 'Đã thanh toán',
-  OVERDUE: 'Quá hạn',
-};
+function formatMoneyAllowZero(n: number): string {
+  if (n === null || n === undefined) return '0';
+  return new Intl.NumberFormat('vi-VN').format(Math.round(n));
+}
 
-const METHOD_MAP: Record<string, string> = {
-  BANK_TRANSFER: 'Chuyển khoản',
-  CASH: 'Tiền mặt',
-};
+function escape(s: string): string {
+  return String(s ?? '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] || c));
+}
 
-export function buildDebtReportHtml(data: DebtReportData): string {
+export function buildLedgerReportHtml(data: LedgerReportData): string {
+  const tr = createT(data.lang || 'vi');
   const isReceivable = data.type === 'receivable';
-  const title = isReceivable ? 'BÁO CÁO CÔNG NỢ PHẢI THU' : 'BÁO CÁO CÔNG NỢ PHẢI TRẢ';
-  const entityLabel = isReceivable ? 'Khách hàng' : 'Nhà cung cấp';
+  const acct = isReceivable ? '131' : '331';
+  const title = tr(isReceivable ? 'ledger.receivableTitle' : 'ledger.payableTitle');
+  const periodText = data.from_date && data.to_date
+    ? tr('ledger.periodRange', { from: dayjs(data.from_date).format('DD/MM/YYYY'), to: dayjs(data.to_date).format('DD/MM/YYYY') })
+    : tr('ledger.periodAll');
+  const subtitle = tr(isReceivable ? 'ledger.subtitleReceivable' : 'ledger.subtitlePayable', {
+    name: data.entityName,
+    period: periodText,
+  });
+  const nameRowLabel = tr(isReceivable ? 'ledger.rowCustomerName' : 'ledger.rowSupplierName', { name: data.entityName });
   const now = dayjs().format('DD/MM/YYYY HH:mm');
 
-  const invoiceRows = data.invoices.map((inv, i) => `
-    <tr>
-      <td style="text-align:center">${i + 1}</td>
-      <td>${inv.invoice_number}</td>
-      <td>${inv.order_code}</td>
-      <td style="text-align:center">${inv.invoice_date}</td>
-      <td style="text-align:center">${inv.due_date}</td>
-      <td style="text-align:right">${formatMoney(inv.original_amount)}</td>
-      <td style="text-align:right">${formatMoney(inv.paid_amount)}</td>
-      <td style="text-align:right;font-weight:600;color:${inv.remaining > 0 ? '#cf1322' : '#389e0d'}">${formatMoney(inv.remaining)}</td>
-      <td style="text-align:center"><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${inv.status === 'PAID' ? '#f6ffed' : inv.status === 'OVERDUE' ? '#fff2f0' : '#e6f4ff'};color:${inv.status === 'PAID' ? '#389e0d' : inv.status === 'OVERDUE' ? '#cf1322' : '#1677ff'}">${STATUS_MAP[inv.status] || inv.status}</span></td>
-    </tr>
-  `).join('');
+  const ledgerRows = data.rows.map((r) => {
+    const debitStr = r.debit > 0 ? formatMoney(r.debit) : '';
+    const creditStr = r.credit > 0 ? formatMoney(r.credit) : '';
+    const drBalance = r.balance > 0 ? formatMoney(r.balance) : '';
+    const crBalance = r.balance < 0 ? formatMoney(-r.balance) : '';
+    return `
+      <tr>
+        <td style="text-align:center">${dayjs(r.date).format('DD/MM/YYYY')}</td>
+        <td>${escape(r.doc_code)}</td>
+        <td>${escape(r.description)}</td>
+        <td style="text-align:center">${acct}</td>
+        <td class="num">${debitStr}</td>
+        <td class="num">${creditStr}</td>
+        <td class="num">${drBalance}</td>
+        <td class="num">${crBalance}</td>
+        <td style="text-align:center">${escape(r.unit || '')}</td>
+        <td class="num">${r.quantity ? r.quantity.toLocaleString('vi-VN') : ''}</td>
+        <td class="num">${r.unit_price ? formatMoney(r.unit_price) : ''}</td>
+      </tr>
+    `;
+  }).join('');
 
-  const paymentRows = data.payments.map((p, i) => `
-    <tr>
-      <td style="text-align:center">${i + 1}</td>
-      <td style="text-align:center">${p.payment_date}</td>
-      <td>${p.invoice_number}</td>
-      <td style="text-align:right">${formatMoney(p.amount)}</td>
-      <td>${METHOD_MAP[p.method] || p.method}</td>
-      <td>${p.reference}</td>
-    </tr>
-  `).join('');
+  const drEnding = data.totals.ending_balance >= 0 ? formatMoneyAllowZero(data.totals.ending_balance) : '';
+  const crEnding = data.totals.ending_balance < 0 ? formatMoney(-data.totals.ending_balance) : '';
+  const drOpening = data.opening_balance >= 0 ? formatMoneyAllowZero(data.opening_balance) : '';
+  const crOpening = data.opening_balance < 0 ? formatMoney(-data.opening_balance) : '';
 
   return `<!DOCTYPE html>
-<html lang="vi">
+<html lang="${data.lang || 'vi'}">
 <head>
 <meta charset="UTF-8">
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Roboto', 'Noto Sans', Arial, sans-serif; font-size: 13px; color: #333; line-height: 1.5; }
-  .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #1677ff; padding-bottom: 12px; }
-  .header .company { font-size: 15px; font-weight: 700; color: #1677ff; }
-  .header .info { font-size: 11px; color: #666; }
-  .title { text-align: center; font-size: 20px; font-weight: 700; color: #1677ff; margin: 16px 0 8px; }
-  .subtitle { text-align: center; font-size: 12px; color: #888; margin-bottom: 16px; }
-  .entity-box { background: #fafafa; border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
-  .entity-box .label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
-  .entity-box .value { font-weight: 600; font-size: 14px; }
-  .entity-row { display: flex; gap: 20px; margin-top: 6px; font-size: 12px; color: #555; }
-  .summary-row { display: flex; gap: 12px; margin-bottom: 16px; }
-  .summary-card { flex: 1; background: #f0f5ff; border: 1px solid #d6e4ff; border-radius: 8px; padding: 10px 14px; text-align: center; }
-  .summary-card.danger { background: #fff2f0; border-color: #ffccc7; }
-  .summary-card.success { background: #f6ffed; border-color: #b7eb8f; }
-  .summary-card .s-label { font-size: 11px; color: #666; }
-  .summary-card .s-value { font-size: 16px; font-weight: 700; }
-  .summary-card .s-value.blue { color: #1677ff; }
-  .summary-card .s-value.green { color: #389e0d; }
-  .summary-card .s-value.red { color: #cf1322; }
-  .section-title { font-size: 14px; font-weight: 600; color: #333; margin: 16px 0 8px; border-left: 3px solid #1677ff; padding-left: 8px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-  th { background: #1677ff; color: #fff; font-size: 11px; font-weight: 600; padding: 6px 8px; text-align: left; }
-  td { padding: 5px 8px; font-size: 12px; border-bottom: 1px solid #f0f0f0; }
-  tr:nth-child(even) { background: #fafafa; }
-  .footer { margin-top: 20px; text-align: right; font-size: 11px; color: #999; border-top: 1px solid #e8e8e8; padding-top: 8px; }
+  body { font-family: 'Times New Roman', 'Times', serif; font-size: 13px; color: #000; line-height: 1.45; padding: 16px 12px; }
+  .company-head { text-align: center; margin-bottom: 8px; }
+  .company-head .name { font-size: 13px; font-weight: 700; }
+  .company-head .info { font-size: 11px; color: #444; }
+  .title { text-align: center; font-size: 18px; font-weight: 700; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .subtitle { text-align: center; font-size: 13px; font-style: italic; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { border: 1px solid #000; padding: 5px 6px; font-size: 12px; word-wrap: break-word; vertical-align: middle; }
+  th { background: #f0f0f0; font-weight: 700; text-align: center; font-size: 12px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.name-row td { background: #e6e6e6; font-weight: 700; font-style: italic; font-size: 13px; }
+  tr.opening td { background: #fafafa; font-weight: 700; }
+  tr.subtotal td { background: #fafafa; font-weight: 700; }
+  tr.subtotal td.ending { background: #fff3cd; font-weight: 700; }
+  tr.total td { background: #f5f5f5; font-weight: 700; font-size: 13px; }
+  .footer { margin-top: 14px; text-align: right; font-size: 10px; color: #888; font-style: italic; }
 </style>
 </head>
 <body>
-  <div class="header">
-    <div class="company">${DEFAULT_COMPANY.name}</div>
-    <div class="info">${DEFAULT_COMPANY.address}</div>
-    <div class="info">ĐT: ${DEFAULT_COMPANY.phone} | Email: ${DEFAULT_COMPANY.email}</div>
+  <div class="company-head">
+    <div class="name">${DEFAULT_COMPANY.name}</div>
+    <div class="info">${DEFAULT_COMPANY.address} &bull; ĐT: ${DEFAULT_COMPANY.phone}</div>
   </div>
 
-  <div class="title">${title}</div>
-  <div class="subtitle">Ngày xuất: ${now}</div>
+  <div class="title">${escape(title)}</div>
+  <div class="subtitle">${escape(subtitle)}</div>
 
-  <div class="entity-box">
-    <div class="label">${entityLabel}</div>
-    <div class="value">${data.entity.name}</div>
-    <div class="entity-row">
-      ${data.entity.phone ? `<span>ĐT: ${data.entity.phone}</span>` : ''}
-      ${data.entity.email ? `<span>Email: ${data.entity.email}</span>` : ''}
-    </div>
-    ${data.entity.address ? `<div style="font-size:12px;color:#555;margin-top:4px">Địa chỉ: ${data.entity.address}</div>` : ''}
-  </div>
-
-  <div class="summary-row">
-    <div class="summary-card">
-      <div class="s-label">Tổng công nợ</div>
-      <div class="s-value blue">${formatMoney(data.summary.total_original)} VNĐ</div>
-    </div>
-    <div class="summary-card success">
-      <div class="s-label">Đã thanh toán</div>
-      <div class="s-value green">${formatMoney(data.summary.total_paid)} VNĐ</div>
-    </div>
-    <div class="summary-card${data.summary.total_remaining > 0 ? ' danger' : ' success'}">
-      <div class="s-label">Còn lại</div>
-      <div class="s-value ${data.summary.total_remaining > 0 ? 'red' : 'green'}">${formatMoney(data.summary.total_remaining)} VNĐ</div>
-    </div>
-  </div>
-
-  <div class="section-title">Danh sách hoá đơn (${data.invoices.length})</div>
   <table>
+    <colgroup>
+      <col style="width:7%"><col style="width:8%"><col style="width:22%"><col style="width:5%">
+      <col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:7%">
+      <col style="width:5%"><col style="width:8%"><col style="width:11%">
+    </colgroup>
     <thead>
       <tr>
-        <th style="width:35px;text-align:center">STT</th>
-        <th>Số HĐ</th>
-        <th>Mã đơn</th>
-        <th style="text-align:center">Ngày HĐ</th>
-        <th style="text-align:center">Hạn TT</th>
-        <th style="text-align:right">Gốc</th>
-        <th style="text-align:right">Đã TT</th>
-        <th style="text-align:right">Còn lại</th>
-        <th style="text-align:center">Trạng thái</th>
+        <th rowspan="2">${tr('ledger.colDocDate')}</th>
+        <th rowspan="2">${tr('ledger.colDocNumber')}</th>
+        <th rowspan="2">${tr('ledger.colDescription')}</th>
+        <th rowspan="2">${tr('ledger.colAccount')}</th>
+        <th>${tr('ledger.colDebit')}</th>
+        <th>${tr('ledger.colCredit')}</th>
+        <th>${tr('ledger.colBalanceDebit')}</th>
+        <th>${tr('ledger.colBalanceCredit')}</th>
+        <th rowspan="2">${tr('ledger.colUnit')}</th>
+        <th rowspan="2">${tr('ledger.colQuantity')}</th>
+        <th rowspan="2">${tr('ledger.colUnitPrice')}</th>
+      </tr>
+      <tr>
+        <th>${tr('ledger.subConverted')}</th>
+        <th>${tr('ledger.subConverted')}</th>
+        <th>${tr('ledger.subConverted')}</th>
+        <th>${tr('ledger.subConverted')}</th>
       </tr>
     </thead>
     <tbody>
-      ${invoiceRows || '<tr><td colspan="9" style="text-align:center;color:#999">Không có hoá đơn</td></tr>'}
-    </tbody>
-  </table>
-
-  ${data.payments.length > 0 ? `
-  <div class="section-title">Lịch sử thanh toán (${data.payments.length})</div>
-  <table>
-    <thead>
-      <tr>
-        <th style="width:35px;text-align:center">STT</th>
-        <th style="text-align:center">Ngày TT</th>
-        <th>Số HĐ</th>
-        <th style="text-align:right">Số tiền</th>
-        <th>Phương thức</th>
-        <th>Tham chiếu</th>
+      <tr class="name-row"><td colspan="11">${escape(nameRowLabel)}</td></tr>
+      <tr class="opening">
+        <td></td><td></td><td>${tr('ledger.rowOpeningBalance')}</td><td style="text-align:center">${acct}</td>
+        <td></td><td></td>
+        <td class="num">${drOpening}</td>
+        <td class="num">${crOpening}</td>
+        <td></td><td></td><td></td>
       </tr>
-    </thead>
-    <tbody>
-      ${paymentRows}
+      ${ledgerRows || `<tr><td colspan="11" style="text-align:center;color:#999;font-style:italic">—</td></tr>`}
+      <tr class="subtotal">
+        <td></td><td></td><td>${tr('ledger.rowSubtotal')}</td><td style="text-align:center">${acct}</td>
+        <td class="num">${formatMoney(data.totals.total_debit)}</td>
+        <td class="num">${formatMoney(data.totals.total_credit)}</td>
+        <td class="num ending">${drEnding}</td>
+        <td class="num">${crEnding}</td>
+        <td></td>
+        <td class="num">${data.totals.total_quantity ? data.totals.total_quantity.toLocaleString('vi-VN') : ''}</td>
+        <td></td>
+      </tr>
+      <tr class="total">
+        <td></td><td></td><td>${tr('ledger.rowTotal')}</td><td></td>
+        <td class="num">${formatMoney(data.totals.total_debit)}</td>
+        <td class="num">${formatMoney(data.totals.total_credit)}</td>
+        <td></td><td></td><td></td>
+        <td class="num">${data.totals.total_quantity ? data.totals.total_quantity.toLocaleString('vi-VN') : ''}</td>
+        <td></td>
+      </tr>
     </tbody>
   </table>
-  ` : ''}
 
-  <div class="footer">
-    Xuất bởi PackFlow CRM &mdash; ${now}
-  </div>
+  <div class="footer">PackFlow CRM &mdash; ${now}</div>
 </body>
 </html>`;
 }

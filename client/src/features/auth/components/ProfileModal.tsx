@@ -5,21 +5,17 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUpdateProfile } from '../hooks';
 
-const roleLabels: Record<string, { vi: string; en: string; color: string }> = {
-  ADMIN: { vi: 'Quản trị viên', en: 'Admin', color: 'red' },
-  STAFF: { vi: 'Nhân viên', en: 'Staff', color: 'blue' },
-  VIEWER: { vi: 'Xem', en: 'Viewer', color: 'default' },
-};
+const ROLE_COLORS: Record<string, string> = { ADMIN: 'red', STAFF: 'blue', VIEWER: 'default' };
+const ROLE_KEYS: Record<string, string> = { ADMIN: 'user.roleAdmin', STAFF: 'user.roleStaff', VIEWER: 'user.roleViewer' };
 
 interface Props { open: boolean; onClose: () => void; }
 
 const ProfileModal: React.FC<Props> = ({ open, onClose }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const [form] = Form.useForm();
   const mutation = useUpdateProfile();
-  const lang = i18n.language === 'en' ? 'en' : 'vi';
-  const role = user?.role ? roleLabels[user.role] : null;
+  const role = user?.role ? { label: t(ROLE_KEYS[user.role] || ''), color: ROLE_COLORS[user.role] || 'default' } : null;
 
   useEffect(() => {
     if (open && user) form.setFieldsValue({ full_name: user.full_name });
@@ -40,7 +36,7 @@ const ProfileModal: React.FC<Props> = ({ open, onClose }) => {
           <MailOutlined style={{ marginRight: 8, color: '#8c8c8c' }} />{user?.email}
         </Descriptions.Item>
         <Descriptions.Item label={t('auth.role')}>
-          {role && <Tag color={role.color} style={{ borderRadius: 8 }}>{role[lang]}</Tag>}
+          {role && <Tag color={role.color} style={{ borderRadius: 8 }}>{role.label}</Tag>}
         </Descriptions.Item>
       </Descriptions>
       <Form form={form} layout="vertical">

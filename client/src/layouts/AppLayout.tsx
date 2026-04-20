@@ -23,7 +23,8 @@ import {
   WalletOutlined,
   SunOutlined,
   MoonOutlined,
-  GlobalOutlined,
+  FileSearchOutlined,
+  // GlobalOutlined, // disabled with Universe page
 } from '@ant-design/icons';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -63,7 +64,7 @@ const ENFlag = () => (
 
 const getMenuItems = (t: (key: string) => string): MenuProps['items'] => [
   { key: '/', icon: <DashboardOutlined />, label: t('menu.dashboard') },
-  { key: '/universe', icon: <GlobalOutlined />, label: t('menu.universe') },
+  // { key: '/universe', icon: <GlobalOutlined />, label: t('menu.universe') },
   { type: 'group', label: t('menu.catalog') },
   { key: '/products', icon: <ShoppingOutlined />, label: t('menu.products') },
   { key: '/customers', icon: <TeamOutlined />, label: t('menu.customers') },
@@ -110,6 +111,7 @@ const AppLayout: React.FC = () => {
     ...(hasRole('ADMIN')
       ? [
           { key: '/users', icon: <UserOutlined />, label: t('menu.users') },
+          { key: '/audit-logs', icon: <FileSearchOutlined />, label: t('auditLog.menuTitle') },
           { key: '/settings', icon: <SettingOutlined />, label: t('menu.settings') },
         ]
       : []),

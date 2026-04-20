@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../types';
 import { PayableService } from './payable.service';
+import { PayableLedgerService } from './payable-ledger.service';
 import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response';
 
 export class PayableController {
@@ -16,7 +17,7 @@ export class PayableController {
   static async listBySupplier(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const result = await PayableService.listBySupplier(req.query as never);
-      sendPaginated(res, result.suppliers, { total: result.total, page: result.page, limit: result.limit });
+      sendPaginated(res, result.suppliers, { total: result.total, page: result.page, limit: result.limit }, { summary: result.summary });
     } catch (err) {
       next(err);
     }
@@ -25,6 +26,17 @@ export class PayableController {
   static async getSupplierDetail(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const result = await PayableService.getSupplierDetail(req.params.supplierId as string);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getSupplierLedger(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { from_date, to_date } = req.query as { from_date?: string; to_date?: string };
+      const lang = (req.headers['accept-language'] as string || 'vi').split(',')[0].split('-')[0];
+      const result = await PayableLedgerService.getSupplierLedger(req.params.supplierId as string, from_date, to_date, lang);
       sendSuccess(res, result);
     } catch (err) {
       next(err);
@@ -51,7 +63,9 @@ export class PayableController {
 
   static async exportSupplierPdf(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const pdf = await PayableService.exportSupplierPdf(req.params.supplierId as string);
+      const { from_date, to_date } = req.query as { from_date?: string; to_date?: string };
+      const lang = (req.headers['accept-language'] as string || 'vi').split(',')[0].split('-')[0];
+      const pdf = await PayableService.exportSupplierPdf(req.params.supplierId as string, from_date, to_date, lang);
       res.set({
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="payable-${req.params.supplierId}.pdf"`,
@@ -74,10 +88,12 @@ export class PayableController {
 
   static async exportSupplierExcel(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const buf = await PayableService.exportSupplierExcel(req.params.supplierId as string);
+      const { from_date, to_date } = req.query as { from_date?: string; to_date?: string };
+      const lang = (req.headers['accept-language'] as string || 'vi').split(',')[0].split('-')[0];
+      const buf = await PayableService.exportSupplierExcel(req.params.supplierId as string, from_date, to_date, lang);
       res.set({
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="payable-${req.params.supplierId}.xlsx"`,
+        'Content-Disposition': `attachment; filename="chi-tiet-cong-no-ncc-${req.params.supplierId}.xlsx"`,
         'Content-Length': buf.length.toString(),
       });
       res.send(buf);

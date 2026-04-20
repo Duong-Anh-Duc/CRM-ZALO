@@ -1,14 +1,13 @@
 import prisma from '../../lib/prisma';
 import puppeteer from 'puppeteer';
-import dayjs from 'dayjs';
-import * as XLSX from 'xlsx';
 import { AppError } from '../../middleware/error.middleware';
 import { DebtStatus, PaymentMethod } from '@prisma/client';
 import { t } from '../../locales';
 import { delCache } from '../../lib/redis';
 import { AlertService } from '../alert/alert.service';
 import logger from '../../utils/logger';
-import { buildDebtReportHtml } from './debt-report-template';
+import { buildLedgerReportHtml } from './debt-report-template';
+import { PayableLedgerService } from './payable-ledger.service';
 
 interface RecordPaymentInput {
   supplier_id: string;
@@ -78,7 +77,18 @@ export class PayableService {
     const total = rows.length;
     const paged = rows.slice((page - 1) * limit, page * limit);
 
-    return { suppliers: paged, total, page, limit, total_pages: Math.ceil(total / limit) };
+    const summary = rows.reduce(
+      (acc, r) => ({
+        total_original: acc.total_original + r.total_original,
+        total_paid: acc.total_paid + r.total_paid,
+        total_remaining: acc.total_remaining + r.total_remaining,
+        supplier_count: acc.supplier_count + 1,
+        invoice_count: acc.invoice_count + r.invoice_count,
+      }),
+      { total_original: 0, total_paid: 0, total_remaining: 0, supplier_count: 0, invoice_count: 0 },
+    );
+
+    return { suppliers: paged, total, page, limit, total_pages: Math.ceil(total / limit), summary };
   }
 
   // ── All invoices for a supplier ──
@@ -262,47 +272,19 @@ export class PayableService {
     return { allocated: paymentCreates.length, total_amount: input.amount };
   }
 
-  // ── Export supplier debt report as PDF ──
-  static async exportSupplierPdf(supplierId: string): Promise<Buffer> {
-    const detail = await this.getSupplierDetail(supplierId);
-    const { supplier, payables, summary } = detail;
+  // ── Export supplier ledger as PDF ──
+  static async exportSupplierPdf(supplierId: string, fromDate?: string, toDate?: string, lang = 'vi'): Promise<Buffer> {
+    const ledger = await PayableLedgerService.getSupplierLedger(supplierId, fromDate, toDate, lang);
 
-    const invoices = payables.map((p: any) => ({
-      invoice_number: p.invoice_number,
-      order_code: p.purchase_order?.order_code || '-',
-      invoice_date: dayjs(p.invoice_date).format('DD/MM/YYYY'),
-      due_date: dayjs(p.due_date).format('DD/MM/YYYY'),
-      original_amount: Number(p.original_amount),
-      paid_amount: Number(p.paid_amount),
-      remaining: Number(p.remaining),
-      status: p.status,
-    }));
-
-    const payments = payables.flatMap((p: any) =>
-      (p.payments || []).map((pay: any) => ({
-        payment_date: dayjs(pay.payment_date).format('DD/MM/YYYY'),
-        invoice_number: p.invoice_number,
-        amount: Number(pay.amount),
-        method: pay.method,
-        reference: pay.reference || '',
-      }))
-    ).sort((a: any, b: any) => b.payment_date.localeCompare(a.payment_date));
-
-    const html = buildDebtReportHtml({
+    const html = buildLedgerReportHtml({
       type: 'payable',
-      entity: {
-        name: supplier.company_name || supplier.contact_name || '',
-        phone: supplier.phone || '',
-        email: supplier.email || '',
-        address: supplier.address || '',
-      },
-      summary: {
-        total_original: Number(summary.total_original),
-        total_paid: Number(summary.total_paid),
-        total_remaining: Number(summary.total_remaining),
-      },
-      invoices,
-      payments,
+      entityName: ledger.supplier.company_name,
+      rows: ledger.rows,
+      opening_balance: ledger.opening_balance,
+      totals: ledger.totals,
+      from_date: ledger.from_date,
+      to_date: ledger.to_date,
+      lang,
     });
 
     const browser = await puppeteer.launch({
@@ -315,8 +297,9 @@ export class PayableService {
       await page.setContent(html, { waitUntil: 'networkidle0' });
       const pdf = await page.pdf({
         format: 'A4',
+        landscape: true,
         printBackground: true,
-        margin: { top: '15mm', right: '10mm', bottom: '15mm', left: '10mm' },
+        margin: { top: '12mm', right: '10mm', bottom: '12mm', left: '10mm' },
       });
       return Buffer.from(pdf);
     } finally {
@@ -334,59 +317,8 @@ export class PayableService {
     return result;
   }
 
-  // ── Export supplier debt report as Excel ──
-  static async exportSupplierExcel(supplierId: string): Promise<Buffer> {
-    const detail = await this.getSupplierDetail(supplierId);
-    const { supplier, payables, summary } = detail;
-
-    const wb = XLSX.utils.book_new();
-
-    // Sheet 1: Supplier info + Invoices
-    const headerRows = [
-      ['BÁO CÁO CÔNG NỢ PHẢI TRẢ'],
-      [`Ngày xuất: ${dayjs().format('DD/MM/YYYY HH:mm')}`],
-      [],
-      ['THÔNG TIN NHÀ CUNG CẤP'],
-      ['Tên công ty', supplier.company_name || ''],
-      ...(supplier.contact_name ? [['Người liên hệ', supplier.contact_name]] : []),
-      ...(supplier.phone ? [['Điện thoại', supplier.phone]] : []),
-      ...(supplier.email ? [['Email', supplier.email]] : []),
-      ...(supplier.address ? [['Địa chỉ', supplier.address]] : []),
-      [],
-      ['TỔNG HỢP'],
-      ['Tổng công nợ', Number(summary.total_original)],
-      ['Đã thanh toán', Number(summary.total_paid)],
-      ['Còn lại', Number(summary.total_remaining)],
-      [],
-      ['STT', 'Số hoá đơn', 'Mã đơn hàng', 'Ngày HĐ', 'Hạn thanh toán', 'Số tiền gốc', 'Đã thanh toán', 'Còn lại', 'Trạng thái'],
-    ];
-    const dataRows = payables.map((p: any, idx: number) => [
-      idx + 1, p.invoice_number, p.purchase_order?.order_code || '-',
-      dayjs(p.invoice_date).format('DD/MM/YYYY'), dayjs(p.due_date).format('DD/MM/YYYY'),
-      Number(p.original_amount), Number(p.paid_amount), Number(p.remaining), p.status,
-    ]);
-    dataRows.push(['', 'TỔNG CỘNG', '', '', '', Number(summary.total_original), Number(summary.total_paid), Number(summary.total_remaining), '']);
-
-    const ws1 = XLSX.utils.aoa_to_sheet([...headerRows, ...dataRows]);
-    ws1['!cols'] = [{ wch: 6 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
-    XLSX.utils.book_append_sheet(wb, ws1, 'Công nợ');
-
-    // Sheet 2: Payments
-    const paymentHeader = [['STT', 'Số hoá đơn', 'Ngày thanh toán', 'Số tiền', 'Phương thức', 'Tham chiếu']];
-    const paymentData = payables.flatMap((p: any) =>
-      (p.payments || []).map((pay: any, idx: number) => [
-        idx + 1, p.invoice_number, dayjs(pay.payment_date).format('DD/MM/YYYY'),
-        Number(pay.amount), pay.method === 'BANK_TRANSFER' ? 'Chuyển khoản' : pay.method === 'CASH' ? 'Tiền mặt' : pay.method,
-        pay.reference || '',
-      ])
-    );
-    if (paymentData.length > 0) {
-      const ws2 = XLSX.utils.aoa_to_sheet([...paymentHeader, ...paymentData]);
-      ws2['!cols'] = [{ wch: 5 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 22 }];
-      XLSX.utils.book_append_sheet(wb, ws2, 'Lịch sử TT');
-    }
-
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    return Buffer.from(buf);
+  // ── Export supplier ledger (detailed) as Excel ──
+  static async exportSupplierExcel(supplierId: string, fromDate?: string, toDate?: string, lang = 'vi'): Promise<Buffer> {
+    return PayableLedgerService.exportLedgerExcel(supplierId, fromDate, toDate, lang);
   }
 }

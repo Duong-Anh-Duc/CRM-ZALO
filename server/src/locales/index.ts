@@ -16,8 +16,17 @@ export function getLanguage(): string {
 }
 
 export function t(key: string, params?: Record<string, string | number>): string {
+  return translate(currentLang, key, params);
+}
+
+export function createT(lang: string) {
+  const safeLang = translations[lang] ? lang : 'vi';
+  return (key: string, params?: Record<string, string | number>) => translate(safeLang, key, params);
+}
+
+function translate(lang: string, key: string, params?: Record<string, string | number>): string {
   const keys = key.split('.');
-  let value: unknown = translations[currentLang];
+  let value: unknown = translations[lang] || translations.vi;
 
   for (const k of keys) {
     if (value && typeof value === 'object' && k in value) {

@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Table, Typography, Space, Row, Col, Statistic, Spin, Empty, Button, Tag, Input, Select, Tooltip, Modal, Tabs, Descriptions, Image, DatePicker } from 'antd';
-import { DollarOutlined, ArrowLeftOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, UserOutlined, WarningOutlined, SearchOutlined, UnorderedListOutlined, DownloadOutlined, FilePdfOutlined, EyeOutlined } from '@ant-design/icons';
+import { Card, Table, Typography, Space, Row, Col, Statistic, Spin, Empty, Button, Tag, Input, Switch, Tooltip, Modal, Tabs, Descriptions, Image, DatePicker, Progress } from 'antd';
+import { DollarOutlined, ArrowLeftOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, UserOutlined, SearchOutlined, UnorderedListOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer } from 'recharts';
 import { useSupplierDebtDetail } from '../hooks';
 import { payableApi } from '../api';
 import { formatVND, formatDate } from '@/utils/format';
-import { StatusTag, PaymentModal } from '@/components/common';
+import { PaymentModal, ExportLedgerModal } from '@/components/common';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 
@@ -22,21 +22,25 @@ const SupplierDebtDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [showPayment, setShowPayment] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [onlyUnpaid, setOnlyUnpaid] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [modalData, setModalData] = useState<{ type: 'items'; record: any } | null>(null);
   const [paymentDetail, setPaymentDetail] = useState<any>(null);
-  const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
+  const [exporting, setExporting] = useState<'pdf' | 'excel' | 'preview' | 'preview-excel' | null>(null);
+  const [preview, setPreview] = useState<{ type: 'pdf'; url: string } | { type: 'excel'; html: string } | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('invoices');
   const [paymentDateRange, setPaymentDateRange] = useState<[any, any] | null>([dayjs().startOf('month'), dayjs().endOf('month')]);
+  const [invoiceDateRange, setInvoiceDateRange] = useState<[any, any] | null>(null);
 
   const { data, isLoading } = useSupplierDebtDetail(supplierId);
   const detail = data?.data as any;
 
   const filteredPayables = useMemo(() => {
     if (!detail) return [];
-    let list = detail.payables as any[];
+    let list = [...(detail.payables as any[])];
+    list.sort((a: any, b: any) => new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime());
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((p: any) =>
@@ -44,11 +48,19 @@ const SupplierDebtDetailPage: React.FC = () => {
         p.purchase_order?.order_code?.toLowerCase().includes(q)
       );
     }
-    if (statusFilter) {
-      list = list.filter((p: any) => p.status === statusFilter);
+    if (onlyUnpaid) {
+      list = list.filter((p: any) => Number(p.remaining) > 0);
+    }
+    if (invoiceDateRange?.[0] && invoiceDateRange?.[1]) {
+      const from = invoiceDateRange[0].startOf('day');
+      const to = invoiceDateRange[1].endOf('day');
+      list = list.filter((p: any) => {
+        const d = dayjs(p.invoice_date);
+        return (d.isAfter(from) && d.isBefore(to)) || d.isSame(from, 'day') || d.isSame(to, 'day');
+      });
     }
     return list;
-  }, [detail, search, statusFilter]);
+  }, [detail, search, onlyUnpaid, invoiceDateRange]);
 
   const chartData = useMemo(() => {
     if (!detail) return [];
@@ -92,34 +104,54 @@ const SupplierDebtDetailPage: React.FC = () => {
     });
   }, [allPayments, paymentDateRange]);
 
-  const handleExport = async (type: 'pdf' | 'excel') => {
+  const handleExport = async (action: 'excel' | 'pdf' | 'preview' | 'preview-excel', range: { from_date?: string; to_date?: string }) => {
     if (!supplierId) return;
-    setExporting(type);
+    setExporting(action);
     try {
-      const res = type === 'pdf' ? await payableApi.exportPdf(supplierId) : await payableApi.exportExcel(supplierId);
-      const blob = new Blob([res.data], { type: type === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
-      a.download = `cong-no-${detail?.supplier?.company_name || supplierId}.${type === 'pdf' ? 'pdf' : 'xlsx'}`;
-      a.click(); URL.revokeObjectURL(url);
+      if (action === 'preview') {
+        const res = await payableApi.exportPdf(supplierId, range);
+        const blob = new Blob([res.data], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        setPreview({ type: 'pdf', url });
+        setShowExportModal(false);
+      } else if (action === 'preview-excel') {
+        const res = await payableApi.exportExcel(supplierId, range);
+        const blob: Blob = res.data;
+        const arrayBuf = await blob.arrayBuffer();
+        const XLSX = await import('xlsx');
+        const wb = XLSX.read(arrayBuf, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const html = sheet ? XLSX.utils.sheet_to_html(sheet) : `<p>${t('debt.exportEmptySheet')}</p>`;
+        setPreview({ type: 'excel', html });
+        setShowExportModal(false);
+      } else {
+        const res = action === 'pdf'
+          ? await payableApi.exportPdf(supplierId, range)
+          : await payableApi.exportExcel(supplierId, range);
+        const mime = action === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        const blob = new Blob([res.data], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url;
+        a.download = `cong-no-${detail?.supplier?.company_name || supplierId}.${action === 'pdf' ? 'pdf' : 'xlsx'}`;
+        a.click(); URL.revokeObjectURL(url);
+        setShowExportModal(false);
+      }
     } catch { toast.error(t('common.error')); } finally { setExporting(null); }
   };
 
   if (isLoading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
   if (!detail) return <Empty description={t('supplier.notFound')} style={{ marginTop: 80 }} />;
 
-  const { supplier, payables, summary } = detail;
-  const overdueCount = payables.filter((p: any) => p.status === 'OVERDUE').length;
+  const { supplier, summary } = detail;
+
+  const paidPercent = summary.total_original > 0 ? Math.min(100, Math.round((summary.total_paid / summary.total_original) * 100)) : 0;
 
   const invoiceColumns: any[] = [
     { title: 'STT', key: 'stt', width: 50, align: 'center' as const, render: (_: any, __: any, idx: number) => (page - 1) * pageSize + idx + 1 },
     { title: t('debt.invoiceNumber'), dataIndex: 'invoice_number', key: 'invoice_number', width: 130 },
-    { title: t('product.status'), key: 'status', width: 140, render: (_: any, rec: any) => <StatusTag status={rec.status} type="debt" /> },
     { title: t('order.orderCode'), key: 'order_code', width: 160, responsive: ['md'] as any, render: (_: any, rec: any) => rec.purchase_order ? <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/purchase-orders/${rec.purchase_order.id}`)}>{rec.purchase_order.order_code}</Button> : '-' },
-    { title: t('debt.invoiceDate'), dataIndex: 'invoice_date', key: 'invoice_date', width: 110, responsive: ['lg'] as any, render: (v: string) => formatDate(v) },
-    { title: t('debt.dueDate'), dataIndex: 'due_date', key: 'due_date', width: 120, render: (v: string, rec: any) => { const overdue = new Date(v) < new Date() && rec.remaining > 0; return <Text style={overdue ? { color: '#cf1322', fontWeight: 600 } : {}}>{formatDate(v)}</Text>; } },
+    { title: t('debt.invoiceDate'), dataIndex: 'invoice_date', key: 'invoice_date', width: 110, render: (v: string) => formatDate(v) },
     { title: t('debt.originalAmount'), dataIndex: 'original_amount', key: 'original_amount', width: 140, align: 'right' as const, render: (v: number) => formatVND(v) },
-    { title: t('debt.paidShort'), dataIndex: 'paid_amount', key: 'paid_amount', width: 130, align: 'right' as const, render: (v: number) => formatVND(v) },
     { title: t('debt.remaining'), dataIndex: 'remaining', key: 'remaining', width: 140, align: 'right' as const, render: (v: number) => <Text strong style={{ color: v > 0 ? '#cf1322' : '#52c41a' }}>{formatVND(v)}</Text> },
     { title: '', key: 'actions', width: 50, align: 'center' as const, fixed: 'right' as const, render: (_: any, rec: any) => rec.purchase_order?.items?.length > 0 ? <Tooltip title={t('order.productDetails')}><Button type="text" size="small" icon={<UnorderedListOutlined />} style={{ color: '#1677ff' }} onClick={() => setModalData({ type: 'items', record: rec })} /></Tooltip> : null },
   ];
@@ -139,16 +171,14 @@ const SupplierDebtDetailPage: React.FC = () => {
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 12 }} wrap>
         <Button icon={<ArrowLeftOutlined />} type="text" onClick={() => navigate('/debts')}>{t('debt.payables')}</Button>
         <Space size={8}>
-          <Tooltip title={t('debt.exportExcel')}><Button icon={<DownloadOutlined />} style={{ borderRadius: 8 }} loading={exporting === 'excel'} onClick={() => handleExport('excel')} /></Tooltip>
-          <Tooltip title={t('debt.exportPdf')}><Button icon={<FilePdfOutlined />} style={{ borderRadius: 8 }} loading={exporting === 'pdf'} onClick={() => handleExport('pdf')} /></Tooltip>
+          <Button icon={<DownloadOutlined />} type="primary" ghost style={{ borderRadius: 8 }} onClick={() => setShowExportModal(true)}>{t('debt.exportReport')}</Button>
         </Space>
       </Space>
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={6}><Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}><Statistic title={t('debt.totalDebt')} value={summary.total_original} formatter={(v) => formatVND(v as number)} valueStyle={{ color: '#1890ff', fontSize: 16 }} /></Card></Col>
-        <Col xs={24} sm={6}><Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}><Statistic title={t('debt.totalPaid')} value={summary.total_paid} formatter={(v) => formatVND(v as number)} valueStyle={{ color: '#52c41a', fontSize: 16 }} /></Card></Col>
-        <Col xs={24} sm={6}><Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}><Statistic title={t('debt.remaining')} value={summary.total_remaining} formatter={(v) => formatVND(v as number)} valueStyle={{ color: summary.total_remaining > 0 ? '#cf1322' : '#52c41a', fontSize: 16 }} /></Card></Col>
-        <Col xs={24} sm={6}><Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}><Statistic title={t('debt.overdueCount')} value={overdueCount} prefix={overdueCount > 0 ? <WarningOutlined /> : undefined} valueStyle={{ color: overdueCount > 0 ? '#cf1322' : '#999', fontSize: 16 }} suffix={t('debt.invoices')} /></Card></Col>
+        <Col xs={24} sm={8}><Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}><Statistic title={t('debt.totalDebt')} value={summary.total_original} formatter={(v) => formatVND(v as number)} valueStyle={{ color: '#1890ff', fontSize: 18 }} /></Card></Col>
+        <Col xs={24} sm={8}><Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}><Statistic title={t('debt.totalPaid')} value={summary.total_paid} formatter={(v) => formatVND(v as number)} valueStyle={{ color: '#52c41a', fontSize: 18 }} /></Card></Col>
+        <Col xs={24} sm={8}><Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}><Statistic title={t('debt.remaining')} value={summary.total_remaining} formatter={(v) => formatVND(v as number)} valueStyle={{ color: summary.total_remaining > 0 ? '#cf1322' : '#52c41a', fontSize: 18 }} /></Card></Col>
       </Row>
 
       <Card style={cardStyle}>
@@ -156,6 +186,15 @@ const SupplierDebtDetailPage: React.FC = () => {
           <Text strong style={{ fontSize: 18 }}>{supplier.company_name}</Text>
           {summary.total_remaining > 0 && <Button type="primary" icon={<DollarOutlined />} style={{ borderRadius: 8 }} onClick={() => setShowPayment(true)}>{t('common.recordPayment')}</Button>}
         </Space>
+        {summary.total_original > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text style={{ fontSize: 12, color: '#666' }}>{t('debt.paymentProgress')}</Text>
+              <Text style={{ fontSize: 12, color: '#666' }}>{formatVND(summary.total_paid)} / {formatVND(summary.total_original)}</Text>
+            </Space>
+            <Progress percent={paidPercent} strokeColor={paidPercent === 100 ? '#52c41a' : '#1890ff'} size="small" />
+          </div>
+        )}
         <Row gutter={[12, 12]}>
           {supplier.contact_name && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={labelStyle}><UserOutlined style={{ marginRight: 4 }} />{t('customer.contactName')}</Text><Text strong>{supplier.contact_name}</Text></div></Col>}
           {supplier.phone && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={labelStyle}><PhoneOutlined style={{ marginRight: 4 }} />{t('customer.phone')}</Text><Text strong>{supplier.phone}</Text></div></Col>}
@@ -187,8 +226,12 @@ const SupplierDebtDetailPage: React.FC = () => {
             <>
               <Space wrap style={{ marginBottom: 12, width: '100%' }}>
                 <Input placeholder={t('debt.searchInvoice')} prefix={<SearchOutlined />} allowClear style={{ width: 220, borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-                <Select placeholder={t('debt.filterStatus')} allowClear style={{ width: 180, borderRadius: 8 }} value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }}
-                  options={[{ value: 'UNPAID', label: t('debt.statusUnpaid') }, { value: 'PARTIAL', label: t('debt.statusPartial') }, { value: 'OVERDUE', label: t('debt.statusOverdue') }, { value: 'PAID', label: t('debt.statusPaid') }]} />
+                <DatePicker.RangePicker value={invoiceDateRange as any} format="DD/MM/YYYY" style={{ borderRadius: 8 }}
+                  onChange={(d) => { setInvoiceDateRange(d as any); setPage(1); }} placeholder={[t('common.fromDate'), t('common.toDate')]} />
+                <Space size={6}>
+                  <Switch checked={onlyUnpaid} onChange={(v) => { setOnlyUnpaid(v); setPage(1); }} size="small" />
+                  <Text style={{ fontSize: 13 }}>{t('debt.onlyUnpaid')}</Text>
+                </Space>
               </Space>
               <Table dataSource={filteredPayables} columns={invoiceColumns} rowKey="id" size="small" scroll={{ x: 'max-content' }}
                 pagination={{ current: page, pageSize, total: filteredPayables.length, showSizeChanger: true, pageSizeOptions: ['5', '10', '20'], showTotal: (total) => t('debt.totalInvoices', { count: total }), onChange: (p, ps) => { setPage(p); setPageSize(ps); } }}
@@ -255,6 +298,37 @@ const SupplierDebtDetailPage: React.FC = () => {
       {showPayment && (
         <PaymentModal open type="payable" debtId={supplierId!} maxAmount={summary.total_remaining} onClose={() => setShowPayment(false)} />
       )}
+
+      <ExportLedgerModal
+        open={showExportModal}
+        loading={exporting}
+        onClose={() => setShowExportModal(false)}
+        onConfirm={handleExport}
+      />
+
+      <Modal
+        open={!!preview}
+        title={preview?.type === 'excel' ? t('debt.exportPreviewExcel') : t('debt.exportPreviewPdf')}
+        width="90vw"
+        footer={null}
+        onCancel={() => {
+          if (preview?.type === 'pdf') URL.revokeObjectURL(preview.url);
+          setPreview(null);
+        }}
+        styles={{ body: { height: '80vh', padding: 0, overflow: 'hidden' } }}
+      >
+        {preview?.type === 'pdf' && (
+          <iframe title="pdf-preview" src={preview.url} style={{ width: '100%', height: '100%', border: 0 }} />
+        )}
+        {preview?.type === 'excel' && (
+          <div
+            style={{ padding: 16, height: '100%', overflow: 'auto', background: '#f5f5f5', fontFamily: "'Times New Roman', serif" }}
+            dangerouslySetInnerHTML={{
+              __html: `<style>table{border-collapse:collapse;background:#fff;width:100%}td,th{border:1px solid #bfbfbf;padding:6px 10px;font-size:12px;vertical-align:top}tr:first-child td{font-weight:bold;background:#fafafa}</style>${preview.html}`,
+            }}
+          />
+        )}
+      </Modal>
     </div>
   );
 };

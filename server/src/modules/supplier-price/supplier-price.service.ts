@@ -1,12 +1,13 @@
 import prisma from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
+import { t } from '../../locales';
 
 export class SupplierPriceService {
   static async create(data: { supplier_id: string; product_id: string; purchase_price: number; moq?: number | null; lead_time_days?: number | null; is_preferred?: boolean }) {
     const existing = await prisma.supplierPrice.findUnique({
       where: { supplier_id_product_id: { supplier_id: data.supplier_id, product_id: data.product_id } },
     });
-    if (existing) throw new AppError('Giá NCC cho sản phẩm này đã tồn tại', 400);
+    if (existing) throw new AppError(t('supplierPrice.alreadyExists'), 400);
 
     if (data.is_preferred) {
       await prisma.supplierPrice.updateMany({
@@ -30,7 +31,7 @@ export class SupplierPriceService {
 
   static async update(id: string, data: { purchase_price?: number; moq?: number | null; lead_time_days?: number | null; is_preferred?: boolean }) {
     const current = await prisma.supplierPrice.findUnique({ where: { id } });
-    if (!current) throw new AppError('Không tìm thấy giá NCC', 404);
+    if (!current) throw new AppError(t('supplierPrice.notFound'), 404);
 
     if (data.is_preferred) {
       await prisma.supplierPrice.updateMany({

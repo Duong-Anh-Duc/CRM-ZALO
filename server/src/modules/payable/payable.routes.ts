@@ -11,6 +11,7 @@ router.get('/', PayableController.list);
 router.get('/by-supplier', PayableController.listBySupplier);
 router.get('/summary', PayableController.getSummary);
 router.get('/supplier/:supplierId', PayableController.getSupplierDetail);
+router.get('/supplier/:supplierId/ledger', PayableController.getSupplierLedger);
 router.get('/supplier/:supplierId/export-pdf', PayableController.exportSupplierPdf);
 router.get('/supplier/:supplierId/export-excel', PayableController.exportSupplierExcel);
 router.post('/payments', requireRole('ADMIN', 'STAFF'), validate(recordPaymentSchema), PayableController.recordPayment);

@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../types';
 import { CustomerProductPriceService } from './customer-product-price.service';
 import { sendSuccess, sendMessage } from '../../utils/response';
+import { t } from '../../locales';
 
 export class CustomerProductPriceController {
   static async listByCustomer(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -23,7 +24,7 @@ export class CustomerProductPriceController {
   static async delete(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       await CustomerProductPriceService.delete(req.params.id as string);
-      sendMessage(res, 'Đã xóa');
+      sendMessage(res, t('common.deleted'));
     } catch (err) { next(err); }
   }
 }

@@ -26,7 +26,8 @@ import AlertsPage from '@/features/alerts/pages/AlertsPage';
 import ZaloPage from '@/features/zalo/pages/ZaloPage';
 import UserManagementPage from '@/features/users/pages/UserManagementPage';
 import PayrollPage from '@/features/payroll/pages/PayrollPage';
-import UniversePage from '@/features/universe/pages/UniversePage';
+// import UniversePage from '@/features/universe/pages/UniversePage';
+import AuditLogPage from '@/features/audit-logs/pages/AuditLogPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuth = useAuthStore((s) => s.isAuthenticated());
@@ -42,7 +43,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/universe" element={<PrivateRoute><UniversePage /></PrivateRoute>} />
+      {/* <Route path="/universe" element={<PrivateRoute><UniversePage /></PrivateRoute>} /> */}
       <Route
         path="/"
         element={
@@ -86,6 +87,14 @@ export default function App() {
           element={
             <AdminRoute>
               <SettingsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="audit-logs"
+          element={
+            <AdminRoute>
+              <AuditLogPage />
             </AdminRoute>
           }
         />

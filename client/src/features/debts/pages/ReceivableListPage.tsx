@@ -5,14 +5,14 @@ import {
   Button, Input, Tooltip, Tag, Empty, DatePicker,
 } from 'antd';
 import {
-  DollarOutlined, WarningOutlined, CalendarOutlined,
+  DollarOutlined, FileTextOutlined, TeamOutlined, CheckCircleOutlined,
   SearchOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip, Legend } from 'recharts';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
-import { useReceivablesByCustomer, useReceivableSummary } from '../hooks';
+import { useReceivablesByCustomer } from '../hooks';
 import { formatVND } from '@/utils/format';
 
 const { Text } = Typography;
@@ -42,13 +42,11 @@ const ReceivableListPage: React.FC = () => {
     { label: t('debt.outstanding'), value: 'OUTSTANDING' },
     { label: t('common.all'), value: 'ALL' },
     { label: t('debtStatusLabels.PAID'), value: 'PAID' },
-    { label: t('debtStatusLabels.OVERDUE'), value: 'OVERDUE' },
   ];
 
   const dateRange = period === 'custom' && customRange
     ? { from_date: customRange[0]?.format('YYYY-MM-DD'), to_date: customRange[1]?.format('YYYY-MM-DD') }
     : getDateRange(period);
-  const summaryQuery = useReceivableSummary();
   const { data, isLoading } = useReceivablesByCustomer({
     status: status || undefined,
     search: search || undefined,
@@ -59,7 +57,7 @@ const ReceivableListPage: React.FC = () => {
 
   const list: any[] = data?.data ?? [];
   const meta = data?.meta;
-  const summary = summaryQuery.data?.data as any;
+  const summary = (meta as any)?.summary as { total_remaining: number; total_paid: number; total_original: number; customer_count: number } | undefined;
 
   // Donut chart: by debt status
   const chartData = useMemo(() => {
@@ -112,12 +110,6 @@ const ReceivableListPage: React.FC = () => {
       ),
     },
     {
-      title: t('debt.overdueCount'), key: 'overdue', width: 100, align: 'center' as const,
-      render: (_: unknown, r: any) => r.overdue_count > 0
-        ? <Tag color="red" style={{ borderRadius: 6 }}>{r.overdue_count}</Tag>
-        : <Text type="secondary">0</Text>,
-    },
-    {
       title: t('common.actions'), key: 'actions', width: 70, fixed: 'right' as const, align: 'center' as const,
       render: (_: unknown, r: any) => (
         <Tooltip title={t('common.viewDetail')}>
@@ -145,22 +137,28 @@ const ReceivableListPage: React.FC = () => {
       </Space>
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12} md={6}>
           <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <Statistic title={t('debt.totalReceivable')} value={summary?.total_receivable ?? 0}
-              formatter={(v) => formatVND(v as number)} prefix={<DollarOutlined />} valueStyle={{ color: '#1890ff', fontSize: 18 }} />
+            <Statistic title={t('debt.totalInvoiced')} value={summary?.total_original ?? 0}
+              formatter={(v) => formatVND(v as number)} prefix={<FileTextOutlined />} valueStyle={{ color: '#595959', fontSize: 20 }} />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12} md={6}>
           <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <Statistic title={t('debt.overdue')} value={summary?.overdue ?? 0}
-              formatter={(v) => formatVND(v as number)} prefix={<WarningOutlined />} valueStyle={{ color: '#cf1322', fontSize: 18 }} />
+            <Statistic title={t('debt.alreadyCollected')} value={summary?.total_paid ?? 0}
+              formatter={(v) => formatVND(v as number)} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#52c41a', fontSize: 20 }} />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12} md={6}>
           <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <Statistic title={t('debt.dueThisWeek')} value={summary?.due_this_week ?? 0}
-              formatter={(v) => formatVND(v as number)} prefix={<CalendarOutlined />} valueStyle={{ color: '#fa8c16', fontSize: 18 }} />
+            <Statistic title={t('debt.remainingToCollect')} value={summary?.total_remaining ?? 0}
+              formatter={(v) => formatVND(v as number)} prefix={<DollarOutlined />} valueStyle={{ color: '#cf1322', fontSize: 20 }} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            <Statistic title={t('debt.customerCount')} value={summary?.customer_count ?? 0}
+              prefix={<TeamOutlined />} valueStyle={{ color: '#722ed1', fontSize: 20 }} />
           </Card>
         </Col>
       </Row>

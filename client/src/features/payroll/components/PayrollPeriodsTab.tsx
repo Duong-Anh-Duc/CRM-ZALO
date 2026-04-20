@@ -133,7 +133,7 @@ const PayrollPeriodsTab: React.FC = () => {
       <Modal open={createOpen} title={t('payroll.createPeriod')} onCancel={() => setCreateOpen(false)} onOk={handleCreate} confirmLoading={createPeriod.isPending} width={360}>
         <Space direction="vertical" style={{ width: '100%', marginTop: 12 }} size="middle">
           <div><div style={{ marginBottom: 4 }}>{t('payroll.year')}</div><Select value={newYear} onChange={setNewYear} style={{ width: '100%' }} options={Array.from({ length: 5 }, (_, i) => ({ value: dayjs().year() - 2 + i, label: String(dayjs().year() - 2 + i) }))} /></div>
-          <div><div style={{ marginBottom: 4 }}>{t('payroll.month')}</div><Select value={newMonth} onChange={setNewMonth} style={{ width: '100%' }} options={Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` }))} /></div>
+          <div><div style={{ marginBottom: 4 }}>{t('payroll.month')}</div><Select value={newMonth} onChange={setNewMonth} style={{ width: '100%' }} options={Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: t('payroll.monthLabel', { month: i + 1 }) }))} /></div>
         </Space>
       </Modal>
 

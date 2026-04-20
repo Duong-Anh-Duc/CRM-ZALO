@@ -3,7 +3,7 @@ import { PaginationMeta } from '../types';
 
 interface SuccessOptions {
   message?: string;
-  meta?: PaginationMeta;
+  meta?: PaginationMeta | (PaginationMeta & Record<string, unknown>);
   statusCode?: number;
 }
 
@@ -24,6 +24,7 @@ export function sendPaginated(
   res: Response,
   data: unknown,
   pagination: { total: number; page: number; limit: number },
+  extraMeta?: Record<string, unknown>,
 ) {
   return sendSuccess(res, data, {
     meta: {
@@ -31,7 +32,8 @@ export function sendPaginated(
       limit: pagination.limit,
       total: pagination.total,
       total_pages: Math.ceil(pagination.total / pagination.limit),
-    },
+      ...extraMeta,
+    } as PaginationMeta,
   });
 }
 

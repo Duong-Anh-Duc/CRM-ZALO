@@ -1,4 +1,11 @@
 {
+  "common": {
+    "notFound": "Không tìm thấy",
+    "deleted": "Đã xoá",
+    "created": "Đã tạo",
+    "updated": "Đã cập nhật",
+    "invalidType": "Loại không hợp lệ"
+  },
   "auth": {
     "notLoggedIn": "Chưa đăng nhập",
     "invalidToken": "Token không hợp lệ",
@@ -25,6 +32,10 @@
   "supplier": {
     "notFound": "Không tìm thấy nhà cung cấp",
     "deleted": "Đã ẩn nhà cung cấp"
+  },
+  "supplierPrice": {
+    "alreadyExists": "Giá NCC cho sản phẩm này đã tồn tại",
+    "notFound": "Không tìm thấy giá NCC"
   },
   "order": {
     "notFound": "Không tìm thấy đơn hàng",
@@ -214,5 +225,44 @@
     "employeeNotFound": "Không tìm thấy hồ sơ nhân viên",
     "profileExists": "Nhân viên đã có hồ sơ lương",
     "recordNotFound": "Không tìm thấy phiếu lương"
+  },
+  "ledger": {
+    "receivableTitle": "CHI TIẾT CÔNG NỢ PHẢI THU KHÁCH HÀNG",
+    "payableTitle": "CHI TIẾT CÔNG NỢ PHẢI TRẢ NHÀ CUNG CẤP",
+    "receivableSheetName": "CHI TIẾT CÔNG NỢ PHẢI THU",
+    "payableSheetName": "CHI TIẾT CÔNG NỢ PHẢI TRẢ",
+    "subtitleReceivable": "TK công nợ: 131, Loại tiền: <<Tổng hợp>>, Khách hàng: {{name}}, {{period}}",
+    "subtitlePayable": "TK công nợ: 331, Loại tiền: <<Tổng hợp>>, Nhà cung cấp: {{name}}, {{period}}",
+    "periodAll": "Tổng hợp",
+    "periodRange": "Từ ngày {{from}} đến ngày {{to}}",
+    "colDocDate": "Ngày chứng từ",
+    "colDocNumber": "Số chứng từ",
+    "colDescription": "Diễn giải",
+    "colAccount": "TK công nợ",
+    "colDebit": "Phát sinh Nợ",
+    "colCredit": "Phát sinh Có",
+    "colBalanceDebit": "Dư Nợ",
+    "colBalanceCredit": "Dư Có",
+    "colUnit": "ĐVT",
+    "colQuantity": "Số lượng",
+    "colUnitPrice": "Đơn giá",
+    "subConverted": "Quy đổi",
+    "rowCustomerName": "Tên khách hàng: {{name}}",
+    "rowSupplierName": "Tên NCC: {{name}}",
+    "rowOpeningBalance": "Số dư đầu kỳ",
+    "rowSubtotal": "Cộng",
+    "rowTotal": "Tổng cộng",
+    "vat": "VAT",
+    "shippingFee": "Phí vận chuyển",
+    "otherFee": "Phí khác",
+    "collectFrom": "Thu tiền của {{name}}",
+    "payTo": "Trả tiền cho {{name}}",
+    "salesReturn": "Trả hàng",
+    "purchaseReturn": "Trả hàng NCC",
+    "unitPiece": "Cái",
+    "unitCarton": "Thùng",
+    "unitKg": "Kg",
+    "unitTime": "Lần",
+    "paymentPrefix": "TT"
   }
 }

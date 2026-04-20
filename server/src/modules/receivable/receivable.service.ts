@@ -1,14 +1,13 @@
 import prisma from '../../lib/prisma';
 import puppeteer from 'puppeteer';
-import dayjs from 'dayjs';
-import * as XLSX from 'xlsx';
 import { AppError } from '../../middleware/error.middleware';
 import { DebtStatus, PaymentMethod } from '@prisma/client';
 import { t } from '../../locales';
 import { delCache } from '../../lib/redis';
 import { AlertService } from '../alert/alert.service';
 import logger from '../../utils/logger';
-import { buildDebtReportHtml } from './debt-report-template';
+import { buildLedgerReportHtml } from './debt-report-template';
+import { ReceivableLedgerService } from './receivable-ledger.service';
 
 interface RecordPaymentInput {
   customer_id: string;
@@ -83,7 +82,18 @@ export class ReceivableService {
     const total = rows.length;
     const paged = rows.slice((page - 1) * limit, page * limit);
 
-    return { customers: paged, total, page, limit, total_pages: Math.ceil(total / limit) };
+    const summary = rows.reduce(
+      (acc, r) => ({
+        total_original: acc.total_original + r.total_original,
+        total_paid: acc.total_paid + r.total_paid,
+        total_remaining: acc.total_remaining + r.total_remaining,
+        customer_count: acc.customer_count + 1,
+        invoice_count: acc.invoice_count + r.invoice_count,
+      }),
+      { total_original: 0, total_paid: 0, total_remaining: 0, customer_count: 0, invoice_count: 0 },
+    );
+
+    return { customers: paged, total, page, limit, total_pages: Math.ceil(total / limit), summary };
   }
 
   // ── All invoices for a customer ──
@@ -269,47 +279,19 @@ export class ReceivableService {
     return { allocated: paymentCreates.length, total_amount: input.amount };
   }
 
-  // ── Export customer debt report as PDF ──
-  static async exportCustomerPdf(customerId: string): Promise<Buffer> {
-    const detail = await this.getCustomerDetail(customerId);
-    const { customer, receivables, summary } = detail;
+  // ── Export customer ledger as PDF ──
+  static async exportCustomerPdf(customerId: string, fromDate?: string, toDate?: string, lang = 'vi'): Promise<Buffer> {
+    const ledger = await ReceivableLedgerService.getCustomerLedger(customerId, fromDate, toDate, lang);
 
-    const invoices = receivables.map((r: any) => ({
-      invoice_number: r.invoice_number,
-      order_code: r.sales_order?.order_code || '-',
-      invoice_date: dayjs(r.invoice_date).format('DD/MM/YYYY'),
-      due_date: dayjs(r.due_date).format('DD/MM/YYYY'),
-      original_amount: Number(r.original_amount),
-      paid_amount: Number(r.paid_amount),
-      remaining: Number(r.remaining),
-      status: r.status,
-    }));
-
-    const payments = receivables.flatMap((r: any) =>
-      (r.payments || []).map((p: any) => ({
-        payment_date: dayjs(p.payment_date).format('DD/MM/YYYY'),
-        invoice_number: r.invoice_number,
-        amount: Number(p.amount),
-        method: p.method,
-        reference: p.reference || '',
-      }))
-    ).sort((a: any, b: any) => b.payment_date.localeCompare(a.payment_date));
-
-    const html = buildDebtReportHtml({
+    const html = buildLedgerReportHtml({
       type: 'receivable',
-      entity: {
-        name: customer.company_name || customer.contact_name || '',
-        phone: customer.phone || '',
-        email: customer.email || '',
-        address: customer.address || '',
-      },
-      summary: {
-        total_original: Number(summary.total_original),
-        total_paid: Number(summary.total_paid),
-        total_remaining: Number(summary.total_remaining),
-      },
-      invoices,
-      payments,
+      entityName: ledger.customer.company_name || ledger.customer.contact_name || '',
+      rows: ledger.rows,
+      opening_balance: ledger.opening_balance,
+      totals: ledger.totals,
+      from_date: ledger.from_date,
+      to_date: ledger.to_date,
+      lang,
     });
 
     const browser = await puppeteer.launch({
@@ -322,8 +304,9 @@ export class ReceivableService {
       await page.setContent(html, { waitUntil: 'networkidle0' });
       const pdf = await page.pdf({
         format: 'A4',
+        landscape: true,
         printBackground: true,
-        margin: { top: '15mm', right: '10mm', bottom: '15mm', left: '10mm' },
+        margin: { top: '12mm', right: '10mm', bottom: '12mm', left: '10mm' },
       });
       return Buffer.from(pdf);
     } finally {
@@ -341,59 +324,8 @@ export class ReceivableService {
     return result;
   }
 
-  // ── Export customer debt report as Excel ──
-  static async exportCustomerExcel(customerId: string): Promise<Buffer> {
-    const detail = await this.getCustomerDetail(customerId);
-    const { customer, receivables, summary } = detail;
-
-    const wb = XLSX.utils.book_new();
-
-    // Sheet 1: Customer info + Invoices
-    const headerRows = [
-      ['BÁO CÁO CÔNG NỢ PHẢI THU'],
-      [`Ngày xuất: ${dayjs().format('DD/MM/YYYY HH:mm')}`],
-      [],
-      ['THÔNG TIN KHÁCH HÀNG'],
-      ['Tên', customer.company_name || customer.contact_name || ''],
-      ...(customer.contact_name && customer.company_name ? [['Người liên hệ', customer.contact_name]] : []),
-      ...(customer.phone ? [['Điện thoại', customer.phone]] : []),
-      ...(customer.email ? [['Email', customer.email]] : []),
-      ...(customer.address ? [['Địa chỉ', customer.address]] : []),
-      [],
-      ['TỔNG HỢP'],
-      ['Tổng công nợ', Number(summary.total_original)],
-      ['Đã thanh toán', Number(summary.total_paid)],
-      ['Còn lại', Number(summary.total_remaining)],
-      [],
-      ['STT', 'Số hoá đơn', 'Mã đơn hàng', 'Ngày HĐ', 'Hạn thanh toán', 'Số tiền gốc', 'Đã thanh toán', 'Còn lại', 'Trạng thái'],
-    ];
-    const dataRows = receivables.map((r: any, idx: number) => [
-      idx + 1, r.invoice_number, r.sales_order?.order_code || '-',
-      dayjs(r.invoice_date).format('DD/MM/YYYY'), dayjs(r.due_date).format('DD/MM/YYYY'),
-      Number(r.original_amount), Number(r.paid_amount), Number(r.remaining), r.status,
-    ]);
-    dataRows.push(['', 'TỔNG CỘNG', '', '', '', Number(summary.total_original), Number(summary.total_paid), Number(summary.total_remaining), '']);
-
-    const ws1 = XLSX.utils.aoa_to_sheet([...headerRows, ...dataRows]);
-    ws1['!cols'] = [{ wch: 6 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
-    XLSX.utils.book_append_sheet(wb, ws1, 'Công nợ');
-
-    // Sheet 2: Payments
-    const paymentHeader = [['STT', 'Số hoá đơn', 'Ngày thanh toán', 'Số tiền', 'Phương thức', 'Tham chiếu']];
-    const paymentData = receivables.flatMap((r: any) =>
-      (r.payments || []).map((p: any, idx: number) => [
-        idx + 1, r.invoice_number, dayjs(p.payment_date).format('DD/MM/YYYY'),
-        Number(p.amount), p.method === 'BANK_TRANSFER' ? 'Chuyển khoản' : p.method === 'CASH' ? 'Tiền mặt' : p.method,
-        p.reference || '',
-      ])
-    );
-    if (paymentData.length > 0) {
-      const ws2 = XLSX.utils.aoa_to_sheet([...paymentHeader, ...paymentData]);
-      ws2['!cols'] = [{ wch: 5 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 22 }];
-      XLSX.utils.book_append_sheet(wb, ws2, 'Lịch sử TT');
-    }
-
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    return Buffer.from(buf);
+  // ── Export customer ledger (detailed) as Excel ──
+  static async exportCustomerExcel(customerId: string, fromDate?: string, toDate?: string, lang = 'vi'): Promise<Buffer> {
+    return ReceivableLedgerService.exportLedgerExcel(customerId, fromDate, toDate, lang);
   }
 }

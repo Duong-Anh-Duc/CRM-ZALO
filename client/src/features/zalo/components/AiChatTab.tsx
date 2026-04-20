@@ -27,10 +27,10 @@ const AiChatTab: React.FC = () => {
   const [trainingOpen, setTrainingOpen] = useState(false);
 
   const QUICK_QUESTIONS = [
-    { icon: <ShoppingCartOutlined />, label: t('zalo.newOrders'), question: 'Có tin nhắn nào đặt hàng hoặc hỏi mua sản phẩm không?' },
-    { icon: <FileTextOutlined />, label: t('zalo.summaryToday'), question: 'Tóm tắt tất cả tin nhắn Zalo hôm nay' },
-    { icon: <QuestionCircleOutlined />, label: t('zalo.needsReply'), question: 'Tin nhắn nào từ khách hàng chưa được trả lời và cần phản hồi gấp?' },
-    { icon: <ThunderboltOutlined />, label: t('zalo.analyze'), question: 'Phân tích xu hướng: khách hàng đang quan tâm sản phẩm gì nhiều nhất?' },
+    { icon: <ShoppingCartOutlined />, label: t('zalo.newOrders'), question: t('zalo.newOrdersQuestion') },
+    { icon: <FileTextOutlined />, label: t('zalo.summaryToday'), question: t('zalo.summaryTodayQuestion') },
+    { icon: <QuestionCircleOutlined />, label: t('zalo.needsReply'), question: t('zalo.needsReplyQuestion') },
+    { icon: <ThunderboltOutlined />, label: t('zalo.analyze'), question: t('zalo.analyzeQuestion') },
   ];
 
 
