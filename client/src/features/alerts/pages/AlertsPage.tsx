@@ -16,6 +16,7 @@ import { useAlerts, useUnreadAlertCount, useMarkAlertRead, useAlertAction } from
 import { Alert } from '@/types';
 import { formatDateTime } from '@/utils/format';
 import { PageHeader } from '@/components/common';
+import { usePermission } from '@/contexts/AbilityContext';
 
 dayjs.extend(relativeTime);
 dayjs.locale('vi');
@@ -34,6 +35,7 @@ const AlertsPage: React.FC = () => {
   const [filterRead, setFilterRead] = useState<string | undefined>();
   const [newDateId, setNewDateId] = useState<string | null>(null);
   const [messageId, setMessageId] = useState<string | null>(null);
+  const canManageAlerts = usePermission('alert.manage');
 
   const typeConfig: Record<Alert['type'], { color: string; label: string; icon: React.ReactNode }> = {
     WARNING: { color: 'gold', label: t('alert.typeWarning'), icon: <WarningOutlined /> },
@@ -189,14 +191,16 @@ const AlertsPage: React.FC = () => {
                       </Button>
                     </>
                   )}
-                  <Button
-                    size="small"
-                    icon={<MessageOutlined />}
-                    onClick={() => setMessageId(messageId === alert.id ? null : alert.id)}
-                    style={{ borderRadius: 8 }}
-                  >
-                    {t('alert.createMessage')}
-                  </Button>
+                  {canManageAlerts && (
+                    <Button
+                      size="small"
+                      icon={<MessageOutlined />}
+                      onClick={() => setMessageId(messageId === alert.id ? null : alert.id)}
+                      style={{ borderRadius: 8 }}
+                    >
+                      {t('alert.createMessage')}
+                    </Button>
+                  )}
                 </Space>
 
                 {/* New date picker for late confirmation */}

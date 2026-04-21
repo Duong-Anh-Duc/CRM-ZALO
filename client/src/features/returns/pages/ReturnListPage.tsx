@@ -3,7 +3,7 @@ import { Card, Tabs, Table, Button, Input, Select, Space, Empty, Tooltip, Popcon
 import { PlusOutlined, SearchOutlined, EyeOutlined, DeleteOutlined, RollbackOutlined, DollarOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/stores/auth.store';
+import { usePermission } from '@/contexts/AbilityContext';
 import { useSalesReturns, usePurchaseReturns, useDeleteSalesReturn, useDeletePurchaseReturn } from '../hooks';
 import { formatVND, formatDate } from '@/utils/format';
 import { StatusTag, PageHeader } from '@/components/common';
@@ -26,8 +26,8 @@ const cardSm: React.CSSProperties = { borderRadius: 12, boxShadow: '0 2px 8px rg
 const SalesReturnTab: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const hasRole = useAuthStore((s) => s.hasRole);
-  const canManage = hasRole('ADMIN', 'STAFF');
+  const canCreate = usePermission('return.create');
+  const canDelete = usePermission('return.delete');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<string | undefined>();
   const [page, setPage] = useState(1);
@@ -63,7 +63,7 @@ const SalesReturnTab: React.FC = () => {
       render: (_: any, rec: any) => (
         <Space size="small">
           <Tooltip title={t('common.viewDetail')}><Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }} onClick={() => setDetailId(rec.id)} /></Tooltip>
-          {canManage && (rec.status === 'PENDING' || rec.status === 'REJECTED') && (
+          {canDelete && (rec.status === 'PENDING' || rec.status === 'REJECTED') && (
             <Popconfirm title={t('common.deleteConfirm')} onConfirm={() => deleteMutation.mutate(rec.id)} okText={t('common.delete')} cancelText={t('common.cancel')} okButtonProps={{ danger: true }}>
               <Tooltip title={t('common.deleteRecord')}><Button type="text" size="small" danger icon={<DeleteOutlined />} /></Tooltip>
             </Popconfirm>
@@ -87,7 +87,7 @@ const SalesReturnTab: React.FC = () => {
           <Input placeholder={t('return.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ width: 220, borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
           <Select placeholder={t('debt.filterStatus')} allowClear style={{ width: 170, borderRadius: 8 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={statusOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
         </Space>
-        {canManage && <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setFormOpen(true)}>{t('return.createSalesReturn')}</Button>}
+        {canCreate && <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setFormOpen(true)}>{t('return.createSalesReturn')}</Button>}
       </Space>
 
       <Table dataSource={list} columns={columns} rowKey="id" size="small" loading={isLoading} scroll={{ x: 'max-content' }}
@@ -103,8 +103,8 @@ const SalesReturnTab: React.FC = () => {
 const PurchaseReturnTab: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const hasRole = useAuthStore((s) => s.hasRole);
-  const canManage = hasRole('ADMIN', 'STAFF');
+  const canCreate = usePermission('return.create');
+  const canDelete = usePermission('return.delete');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<string | undefined>();
   const [page, setPage] = useState(1);
@@ -139,7 +139,7 @@ const PurchaseReturnTab: React.FC = () => {
       render: (_: any, rec: any) => (
         <Space size="small">
           <Tooltip title={t('common.viewDetail')}><Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }} onClick={() => setDetailId(rec.id)} /></Tooltip>
-          {canManage && (rec.status === 'PENDING' || rec.status === 'REJECTED') && (
+          {canDelete && (rec.status === 'PENDING' || rec.status === 'REJECTED') && (
             <Popconfirm title={t('common.deleteConfirm')} onConfirm={() => deleteMutation.mutate(rec.id)} okText={t('common.delete')} cancelText={t('common.cancel')} okButtonProps={{ danger: true }}>
               <Tooltip title={t('common.deleteRecord')}><Button type="text" size="small" danger icon={<DeleteOutlined />} /></Tooltip>
             </Popconfirm>
@@ -163,7 +163,7 @@ const PurchaseReturnTab: React.FC = () => {
           <Input placeholder={t('return.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ width: 220, borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
           <Select placeholder={t('debt.filterStatus')} allowClear style={{ width: 170, borderRadius: 8 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={statusOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
         </Space>
-        {canManage && <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setFormOpen(true)}>{t('return.createPurchaseReturn')}</Button>}
+        {canCreate && <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setFormOpen(true)}>{t('return.createPurchaseReturn')}</Button>}
       </Space>
 
       <Table dataSource={list} columns={columns} rowKey="id" size="small" loading={isLoading} scroll={{ x: 'max-content' }}

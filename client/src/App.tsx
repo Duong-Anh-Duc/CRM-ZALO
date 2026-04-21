@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth.store';
+import { usePermission } from '@/contexts/AbilityContext';
 import AppLayout from '@/layouts/AppLayout';
 import LoginPage from '@/features/auth/pages/LoginPage';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
@@ -28,15 +29,16 @@ import UserManagementPage from '@/features/users/pages/UserManagementPage';
 import PayrollPage from '@/features/payroll/pages/PayrollPage';
 // import UniversePage from '@/features/universe/pages/UniversePage';
 import AuditLogPage from '@/features/audit-logs/pages/AuditLogPage';
+import RoleManagementPage from '@/features/roles/pages/RoleManagementPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuth = useAuthStore((s) => s.isAuthenticated());
   return isAuth ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
-function AdminRoute({ children }: { children: React.ReactNode }) {
-  const hasRole = useAuthStore((s) => s.hasRole('ADMIN'));
-  return hasRole ? <>{children}</> : <Navigate to="/" replace />;
+function PermissionRoute({ permission, children }: { permission: string; children: React.ReactNode }) {
+  const has = usePermission(permission);
+  return has ? <>{children}</> : <Navigate to="/" replace />;
 }
 
 export default function App() {
@@ -52,50 +54,210 @@ export default function App() {
           </PrivateRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
-        <Route path="products" element={<ProductListPage />} />
-        <Route path="products/:id" element={<ProductDetailPage />} />
-        <Route path="customers" element={<CustomerListPage />} />
-        <Route path="customers/:id" element={<CustomerDetailPage />} />
-        <Route path="suppliers" element={<SupplierListPage />} />
-        <Route path="suppliers/:id" element={<SupplierDetailPage />} />
-        <Route path="sales-orders" element={<SalesOrderListPage />} />
-        <Route path="sales-orders/create" element={<CreateSalesOrderPage />} />
-        <Route path="sales-orders/:id" element={<SalesOrderDetailPage />} />
-        <Route path="purchase-orders" element={<PurchaseOrderListPage />} />
-        <Route path="purchase-orders/create" element={<CreatePurchaseOrderPage />} />
-        <Route path="purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
-        <Route path="debts" element={<DebtPage />} />
-        <Route path="receivables/customer/:customerId" element={<CustomerDebtDetailPage />} />
-        <Route path="payables/supplier/:supplierId" element={<SupplierDebtDetailPage />} />
-        <Route path="returns" element={<ReturnListPage />} />
-        <Route path="cash-book" element={<CashBookPage />} />
-        <Route path="payroll" element={<PayrollPage />} />
-        <Route path="reports" element={<ReportsPage />} />
+        <Route
+          index
+          element={
+            <PermissionRoute permission="dashboard.view">
+              <DashboardPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="products"
+          element={
+            <PermissionRoute permission="product.view">
+              <ProductListPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="products/:id"
+          element={
+            <PermissionRoute permission="product.view">
+              <ProductDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="customers"
+          element={
+            <PermissionRoute permission="customer.view">
+              <CustomerListPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="customers/:id"
+          element={
+            <PermissionRoute permission="customer.view">
+              <CustomerDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="suppliers"
+          element={
+            <PermissionRoute permission="supplier.view">
+              <SupplierListPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="suppliers/:id"
+          element={
+            <PermissionRoute permission="supplier.view">
+              <SupplierDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="sales-orders"
+          element={
+            <PermissionRoute permission="sales_order.view">
+              <SalesOrderListPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="sales-orders/create"
+          element={
+            <PermissionRoute permission="sales_order.create">
+              <CreateSalesOrderPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="sales-orders/:id"
+          element={
+            <PermissionRoute permission="sales_order.view">
+              <SalesOrderDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="purchase-orders"
+          element={
+            <PermissionRoute permission="purchase_order.view">
+              <PurchaseOrderListPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="purchase-orders/create"
+          element={
+            <PermissionRoute permission="purchase_order.create">
+              <CreatePurchaseOrderPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="purchase-orders/:id"
+          element={
+            <PermissionRoute permission="purchase_order.view">
+              <PurchaseOrderDetailPage />
+            </PermissionRoute>
+          }
+        />
+        {/* NOTE: /debts shows both receivables+payables tabs; gating on receivable.view only.
+            Users with only payable.view won't reach this shell — they can deep-link via /payables/supplier/:id.
+            TODO: support multi-permission (OR) guard in PermissionRoute. */}
+        <Route
+          path="debts"
+          element={
+            <PermissionRoute permission="receivable.view">
+              <DebtPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="receivables/customer/:customerId"
+          element={
+            <PermissionRoute permission="receivable.view">
+              <CustomerDebtDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="payables/supplier/:supplierId"
+          element={
+            <PermissionRoute permission="payable.view">
+              <SupplierDebtDetailPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="returns"
+          element={
+            <PermissionRoute permission="return.view">
+              <ReturnListPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="cash-book"
+          element={
+            <PermissionRoute permission="cash_book.view">
+              <CashBookPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="payroll"
+          element={
+            <PermissionRoute permission="payroll.view">
+              <PayrollPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="reports"
+          element={
+            <PermissionRoute permission="report.view">
+              <ReportsPage />
+            </PermissionRoute>
+          }
+        />
+        {/* /alerts: no specific alert.* permission yet — any logged-in user can view their own alerts.
+            TODO: add alert.manage permission when backend gates alert mutations. */}
         <Route path="alerts" element={<AlertsPage />} />
-        <Route path="zalo" element={<ZaloPage />} />
+        <Route
+          path="zalo"
+          element={
+            <PermissionRoute permission="zalo.view">
+              <ZaloPage />
+            </PermissionRoute>
+          }
+        />
         <Route
           path="users"
           element={
-            <AdminRoute>
+            <PermissionRoute permission="user.view">
               <UserManagementPage />
-            </AdminRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="settings"
           element={
-            <AdminRoute>
+            <PermissionRoute permission="role.manage">
               <SettingsPage />
-            </AdminRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="audit-logs"
           element={
-            <AdminRoute>
+            <PermissionRoute permission="audit_log.view">
               <AuditLogPage />
-            </AdminRoute>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="admin/roles"
+          element={
+            <PermissionRoute permission="role.manage">
+              <RoleManagementPage />
+            </PermissionRoute>
           }
         />
       </Route>

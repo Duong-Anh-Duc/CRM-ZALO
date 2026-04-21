@@ -1,11 +1,13 @@
 import { Router, Response, NextFunction } from 'express';
 import { authenticate } from '../../middleware/auth.middleware';
+import { requireAbility } from '../../middleware/ability.middleware';
 import { AuthenticatedRequest } from '../../types';
 import { ChatbotService } from './chatbot.service';
 import { sendSuccess } from '../../utils/response';
 
 const router = Router();
 router.use(authenticate);
+router.use(requireAbility('use', 'AiChat'));
 
 // SSE streaming endpoint
 router.post('/chat/stream', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

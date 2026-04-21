@@ -22,6 +22,7 @@
     "save": "Save",
     "add": "Add",
     "back": "Back",
+    "next": "Next",
     "backToList": "Back to list",
     "search": "Search",
     "filter": "Filter",
@@ -48,6 +49,7 @@
     "notes": "Notes",
     "actions": "Actions",
     "stt": "No.",
+    "quantity": "Quantity",
     "viewDetail": "View detail",
     "editRecord": "Edit",
     "deleteRecord": "Delete",
@@ -74,6 +76,7 @@
     "alerts": "Alerts",
     "zalo": "Zalo",
     "users": "Staff",
+    "roles": "Roles & Permissions",
     "settings": "Settings",
     "catalog": "CATALOG",
     "orders": "ORDERS",
@@ -128,7 +131,9 @@
     "roleRequired": "Select role",
     "roleAdmin": "Admin",
     "roleStaff": "Staff",
-    "roleViewer": "Viewer"
+    "roleViewer": "Viewer",
+    "you": "You",
+    "selfRowHint": "This is your account — you cannot deactivate yourself"
   },
   "product": {
     "title": "Product Management",
@@ -990,7 +995,20 @@
     "days7": "7 days",
     "days30": "30 days",
     "allTime": "All",
-    "knowledge": "knowledge"
+    "knowledge": "knowledge",
+    "autoReply": "AI Auto-reply",
+    "autoReplyEnabled": "Enable auto-reply",
+    "autoReplyOffHoursOnly": "Off-hours only (8AM-6PM)",
+    "autoReplyPrompt": "Custom prompt",
+    "autoReplyPromptPlaceholder": "e.g. You are a PackFlow assistant. Reply politely and concisely about plastic packaging products. If unsure, suggest the customer chat with a staff member.",
+    "autoReplyUpdated": "Auto-reply settings updated",
+    "autoReplyHint": "When enabled, AI will auto-reply to incoming messages. You can toggle per-thread in the Messages tab.",
+    "sendMessageUrl": "USER_SEND_MESSAGE URL",
+    "sendMessageToken": "USER_SEND_MESSAGE Token",
+    "replyMessageUrl": "USER_REPLY_MESSAGE URL",
+    "replyMessageToken": "USER_REPLY_MESSAGE Token",
+    "sendTypingUrl": "USER_SEND_TYPING URL (optional)",
+    "sendTypingToken": "USER_SEND_TYPING Token (optional)"
   },
   "settings": {
     "title": "Settings",
@@ -1215,6 +1233,154 @@
     "socialInsuranceEmployer": "Social Insurance (17.5%)",
     "healthInsuranceEmployer": "Health Insurance (3%)",
     "unemploymentInsuranceEmployer": "Unemployment Insurance (1%)"
+  },
+  "role": {
+    "title": "Roles & permissions",
+    "subtitle": "Configure roles and fine-grained permissions for each user group.",
+    "list": "Roles",
+    "createRole": "New role",
+    "editRole": "Edit role",
+    "deleteRole": "Delete role",
+    "managePermissions": "Manage permissions",
+    "deleteConfirm": "Delete this role? Users with this role must be reassigned.",
+    "systemTag": "System",
+    "userCount": "{{count}} users",
+    "permissionCountShort": "{{count}} perms",
+    "permissionShort": "perms",
+    "noRoles": "No roles yet",
+    "selectRoleHint": "Select a role to view its permissions",
+    "slug": "Slug",
+    "slugRequired": "Slug is required",
+    "slugInvalid": "Only lowercase letters, digits, '_' or '-'",
+    "slugHelp": "Unique identifier, no spaces — e.g. sales_manager",
+    "name": "Name",
+    "nameRequired": "Name is required",
+    "namePlaceholder": "e.g. Warehouse Manager",
+    "description": "Description",
+    "descriptionPlaceholder": "Briefly describe what this role is responsible for",
+    "permissionsMatrix": "Permission matrix",
+    "permissionKey": "Permission",
+    "permissionDescription": "Description",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect",
+    "selectedCount": "{{selected}}/{{total}} selected",
+    "selectedShort": "selected",
+    "save": "Save changes",
+    "saveSuccess": "Permissions updated",
+    "saveFailed": "Failed to update permissions",
+    "createSuccess": "Role created",
+    "updateSuccess": "Role updated",
+    "deleteSuccess": "Role deleted",
+    "adminReadOnly": "Admin always has full permissions and cannot be edited.",
+    "selfEditWarning": "You just edited your own role — please sign out and sign in again to refresh your permissions.",
+    "overview": {
+      "totalRoles": "Total roles",
+      "totalPermissions": "Total permissions",
+      "totalUsers": "Assigned users",
+      "customRoles": "Custom roles"
+    },
+    "search": {
+      "placeholder": "Search permissions by name, key, or description...",
+      "noMatch": "No matching permissions"
+    },
+    "gridHeader": {
+      "module": "Feature",
+      "view": "View",
+      "create": "Create",
+      "update": "Update",
+      "delete": "Delete",
+      "other": "Other"
+    },
+    "actionLabels": {
+      "read": "View",
+      "create": "Create",
+      "update": "Update",
+      "delete": "Delete",
+      "approve": "Approve",
+      "manage": "Manage",
+      "manage_status": "Change status",
+      "manage_items": "Edit items",
+      "manage_images": "Product images",
+      "manage_categories": "Categories",
+      "manage_config": "Configure",
+      "manage_employees": "Employees",
+      "manage_periods": "Payroll periods",
+      "manage_training": "AI training",
+      "finalize": "Finalize invoice",
+      "cancel": "Cancel invoice",
+      "export": "Export report",
+      "record_payment": "Record payment",
+      "use": "Use",
+      "sync_messages": "Sync messages"
+    },
+    "stats": {
+      "granted": "{{granted}}/{{total}} permissions granted"
+    },
+    "sticky": {
+      "unsavedChanges": "You have unsaved changes"
+    },
+    "dirtyBanner": {
+      "count": "{{count}} unsaved changes"
+    },
+    "emptyState": {
+      "noSelection": "No role selected",
+      "chooseRole": "Pick a role from the left to view and edit its permissions"
+    },
+    "roleNames": {
+      "admin": "Administrator",
+      "manager": "Manager",
+      "accountant": "Accountant",
+      "sales": "Sales"
+    },
+    "roleDescriptions": {
+      "admin": "Full system access",
+      "manager": "Manage everything (excluding users, roles, audit log)",
+      "accountant": "Manage debts, invoices, expenses, payroll",
+      "sales": "Customers, sales orders, invoices"
+    },
+    "admin": {
+      "heroTitle": "Administrator",
+      "fullAccess": "Full access",
+      "heroDescription": "The Administrator role always has full system access. It cannot be edited to prevent accidentally locking out admin accounts.",
+      "listTitle": "All {{count}} permissions granted"
+    },
+    "modal": {
+      "stepInfo": "Basic info",
+      "stepPermissions": "Clone permissions",
+      "cloneFrom": "Clone permissions from another role (optional)",
+      "cloneFromPlaceholder": "Select a role to clone from...",
+      "cloneFromHint": "You can clone a permission set from an existing role to save time. This step is optional.",
+      "cloneConfirm": "Will clone {{count}} permissions from the selected role",
+      "emptyStart": "Start with an empty role (no permissions)"
+    },
+    "modules": {
+      "dashboard": "Dashboard",
+      "product": "Products",
+      "category": "Product categories",
+      "customer": "Customers",
+      "supplier": "Suppliers",
+      "sales_order": "Sales orders",
+      "purchase_order": "Purchase orders",
+      "invoice": "Invoices",
+      "receivable": "Receivables",
+      "payable": "Payables",
+      "return": "Returns",
+      "cash_book": "Cash book",
+      "operating_cost": "Operating costs",
+      "payroll": "Payroll",
+      "employee": "Employees",
+      "report": "Reports",
+      "alert": "Alerts",
+      "zalo": "Zalo",
+      "user": "Users",
+      "role": "Roles",
+      "audit_log": "Audit log",
+      "settings": "Settings",
+      "ai_training": "AI training",
+      "ai": "AI Assistant",
+      "pricing": "Pricing",
+      "price": "Pricing"
+    }
   },
   "auditLog": {
     "menuTitle": "System activity log",

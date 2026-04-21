@@ -9,6 +9,7 @@ import { SupplierPrice } from '@/types';
 import { formatVND, materialLabels, formatNumber } from '@/utils/format';
 import apiClient from '@/lib/api-client';
 import { toast } from 'react-toastify';
+import { usePermission } from '@/contexts/AbilityContext';
 import SupplierPriceFormModal from '../components/SupplierPriceFormModal';
 
 const { Text } = Typography;
@@ -30,6 +31,7 @@ const ProductDetailPage: React.FC = () => {
   const [supplierPage, setSupplierPage] = React.useState(1);
   const [spModal, setSpModal] = React.useState<{ open: boolean; record: any | null }>({ open: false, record: null });
   const qc = useQueryClient();
+  const canManageSupplierPrice = usePermission('supplier_price.manage');
 
   const handleDeleteSupplierPrice = async (spId: string) => {
     try {
@@ -169,11 +171,13 @@ const ProductDetailPage: React.FC = () => {
       label: <><ShopOutlined /> {t('product.supplierPrices')} ({product.supplier_prices?.length || 0})</>,
       children: (
         <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <Button type="primary" icon={<PlusOutlined />} size="small" style={{ borderRadius: 8 }} onClick={() => setSpModal({ open: true, record: null })}>
-              {t('product.addSupplierPrice')}
-            </Button>
-          </div>
+          {canManageSupplierPrice && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+              <Button type="primary" icon={<PlusOutlined />} size="small" style={{ borderRadius: 8 }} onClick={() => setSpModal({ open: true, record: null })}>
+                {t('product.addSupplierPrice')}
+              </Button>
+            </div>
+          )}
           <Table<SupplierPrice>
             dataSource={product.supplier_prices} rowKey="id"
             size="small" scroll={{ x: 760 }}
@@ -187,10 +191,14 @@ const ProductDetailPage: React.FC = () => {
               { title: t('product.preferred'), dataIndex: 'is_preferred', key: 'pref', width: 70, align: 'center' as const, render: (v: boolean) => v ? <StarFilled style={{ color: '#faad14' }} /> : null },
               { title: t('common.actions'), key: 'actions', width: 100, fixed: 'right' as const, align: 'center' as const, render: (_: any, r: any) => (
                 <Space size={0}>
-                  <Button type="text" size="small" icon={<EditOutlined />} style={{ color: '#faad14' }} onClick={() => setSpModal({ open: true, record: r })} />
-                  <Popconfirm title={t('common.deleteConfirm')} onConfirm={() => handleDeleteSupplierPrice(r.id)} okText={t('common.delete')} cancelText={t('common.cancel')} okButtonProps={{ danger: true }}>
-                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-                  </Popconfirm>
+                  {canManageSupplierPrice && (
+                    <Button type="text" size="small" icon={<EditOutlined />} style={{ color: '#faad14' }} onClick={() => setSpModal({ open: true, record: r })} />
+                  )}
+                  {canManageSupplierPrice && (
+                    <Popconfirm title={t('common.deleteConfirm')} onConfirm={() => handleDeleteSupplierPrice(r.id)} okText={t('common.delete')} cancelText={t('common.cancel')} okButtonProps={{ danger: true }}>
+                      <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  )}
                 </Space>
               )},
             ]}

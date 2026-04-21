@@ -114,3 +114,25 @@ export function useZaloAiSummary(hours?: number) {
     enabled: false, // manual trigger only
   });
 }
+
+export function useThreadSettings(threadKey: string | null | undefined) {
+  return useQuery({
+    queryKey: ['zalo-thread-settings', threadKey],
+    queryFn: () => zaloApi.getThreadSettings(threadKey!).then((r) => r.data?.data ?? r.data),
+    enabled: !!threadKey,
+    staleTime: 0,
+  });
+}
+
+export function useToggleAutoReply() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ threadKey, enabled }: { threadKey: string; enabled: boolean }) =>
+      zaloApi.toggleAutoReply(threadKey, enabled).then((r) => r.data),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['zalo-thread-settings', vars.threadKey] });
+      toast.success(i18n.t('zalo.autoReplyUpdated'));
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err)),
+  });
+}

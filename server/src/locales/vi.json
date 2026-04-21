@@ -18,7 +18,19 @@
   "user": {
     "notFound": "Không tìm thấy người dùng",
     "emailExists": "Email đã tồn tại",
-    "deactivated": "Đã vô hiệu hóa tài khoản"
+    "deactivated": "Đã vô hiệu hóa tài khoản",
+    "cannotDeactivateSelf": "Không thể vô hiệu hóa chính mình",
+    "cannotChangeOwnRole": "Không thể tự thay đổi vai trò của mình"
+  },
+  "role": {
+    "notFound": "Không tìm thấy vai trò",
+    "slugExists": "Mã vai trò đã tồn tại",
+    "cannotModifyAdmin": "Không thể chỉnh sửa quyền của vai trò admin",
+    "cannotDeleteSystem": "Không thể xoá vai trò hệ thống",
+    "cannotDeleteOwnRole": "Không thể xoá vai trò của chính mình",
+    "inUseByUsers": "Không thể xoá: vẫn còn người dùng thuộc vai trò này",
+    "invalidPermissionIds": "Một hoặc nhiều ID quyền không hợp lệ",
+    "deleted": "Đã xoá vai trò"
   },
   "product": {
     "notFound": "Không tìm thấy sản phẩm",
@@ -109,7 +121,11 @@
     "idRequired": "ID không được để trống",
     "invalidId": "ID không hợp lệ",
     "questionRequired": "Câu hỏi là bắt buộc",
-    "trainingFieldsRequired": "Danh mục, tiêu đề, nội dung là bắt buộc"
+    "trainingFieldsRequired": "Danh mục, tiêu đề, nội dung là bắt buộc",
+    "roleSlugRequired": "Vui lòng nhập mã vai trò",
+    "roleSlugFormat": "Mã vai trò phải dạng kebab-case (chữ thường, số, dấu gạch ngang)",
+    "roleNameRequired": "Vui lòng nhập tên vai trò",
+    "noFieldsToUpdate": "Không có trường nào để cập nhật"
   },
   "upload": {
     "invalidFileType": "Định dạng file không hỗ trợ. Chỉ chấp nhận JPG, PNG, WebP",

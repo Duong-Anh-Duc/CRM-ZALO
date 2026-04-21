@@ -144,4 +144,19 @@ export class ZaloController {
   static async removeTraining(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try { sendSuccess(res, await AiTrainingService.remove(req.params.id as string)); } catch (err) { next(err); }
   }
+
+  // ──── Per-thread auto-reply settings ────
+
+  static async getThreadSetting(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      sendSuccess(res, await ZaloService.getThreadSetting(req.params.thread_key as string));
+    } catch (err) { next(err); }
+  }
+
+  static async toggleAutoReply(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { enabled } = req.body;
+      sendSuccess(res, await ZaloService.toggleThreadAutoReply(req.params.thread_key as string, !!enabled));
+    } catch (err) { next(err); }
+  }
 }

@@ -13,12 +13,33 @@ export function useLogin() {
   return useMutation({
     mutationFn: (data: LoginInput) => authApi.login(data).then(r => r.data),
     onSuccess: (res) => {
-      setAuth(res.data.user, res.data.token);
+      const { user, token, permissions } = res.data;
+      setAuth(user, token, permissions ?? []);
       navigate('/');
     },
     onError: (err: unknown) => {
       toast.error(getErrorMessage(err));
     },
+  });
+}
+
+export function useProfile(enabled: boolean = true) {
+  const { setAuth, setPermissions, token } = useAuthStore();
+  return useQuery({
+    queryKey: ['auth', 'profile'],
+    queryFn: async () => {
+      const res = await authApi.getProfile();
+      const data = res.data.data;
+      const { permissions, role_detail: _roleDetail, ...user } = data;
+      if (token) {
+        setAuth(user as import('@/types').AuthUser, token);
+      }
+      if (Array.isArray(permissions)) {
+        setPermissions(permissions);
+      }
+      return data;
+    },
+    enabled: enabled && !!token,
   });
 }
 

@@ -7,6 +7,7 @@ import {
 import dayjs, { Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useOperatingCosts } from '../hooks';
+import { usePermission } from '@/contexts/AbilityContext';
 import { OperatingCost } from '@/types';
 import { formatVND, formatDate } from '@/utils/format';
 import { PageHeader } from '@/components/common';
@@ -19,6 +20,7 @@ const cardStyle: React.CSSProperties = {
 
 const OperatingCostPage: React.FC = () => {
   const { t } = useTranslation();
+  const canCreate = usePermission('operating_cost.create');
   const [selectedMonth, setSelectedMonth] = useState<Dayjs>(dayjs());
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCost, setEditingCost] = useState<OperatingCost | null>(null);
@@ -70,9 +72,11 @@ const OperatingCostPage: React.FC = () => {
             <Space wrap>
               <DatePicker picker="month" value={selectedMonth} onChange={(v) => v && setSelectedMonth(v)}
                 format="MM/YYYY" style={{ borderRadius: 8 }} allowClear={false} />
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate} style={{ borderRadius: 8 }}>
-                {t('cost.addCost')}
-              </Button>
+              {canCreate && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate} style={{ borderRadius: 8 }}>
+                  {t('cost.addCost')}
+                </Button>
+              )}
             </Space>
           }
         />

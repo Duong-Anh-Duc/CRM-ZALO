@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { Tabs, Card, Form, Input, Button, Row, Col, Badge, Spin, Divider } from 'antd';
-import { BankOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined, SettingOutlined } from '@ant-design/icons';
+import { Tabs, Card, Form, Input, Button, Row, Col, Badge, Spin, Divider, Switch, Typography } from 'antd';
+import { BankOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined, SettingOutlined, RobotOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common';
 import { toast } from 'react-toastify';
@@ -95,6 +95,91 @@ const ZaloConfigTab: React.FC = () => {
         <ApiConfigItem name="FUNC_GET_MESSAGES" label="Get Messages" urlField="get_messages_url" tokenField="get_messages_token" />
         <ApiConfigItem name="GET_GROUP_INFO" label="Group Info" urlField="get_group_info_url" tokenField="get_group_info_token" />
         <ApiConfigItem name="GET_USER_INFO_V2" label="User Info" urlField="get_user_info_url" tokenField="get_user_info_token" />
+
+        <Divider />
+
+        {/* Send / Reply / Typing API for auto-reply */}
+        <Card
+          size="small"
+          title={<span style={{ color: '#1677ff', fontWeight: 600 }}>USER_SEND_MESSAGE</span>}
+          style={{ ...cardStyle, marginBottom: 12 }}
+        >
+          <Form.Item name="send_message_url" label={t('zalo.sendMessageUrl')} style={{ marginBottom: 8 }}>
+            <Input placeholder="https://public-api.func.vn/functions/xxxxxx" style={{ borderRadius: 8 }} />
+          </Form.Item>
+          <Form.Item name="send_message_token" label={t('zalo.sendMessageToken')} style={{ marginBottom: 0 }}>
+            <Input.Password placeholder="eyJhbGci..." style={{ borderRadius: 8 }} />
+          </Form.Item>
+        </Card>
+
+        <Card
+          size="small"
+          title={<span style={{ color: '#1677ff', fontWeight: 600 }}>USER_REPLY_MESSAGE</span>}
+          style={{ ...cardStyle, marginBottom: 12 }}
+        >
+          <Form.Item name="reply_message_url" label={t('zalo.replyMessageUrl')} style={{ marginBottom: 8 }}>
+            <Input placeholder="https://public-api.func.vn/functions/xxxxxx" style={{ borderRadius: 8 }} />
+          </Form.Item>
+          <Form.Item name="reply_message_token" label={t('zalo.replyMessageToken')} style={{ marginBottom: 0 }}>
+            <Input.Password placeholder="eyJhbGci..." style={{ borderRadius: 8 }} />
+          </Form.Item>
+        </Card>
+
+        <Card
+          size="small"
+          title={<span style={{ color: '#1677ff', fontWeight: 600 }}>USER_SEND_TYPING</span>}
+          style={{ ...cardStyle, marginBottom: 12 }}
+        >
+          <Form.Item name="send_typing_url" label={t('zalo.sendTypingUrl')} style={{ marginBottom: 8 }}>
+            <Input placeholder="https://public-api.func.vn/functions/xxxxxx" style={{ borderRadius: 8 }} />
+          </Form.Item>
+          <Form.Item name="send_typing_token" label={t('zalo.sendTypingToken')} style={{ marginBottom: 0 }}>
+            <Input.Password placeholder="eyJhbGci..." style={{ borderRadius: 8 }} />
+          </Form.Item>
+        </Card>
+
+        <Divider />
+
+        {/* Auto-reply section */}
+        <Card
+          size="small"
+          title={<span style={{ color: '#667eea', fontWeight: 600 }}><RobotOutlined style={{ marginRight: 6 }} />{t('zalo.autoReply')}</span>}
+          style={{ ...cardStyle, marginBottom: 12 }}
+        >
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="auto_reply_enabled"
+                label={t('zalo.autoReplyEnabled')}
+                valuePropName="checked"
+                style={{ marginBottom: 8 }}
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="auto_reply_off_hours_only"
+                label={t('zalo.autoReplyOffHoursOnly')}
+                valuePropName="checked"
+                style={{ marginBottom: 8 }}
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="auto_reply_prompt" label={t('zalo.autoReplyPrompt')} style={{ marginBottom: 0 }}>
+            <Input.TextArea
+              rows={4}
+              placeholder={t('zalo.autoReplyPromptPlaceholder')}
+              style={{ borderRadius: 8 }}
+            />
+          </Form.Item>
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+            {t('zalo.autoReplyHint')}
+          </Typography.Text>
+        </Card>
+
         <Divider />
         <Button type="primary" htmlType="submit" loading={saveMutation.isPending} style={{ borderRadius: 8 }}>
           {t('zalo.saveConfig')}

@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { authenticate, requireRole } from '../../middleware/auth.middleware';
+import { authenticate } from '../../middleware/auth.middleware';
+import { requireAbility } from '../../middleware/ability.middleware';
 import { cache } from '../../middleware/cache.middleware';
 import { validate, validateIdParam } from '../../middleware/validate.middleware';
 import { uploadImages, handleMulterError } from '../../middleware/upload.middleware';
@@ -11,15 +12,15 @@ const router = Router();
 router.use(authenticate);
 
 // Product CRUD
-router.get('/', cache(60), ProductController.list);
-router.get('/:id', validateIdParam, cache(60), ProductController.getById);
-router.post('/', requireRole('ADMIN', 'STAFF'), uploadImages, handleMulterError, ProductController.create);
-router.put('/:id', validateIdParam, requireRole('ADMIN', 'STAFF'), validate(updateProductSchema), ProductController.update);
-router.delete('/:id', validateIdParam, requireRole('ADMIN', 'STAFF'), ProductController.softDelete);
+router.get('/', requireAbility('read', 'Product'), cache(60), ProductController.list);
+router.get('/:id', validateIdParam, requireAbility('read', 'Product'), cache(60), ProductController.getById);
+router.post('/', requireAbility('create', 'Product'), uploadImages, handleMulterError, ProductController.create);
+router.put('/:id', validateIdParam, requireAbility('update', 'Product'), validate(updateProductSchema), ProductController.update);
+router.delete('/:id', validateIdParam, requireAbility('delete', 'Product'), ProductController.softDelete);
 
 // Product Images
-router.post('/:id/images', validateIdParam, requireRole('ADMIN', 'STAFF'), uploadImages, handleMulterError, ProductController.uploadImages);
-router.delete('/:id/images/:imageId', validateIdParam, requireRole('ADMIN', 'STAFF'), ProductController.deleteImage);
-router.patch('/:id/images/:imageId/primary', validateIdParam, requireRole('ADMIN', 'STAFF'), ProductController.setPrimaryImage);
+router.post('/:id/images', validateIdParam, requireAbility('manage', 'ProductImage'), uploadImages, handleMulterError, ProductController.uploadImages);
+router.delete('/:id/images/:imageId', validateIdParam, requireAbility('manage', 'ProductImage'), ProductController.deleteImage);
+router.patch('/:id/images/:imageId/primary', validateIdParam, requireAbility('manage', 'ProductImage'), ProductController.setPrimaryImage);
 
 export default router;

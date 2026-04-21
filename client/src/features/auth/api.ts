@@ -1,12 +1,13 @@
 import apiClient from '@/lib/api-client';
-import { AuthUser, LoginInput, ChangePasswordInput, CreateUserInput } from '@/types';
+import { AuthUser, LoginInput, ChangePasswordInput, CreateUserInput, LoginResponse } from '@/types';
+import type { AxiosResponse } from 'axios';
 
 export const authApi = {
-  login: (data: LoginInput) =>
-    apiClient.post<{ success: boolean; data: { token: string; user: AuthUser } }>('/auth/login', data),
+  login: (data: LoginInput): Promise<AxiosResponse<{ success: boolean; data: LoginResponse }>> =>
+    apiClient.post<{ success: boolean; data: LoginResponse }>('/auth/login', data),
 
-  getProfile: () =>
-    apiClient.get<{ success: boolean; data: AuthUser }>('/auth/profile'),
+  getProfile: (): Promise<AxiosResponse<{ success: boolean; data: AuthUser & { permissions?: string[]; role_detail?: { id: string; slug: string; name: string; description?: string } } }>> =>
+    apiClient.get<{ success: boolean; data: AuthUser & { permissions?: string[]; role_detail?: { id: string; slug: string; name: string; description?: string } } }>('/auth/profile'),
 
   changePassword: (data: ChangePasswordInput) =>
     apiClient.put('/auth/password', data),

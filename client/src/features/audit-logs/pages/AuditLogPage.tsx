@@ -125,20 +125,20 @@ const AuditLogPage: React.FC = () => {
 
   return (
     <div>
-      <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-        <Space wrap size={8} style={{ width: '100%' }}>
+      <Card style={{ borderRadius: 12, marginBottom: 16 }} styles={{ body: { overflowX: 'auto' } }}>
+        <Space size={8} style={{ flexWrap: 'nowrap' }}>
           <Input
             placeholder={t('auditLog.searchPlaceholder')}
             prefix={<SearchOutlined />}
             allowClear
-            style={{ width: 220, borderRadius: 8 }}
+            style={{ width: 200, borderRadius: 8 }}
             value={filters.search}
             onChange={(e) => updateFilter({ search: e.target.value || undefined })}
           />
           <Select
             placeholder={t('auditLog.filterAction')}
             allowClear
-            style={{ width: 130, borderRadius: 8 }}
+            style={{ width: 120, borderRadius: 8 }}
             value={filters.action}
             onChange={(v) => updateFilter({ action: v })}
             options={[
@@ -153,7 +153,7 @@ const AuditLogPage: React.FC = () => {
             allowClear
             showSearch
             optionFilterProp="label"
-            style={{ width: 180, borderRadius: 8 }}
+            style={{ width: 160, borderRadius: 8 }}
             value={filters.model_name}
             onChange={(v) => updateFilter({ model_name: v })}
             options={modelOptions}
@@ -163,14 +163,14 @@ const AuditLogPage: React.FC = () => {
             allowClear
             showSearch
             optionFilterProp="label"
-            style={{ width: 200, borderRadius: 8 }}
+            style={{ width: 180, borderRadius: 8 }}
             value={filters.user_id}
             onChange={(v) => updateFilter({ user_id: v })}
             options={userOptions}
           />
           <DatePicker.RangePicker
             format="DD/MM/YYYY"
-            style={{ borderRadius: 8 }}
+            style={{ borderRadius: 8, width: 260 }}
             placeholder={[t('common.fromDate'), t('common.toDate')]}
             onChange={(d) => updateFilter({
               from_date: d?.[0]?.format('YYYY-MM-DD'),

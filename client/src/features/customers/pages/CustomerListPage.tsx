@@ -7,6 +7,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { useCustomers, useDeleteCustomer } from '../hooks';
 import apiClient from '@/lib/api-client';
+import { usePermission } from '@/contexts/AbilityContext';
 import { Customer } from '@/types';
 import { formatVND, formatDate, customerTypeLabels } from '@/utils/format';
 import { PageHeader } from '@/components/common';
@@ -15,6 +16,10 @@ import CustomerFormModal from '../components/CustomerFormModal';
 const CustomerListPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const canCreate = usePermission('customer.create');
+  const canUpdate = usePermission('customer.update');
+  const canDelete = usePermission('customer.delete');
+  const canApprove = usePermission('customer.approve');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [page, setPage] = useState(1);
@@ -77,7 +82,7 @@ const CustomerListPage: React.FC = () => {
       title: t('common.actions'), key: 'actions', width: 110, fixed: 'right' as const,
       render: (_: unknown, record: any) => (
         <Space size="small">
-          {record.approval_status === 'PENDING' && (
+          {canApprove && record.approval_status === 'PENDING' && (
             <Tooltip title={t('customer.approve')}>
               <Button type="text" size="small" icon={<CheckOutlined />} style={{ color: '#52c41a' }}
                 onClick={() => {
@@ -93,14 +98,18 @@ const CustomerListPage: React.FC = () => {
           <Tooltip title={t('common.viewDetail')}>
             <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }} onClick={() => navigate(`/customers/${record.id}`)} />
           </Tooltip>
-          <Tooltip title={t('common.editRecord')}>
-            <Button type="text" size="small" icon={<EditOutlined />} style={{ color: '#faad14' }} onClick={() => { setEditCustomer(record); setModalOpen(true); }} />
-          </Tooltip>
-          <Popconfirm title={t('common.deleteConfirm')} onConfirm={() => deleteMutation.mutate(record.id)} okText={t('common.delete')} cancelText={t('common.cancel')} okButtonProps={{ danger: true }}>
-            <Tooltip title={t('common.deleteRecord')}>
-              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          {canUpdate && (
+            <Tooltip title={t('common.editRecord')}>
+              <Button type="text" size="small" icon={<EditOutlined />} style={{ color: '#faad14' }} onClick={() => { setEditCustomer(record); setModalOpen(true); }} />
             </Tooltip>
-          </Popconfirm>
+          )}
+          {canDelete && (
+            <Popconfirm title={t('common.deleteConfirm')} onConfirm={() => deleteMutation.mutate(record.id)} okText={t('common.delete')} cancelText={t('common.cancel')} okButtonProps={{ danger: true }}>
+              <Tooltip title={t('common.deleteRecord')}>
+                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -117,9 +126,11 @@ const CustomerListPage: React.FC = () => {
         <PageHeader
           title={t('customer.title')}
           extra={
-            <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setModalOpen(true)}>
-              {t('customer.addCustomer')}
-            </Button>
+            canCreate ? (
+              <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setModalOpen(true)}>
+                {t('customer.addCustomer')}
+              </Button>
+            ) : undefined
           }
         />
 

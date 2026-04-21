@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { authenticate } from '../../middleware/auth.middleware';
+import { requireAbility } from '../../middleware/ability.middleware';
 import { InvoiceService } from './invoice.service';
 import { sendSuccess } from '../../utils/response';
 import type { Response, NextFunction } from 'express';
@@ -31,28 +32,28 @@ const router = Router();
 router.use(authenticate);
 
 // List invoices
-router.get('/', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/', requireAbility('read', 'Invoice'), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     sendSuccess(res, await InvoiceService.list(req.query as any));
   } catch (err) { next(err); }
 });
 
 // Get invoice by ID
-router.get('/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/:id', requireAbility('read', 'Invoice'), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     sendSuccess(res, await InvoiceService.getById(req.params.id as string));
   } catch (err) { next(err); }
 });
 
 // Xuất hoá đơn từ SO (APPROVED + tạo công nợ)
-router.post('/from-order/:orderId', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.post('/from-order/:orderId', requireAbility('create', 'Invoice'), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     sendSuccess(res, await InvoiceService.createFromOrder(req.params.orderId as string));
   } catch (err) { next(err); }
 });
 
 // Create purchase invoice (auto-generate, optionally with uploaded file)
-router.post('/purchase/:poId', invoiceUpload, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.post('/purchase/:poId', requireAbility('create', 'Invoice'), invoiceUpload, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const file = req.file;
     const fileUrl = file ? `/uploads/invoices/${file.filename}` : undefined;
@@ -62,28 +63,28 @@ router.post('/purchase/:poId', invoiceUpload, async (req: AuthenticatedRequest, 
 });
 
 // Update invoice (chỉ HĐ bán, SO chưa COMPLETED)
-router.patch('/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.patch('/:id', requireAbility('update', 'Invoice'), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     sendSuccess(res, await InvoiceService.updateInvoice(req.params.id as string, req.body));
   } catch (err) { next(err); }
 });
 
 // Finalize invoice
-router.post('/:id/finalize', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.post('/:id/finalize', requireAbility('finalize', 'Invoice'), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     sendSuccess(res, await InvoiceService.finalize(req.params.id as string));
   } catch (err) { next(err); }
 });
 
 // Cancel invoice
-router.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.post('/:id/cancel', requireAbility('cancel', 'Invoice'), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     sendSuccess(res, await InvoiceService.cancel(req.params.id as string));
   } catch (err) { next(err); }
 });
 
 // PDF preview/download
-router.get('/:id/pdf', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/:id/pdf', requireAbility('read', 'Invoice'), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const pdf = await InvoiceService.generatePdf(req.params.id as string);
     res.set({
@@ -96,7 +97,7 @@ router.get('/:id/pdf', async (req: AuthenticatedRequest, res: Response, next: Ne
 });
 
 // Legacy: generate from order directly (backward compat)
-router.get('/sales-order/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/sales-order/:id', requireAbility('read', 'Invoice'), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const invoice = await InvoiceService.createFromOrder(req.params.id as string);
     const pdf = await InvoiceService.generatePdf(invoice.id);

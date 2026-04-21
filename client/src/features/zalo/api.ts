@@ -20,4 +20,8 @@ export const zaloApi = {
   createTraining: (data: { category: string; title: string; content: string }) => apiClient.post('/zalo/ai-training', data),
   updateTraining: (id: string, data: { title?: string; content?: string }) => apiClient.patch(`/zalo/ai-training/${id}`, data),
   removeTraining: (id: string) => apiClient.delete(`/zalo/ai-training/${id}`),
+  // Per-thread auto-reply
+  getThreadSettings: (threadKey: string) => apiClient.get(`/zalo/threads/${threadKey}/settings`),
+  toggleAutoReply: (threadKey: string, enabled: boolean) =>
+    apiClient.put(`/zalo/threads/${threadKey}/auto-reply`, { enabled }),
 };

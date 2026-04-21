@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { authenticate, requireRole } from '../../middleware/auth.middleware';
+import { authenticate } from '../../middleware/auth.middleware';
+import { requireAbility } from '../../middleware/ability.middleware';
 import { AuditLogController } from './audit-log.controller';
 
 const router = Router();
 router.use(authenticate);
-router.use(requireRole('ADMIN'));
+router.use(requireAbility('read', 'AuditLog'));
 
 router.get('/', AuditLogController.list);
 router.get('/models', AuditLogController.distinctModels);

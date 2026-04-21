@@ -22,6 +22,7 @@ import uploadRoutes from '../modules/upload/upload.route';
 import supplierPriceRoutes from '../modules/supplier-price/supplier-price.route';
 import customerProductPriceRoutes from '../modules/customer-product-price/customer-product-price.route';
 import auditLogRoutes from '../modules/audit-log/audit-log.routes';
+import roleRoutes from '../modules/role/role.routes';
 
 const router = Router();
 
@@ -50,5 +51,6 @@ router.use('/upload', uploadRoutes);
 router.use('/supplier-prices', supplierPriceRoutes);
 router.use('/customer-product-prices', customerProductPriceRoutes);
 router.use('/audit-logs', auditLogRoutes);
+router.use('/roles', roleRoutes);
 
 export default router;

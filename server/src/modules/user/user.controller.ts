@@ -30,7 +30,7 @@ export class UserController {
 
   static async update(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const user = await UserService.update(req.params.id as string, req.body);
+      const user = await UserService.update(req.params.id as string, req.body, req.user?.userId);
       sendSuccess(res, user);
     } catch (err) {
       next(err);
@@ -39,7 +39,7 @@ export class UserController {
 
   static async deactivate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      await UserService.deactivate(req.params.id as string);
+      await UserService.deactivate(req.params.id as string, req.user?.userId);
       sendMessage(res, t('user.deactivated'));
     } catch (err) {
       next(err);

@@ -14,6 +14,7 @@ import '@/styles/global.css';
 import '@/styles/login.css';
 import '@/styles/responsive.css';
 import App from './App';
+import { AbilityProvider } from '@/contexts/AbilityContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,7 +64,9 @@ function AppWrapper() {
       }}
     >
       <BrowserRouter>
-        <App />
+        <AbilityProvider>
+          <App />
+        </AbilityProvider>
         <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme={darkMode ? 'dark' : 'light'} />
       </BrowserRouter>
     </ConfigProvider>

@@ -56,6 +56,146 @@ export class ZaloService {
 
   private static delay(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
+  // ──── Send / Reply / Typing (Func.vn USER_SEND_* APIs) ────
+
+  static async sendTyping(userId: string): Promise<void> {
+    const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.send_typing_url || !cfg?.send_typing_token) return; // optional
+    try {
+      await this.callFunc(cfg.send_typing_url, cfg.send_typing_token, { user_id: userId });
+    } catch (err) {
+      logger.warn('sendTyping failed', err);
+    }
+  }
+
+  static async sendMessage(userId: string, content: string): Promise<any> {
+    const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.send_message_url || !cfg?.send_message_token) {
+      throw new AppError('Zalo send_message_url chưa cấu hình', 400);
+    }
+    const result = await this.callFunc(cfg.send_message_url, cfg.send_message_token, { user_id: userId, message: content });
+    await prisma.zaloMessage.create({
+      data: {
+        direction: 'OUTGOING', platform: 'ZALO_USER',
+        sender_id: '', recipient_id: userId, content,
+        msg_type: 'webchat', event: 'SENT_MESSAGE',
+        status: 'SENT', raw_payload: result,
+      },
+    });
+    return result;
+  }
+
+  static async replyMessage(userId: string, originalPayload: any, content: string): Promise<any> {
+    const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.reply_message_url || !cfg?.reply_message_token || !originalPayload) {
+      // fallback to sendMessage if no reply config or no original msg payload to quote
+      return this.sendMessage(userId, content);
+    }
+    const result = await this.callFunc(cfg.reply_message_url, cfg.reply_message_token, {
+      user_id: userId,
+      message: content,
+      reply_message: originalPayload,
+    });
+    await prisma.zaloMessage.create({
+      data: {
+        direction: 'OUTGOING', platform: 'ZALO_USER',
+        sender_id: '', recipient_id: userId, content,
+        msg_type: 'webchat', event: 'SENT_REPLY',
+        status: 'SENT', raw_payload: result,
+      },
+    });
+    return result;
+  }
+
+  // ──── Auto-reply AI handler ────
+
+  private static async autoReplyIncoming(senderId: string, senderName: string, content: string, originalPayload: any): Promise<void> {
+    try {
+      const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+      if (!cfg?.auto_reply_enabled) return;
+
+      // Per-thread toggle (auto-create entry for first-time sender; default enabled)
+      const thread = await prisma.zaloThread.upsert({
+        where: { thread_key: senderId },
+        create: { thread_key: senderId, is_group: false, auto_reply_enabled: true },
+        update: {},
+      });
+      if (!thread.auto_reply_enabled) return;
+
+      // Off-hours filter (business hours 8:00-18:00 local)
+      if (cfg.auto_reply_off_hours_only) {
+        const hour = new Date().getHours();
+        if (hour >= 8 && hour < 18) return;
+      }
+
+      // Rate limit: skip if last auto-reply < 3s ago (prevents webhook-retry dupes,
+      // doesn't block natural back-and-forth conversation)
+      if (thread.last_auto_reply_at && Date.now() - thread.last_auto_reply_at.getTime() < 3_000) return;
+
+      // Skip too-short messages
+      if (!content || content.trim().length < 3) return;
+
+      // Get recent conversation context (last 6 messages)
+      const history = await prisma.zaloMessage.findMany({
+        where: {
+          OR: [{ sender_id: senderId }, { recipient_id: senderId }],
+          msg_type: { not: 'control' },
+        },
+        orderBy: { created_at: 'desc' },
+        take: 6,
+      });
+      const historyForAI = history.reverse().map((m) => ({
+        role: m.direction === 'INCOMING' ? 'user' : 'ai',
+        content: m.content || '',
+      }));
+
+      // Typing indicator (best-effort, may be unconfigured)
+      await this.sendTyping(senderId);
+
+      // Call customer-facing AI (shop assistant persona, no CRM function calling)
+      const { ChatbotService } = await import('../ai/chatbot.service');
+      const answer = await ChatbotService.customerReply(
+        content,
+        historyForAI,
+        cfg.auto_reply_prompt || undefined,
+      );
+
+      if (!answer || answer.trim().length === 0) return;
+
+      // Send reply (try replyMessage first, fallback to sendMessage inside)
+      if (originalPayload) {
+        await this.replyMessage(senderId, originalPayload, answer);
+      } else {
+        await this.sendMessage(senderId, answer);
+      }
+
+      // Update last_auto_reply_at
+      await prisma.zaloThread.update({
+        where: { thread_key: senderId },
+        data: { last_auto_reply_at: new Date() },
+      });
+
+      logger.info(`Auto-reply sent to ${senderName} (${senderId}): ${answer.substring(0, 80)}`);
+    } catch (err) {
+      logger.error('Auto-reply error:', err);
+    }
+  }
+
+  // ──── Per-thread auto-reply toggle ────
+
+  static async toggleThreadAutoReply(threadKey: string, enabled: boolean) {
+    return prisma.zaloThread.upsert({
+      where: { thread_key: threadKey },
+      create: { thread_key: threadKey, is_group: false, auto_reply_enabled: !!enabled },
+      update: { auto_reply_enabled: !!enabled },
+    });
+  }
+
+  static async getThreadSetting(threadKey: string) {
+    const thread = await prisma.zaloThread.findUnique({ where: { thread_key: threadKey } });
+    return thread || { thread_key: threadKey, auto_reply_enabled: false };
+  }
+
   // ──── 1. FUNC_GET_THREADS (paginated — fetches ALL) ────
 
   private static async fetchAllThreads(cfg: any) {
@@ -337,6 +477,11 @@ export class ZaloService {
 
             this.autoProcessMessage(senderId, senderName, msgContent).catch((err) => {
               logger.error('Zalo auto-process error:', err);
+            });
+
+            // Auto-reply AI (fire-and-forget) — pass full original msg payload for reply_message
+            this.autoReplyIncoming(senderId, senderName, msgContent, msg).catch((err) => {
+              logger.error('Zalo auto-reply error:', err);
             });
           }
         }

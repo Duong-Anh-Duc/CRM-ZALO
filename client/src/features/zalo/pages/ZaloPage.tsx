@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Tabs, Card, Row, Col, Statistic, Space, Typography, Button, Empty, Spin, Avatar, Badge, } from 'antd';
+import { Tabs, Card, Row, Col, Statistic, Space, Typography, Button, Empty, Spin, Avatar, Badge, Switch, } from 'antd';
 import { MessageOutlined, WechatOutlined, ArrowLeftOutlined, UserOutlined, RobotOutlined, SyncOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useZaloThreads, useZaloThreadMessages, useZaloSyncMessages } from '../hooks';
+import { useZaloThreads, useZaloThreadMessages, useZaloSyncMessages, useThreadSettings, useToggleAutoReply } from '../hooks';
 import { PageHeader } from '@/components/common';
 import AiChatTab from '../components/AiChatTab';
+import { usePermission } from '@/contexts/AbilityContext';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/vi';
@@ -41,6 +42,13 @@ const ChatTab: React.FC = () => {
   const { data: allThreadsData } = useZaloThreads();
   const allThreads = (allThreadsData?.data ?? []) as any[];
   const syncMutation = useZaloSyncMessages();
+  const canSyncMessages = usePermission('zalo.sync_messages');
+  const canManageConfig = usePermission('zalo.manage_config');
+
+  // Per-thread auto-reply settings
+  const selectedThreadKey = selected?.pid ?? null;
+  const { data: threadSettings } = useThreadSettings(canManageConfig ? selectedThreadKey : null);
+  const toggleAutoReply = useToggleAutoReply();
 
   dayjs.locale(i18n.language === 'en' ? 'en' : 'vi');
 
@@ -129,19 +137,21 @@ const ChatTab: React.FC = () => {
       )}
 
       {/* Sync banner */}
-      <Card size="small" style={{ borderRadius: 12, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography.Text type="secondary">{t('zalo.syncBanner')}</Typography.Text>
-          <Button
-            icon={<SyncOutlined spin={syncMutation.isPending} />}
-            onClick={() => syncMutation.mutate()}
-            loading={syncMutation.isPending}
-            style={{ borderRadius: 8 }}
-          >
-            {t('zalo.syncMessages')}
-          </Button>
-        </div>
-      </Card>
+      {canSyncMessages && (
+        <Card size="small" style={{ borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography.Text type="secondary">{t('zalo.syncBanner')}</Typography.Text>
+            <Button
+              icon={<SyncOutlined spin={syncMutation.isPending} />}
+              onClick={() => syncMutation.mutate()}
+              loading={syncMutation.isPending}
+              style={{ borderRadius: 8 }}
+            >
+              {t('zalo.syncMessages')}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Stats */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -228,6 +238,19 @@ const ChatTab: React.FC = () => {
                 {selected.type === 'GROUP_MESSAGING' && <Badge count={t('zalo.group')} style={{ backgroundColor: '#722ed1' }} />}
               </Space>
             ) : t('zalo.messageHistory')}
+            extra={selected && canManageConfig && selectedThreadKey ? (
+              <Space size={6}>
+                <Text style={{ fontSize: 12, color: '#595959' }}>
+                  <RobotOutlined style={{ marginRight: 4 }} />{t('zalo.autoReply')}
+                </Text>
+                <Switch
+                  size="small"
+                  checked={!!threadSettings?.auto_reply_enabled}
+                  loading={toggleAutoReply.isPending}
+                  onChange={(v) => toggleAutoReply.mutate({ threadKey: selectedThreadKey, enabled: v })}
+                />
+              </Space>
+            ) : undefined}
           >
             {selected ? renderChat() : (
               <div style={{ height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -244,14 +267,18 @@ const ChatTab: React.FC = () => {
 // ── Main Page ──
 const ZaloPage: React.FC = () => {
   const { t } = useTranslation();
+  const canUseAiChat = usePermission('ai.chat');
+  const tabItems = [
+    { key: 'chat', label: <span><MessageOutlined /> {t('zalo.messages')}</span>, children: <ChatTab /> },
+    ...(canUseAiChat
+      ? [{ key: 'ai', label: <span><RobotOutlined /> {t('zalo.aiAssistant')}</span>, children: <AiChatTab /> }]
+      : []),
+  ];
   return (
     <div style={{ padding: 24 }}>
       <Card style={{ borderRadius: 12 }}>
         <PageHeader title={t('zalo.title')} />
-        <Tabs items={[
-          { key: 'chat', label: <span><MessageOutlined /> {t('zalo.messages')}</span>, children: <ChatTab /> },
-          { key: 'ai', label: <span><RobotOutlined /> {t('zalo.aiAssistant')}</span>, children: <AiChatTab /> },
-        ]} defaultActiveKey="chat" />
+        <Tabs items={tabItems} defaultActiveKey="chat" />
       </Card>
     </div>
   );

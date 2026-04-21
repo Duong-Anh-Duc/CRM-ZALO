@@ -10,6 +10,7 @@ import { formatVND, formatDate } from '@/utils/format';
 import { PaymentModal, ExportLedgerModal } from '@/components/common';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
+import { usePermission } from '@/contexts/AbilityContext';
 
 const { Text } = Typography;
 const cardStyle: React.CSSProperties = { borderRadius: 12, marginBottom: 16 };
@@ -30,6 +31,8 @@ const CustomerDebtDetailPage: React.FC = () => {
   const [preview, setPreview] = useState<{ type: 'pdf'; url: string } | { type: 'excel'; html: string } | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [invoiceDateRange, setInvoiceDateRange] = useState<[any, any] | null>([dayjs().startOf('month'), dayjs().endOf('month')]);
+  const canRecordPayment = usePermission('receivable.record_payment');
+  const canExport = usePermission('receivable.export');
 
   const { data, isLoading } = useCustomerDebtDetail(customerId);
   const detail = data?.data as any;
@@ -159,7 +162,7 @@ const CustomerDebtDetailPage: React.FC = () => {
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 12 }} wrap>
         <Button icon={<ArrowLeftOutlined />} type="text" onClick={() => navigate('/debts')}>{t('debt.receivables')}</Button>
         <Space size={8}>
-          <Button icon={<DownloadOutlined />} type="primary" ghost style={{ borderRadius: 8 }} onClick={() => setShowExportModal(true)}>{t('debt.exportReport')}</Button>
+          {canExport && <Button icon={<DownloadOutlined />} type="primary" ghost style={{ borderRadius: 8 }} onClick={() => setShowExportModal(true)}>{t('debt.exportReport')}</Button>}
         </Space>
       </Space>
 
@@ -172,7 +175,7 @@ const CustomerDebtDetailPage: React.FC = () => {
       <Card style={cardStyle}>
         <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
           <Text strong style={{ fontSize: 18 }}>{customer.company_name || customer.contact_name}</Text>
-          {summary.total_remaining > 0 && <Button type="primary" icon={<DollarOutlined />} style={{ borderRadius: 8 }} onClick={() => setShowPayment(true)}>{t('common.recordPayment')}</Button>}
+          {canRecordPayment && summary.total_remaining > 0 && <Button type="primary" icon={<DollarOutlined />} style={{ borderRadius: 8 }} onClick={() => setShowPayment(true)}>{t('common.recordPayment')}</Button>}
         </Space>
         {summary.total_original > 0 && (
           <div style={{ marginBottom: 16 }}>

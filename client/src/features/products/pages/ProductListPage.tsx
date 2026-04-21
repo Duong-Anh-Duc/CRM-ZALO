@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useProducts, useDeleteProduct } from '../hooks';
 import apiClient from '@/lib/api-client';
-import { useAuthStore } from '@/stores/auth.store';
+import { usePermission } from '@/contexts/AbilityContext';
 import { Product } from '@/types';
 import { formatVND, materialLabels } from '@/utils/format';
 import { PageHeader } from '@/components/common';
@@ -17,8 +17,9 @@ const cardStyle: React.CSSProperties = { borderRadius: 12 };
 const ProductListPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const hasRole = useAuthStore((s) => s.hasRole);
-  const canManage = hasRole('ADMIN', 'STAFF');
+  const canCreate = usePermission('product.create');
+  const canUpdate = usePermission('product.update');
+  const canDelete = usePermission('product.delete');
 
   const [search, setSearch] = useState('');
   const [supplierId, setSupplierId] = useState<string | undefined>();
@@ -115,34 +116,38 @@ const ProductListPage: React.FC = () => {
               onClick={() => navigate(`/products/${record.id}`)}
             />
           </Tooltip>
-          <Tooltip title={t('common.editRecord')}>
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              style={{ color: '#faad14' }}
-              onClick={() => {
-                setEditProduct(record);
-                setModalOpen(true);
-              }}
-            />
-          </Tooltip>
-          <Popconfirm
-            title={t('common.deleteConfirm')}
-            onConfirm={() => deleteMutation.mutate(record.id)}
-            okText={t('common.delete')}
-            cancelText={t('common.cancel')}
-            okButtonProps={{ danger: true }}
-          >
-            <Tooltip title={t('common.deleteRecord')}>
+          {canUpdate && (
+            <Tooltip title={t('common.editRecord')}>
               <Button
                 type="text"
                 size="small"
-                danger
-                icon={<DeleteOutlined />}
+                icon={<EditOutlined />}
+                style={{ color: '#faad14' }}
+                onClick={() => {
+                  setEditProduct(record);
+                  setModalOpen(true);
+                }}
               />
             </Tooltip>
-          </Popconfirm>
+          )}
+          {canDelete && (
+            <Popconfirm
+              title={t('common.deleteConfirm')}
+              onConfirm={() => deleteMutation.mutate(record.id)}
+              okText={t('common.delete')}
+              cancelText={t('common.cancel')}
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip title={t('common.deleteRecord')}>
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -154,7 +159,7 @@ const ProductListPage: React.FC = () => {
         <PageHeader
           title={t('product.management')}
           extra={
-            canManage ? (
+            canCreate ? (
               <Button
                 type="primary"
                 icon={<PlusOutlined />}

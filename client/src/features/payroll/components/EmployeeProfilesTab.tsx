@@ -4,10 +4,12 @@ import { PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { formatVND } from '@/utils/format';
 import { useEmployeeProfiles } from '../hooks';
+import { usePermission } from '@/contexts/AbilityContext';
 import EmployeeProfileFormModal from './EmployeeProfileFormModal';
 
 const EmployeeProfilesTab: React.FC = () => {
   const { t } = useTranslation();
+  const canManageEmployees = usePermission('payroll.manage_employees');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [page, setPage] = useState(1);
@@ -39,20 +41,24 @@ const EmployeeProfilesTab: React.FC = () => {
     {
       title: t('common.actions'), key: 'actions', width: 70, align: 'center' as const, fixed: 'right' as const,
       render: (_: any, rec: any) => (
-        <Tooltip title={t('payroll.editProfile')}>
-          <Button type="text" size="small" icon={<EditOutlined />} style={{ color: '#faad14' }} onClick={() => { setEditingEmployee(rec); setModalOpen(true); }} />
-        </Tooltip>
+        canManageEmployees ? (
+          <Tooltip title={t('payroll.editProfile')}>
+            <Button type="text" size="small" icon={<EditOutlined />} style={{ color: '#faad14' }} onClick={() => { setEditingEmployee(rec); setModalOpen(true); }} />
+          </Tooltip>
+        ) : null
       ),
     },
   ];
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => { setEditingEmployee(null); setModalOpen(true); }}>
-          {t('payroll.addProfile')}
-        </Button>
-      </div>
+      {canManageEmployees && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => { setEditingEmployee(null); setModalOpen(true); }}>
+            {t('payroll.addProfile')}
+          </Button>
+        </div>
+      )}
 
       <Table
         dataSource={employees} columns={columns} rowKey="id" size="small" loading={isLoading}

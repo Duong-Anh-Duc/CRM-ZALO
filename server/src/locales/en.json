@@ -18,7 +18,19 @@
   "user": {
     "notFound": "User not found",
     "emailExists": "Email already exists",
-    "deactivated": "Account deactivated"
+    "deactivated": "Account deactivated",
+    "cannotDeactivateSelf": "You cannot deactivate yourself",
+    "cannotChangeOwnRole": "You cannot change your own role"
+  },
+  "role": {
+    "notFound": "Role not found",
+    "slugExists": "Role slug already exists",
+    "cannotModifyAdmin": "Cannot modify admin permissions",
+    "cannotDeleteSystem": "Cannot delete system role",
+    "cannotDeleteOwnRole": "Cannot delete your own role",
+    "inUseByUsers": "Cannot delete role: users are still assigned to it",
+    "invalidPermissionIds": "One or more permission IDs are invalid",
+    "deleted": "Role deleted"
   },
   "product": {
     "notFound": "Product not found",
@@ -109,7 +121,11 @@
     "idRequired": "ID is required",
     "invalidId": "Invalid ID",
     "questionRequired": "Question is required",
-    "trainingFieldsRequired": "Category, title, content are required"
+    "trainingFieldsRequired": "Category, title, content are required",
+    "roleSlugRequired": "Please enter role slug",
+    "roleSlugFormat": "Slug must be kebab-case (lowercase letters, digits, hyphens)",
+    "roleNameRequired": "Please enter role name",
+    "noFieldsToUpdate": "No fields provided to update"
   },
   "upload": {
     "invalidFileType": "Unsupported file format. Only JPG, PNG, WebP accepted",

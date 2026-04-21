@@ -1221,4 +1221,57 @@ ${systemContext}`,
     }
     return result;
   }
+
+  /**
+   * Customer-facing reply for Zalo auto-reply.
+   * No function calling (read-only, safe for external customers).
+   * Uses a shop-assistant persona (not CRM internal assistant).
+   */
+  static async customerReply(
+    question: string,
+    history: Array<{ role: string; content: string }> = [],
+    customSystemPrompt?: string,
+  ): Promise<string> {
+    try {
+      const defaultPrompt = `Bạn là trợ lý chăm sóc khách hàng của công ty bao bì nhựa PackFlow.
+Xưng "em", gọi khách là "anh/chị". Lịch sự, thân thiện, trả lời ngắn gọn (1-3 câu).
+
+NHIỆM VỤ:
+- Chào hỏi, cảm ơn khách nhắn tin
+- Tư vấn chung về sản phẩm bao bì nhựa (chai PET, hũ, nắp, thùng, can...)
+- Giải đáp câu hỏi cơ bản về giao hàng, thanh toán
+- Nếu câu hỏi cụ thể về giá, số lượng lớn, MOQ, deadline → mời khách để lại SĐT hoặc chờ nhân viên tư vấn
+
+QUY TẮC:
+- KHÔNG nói mình là AI / chatbot / trợ lý CRM
+- KHÔNG đề cập đến hệ thống nội bộ (đơn bán, công nợ, phân quyền)
+- KHÔNG bịa giá cụ thể hay thông tin mình không chắc
+- Không chắc chắn → "Dạ anh/chị chờ em chút, em báo lại nhân viên phụ trách nhé"
+- Trả lời KHÔNG dùng markdown (**, ##, -). Đơn giản, tự nhiên như người thật.`;
+
+      const systemPrompt = (customSystemPrompt && customSystemPrompt.trim().length > 0)
+        ? customSystemPrompt
+        : defaultPrompt;
+
+      const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+        { role: 'system', content: systemPrompt },
+        ...history.slice(-6).map((h) => ({
+          role: (h.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+          content: h.content,
+        })),
+        { role: 'user', content: question },
+      ];
+
+      const response = await openai.chat.completions.create({
+        model: config.openai.model || 'gpt-4o-mini',
+        messages,
+        temperature: 0.6,
+        max_tokens: 300,
+      });
+      return response.choices[0]?.message?.content?.trim() || '';
+    } catch (err) {
+      logger.error('customerReply error:', err);
+      return '';
+    }
+  }
 }

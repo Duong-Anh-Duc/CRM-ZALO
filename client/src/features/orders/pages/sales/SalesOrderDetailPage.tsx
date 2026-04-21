@@ -15,6 +15,7 @@ import { StatusTag } from '@/components/common';
 import { invoiceApi } from '@/features/invoices/api';
 import InvoiceEditModal from '@/features/invoices/components/InvoiceEditModal';
 import apiClient from '@/lib/api-client';
+import { usePermission } from '@/contexts/AbilityContext';
 
 const { Text } = Typography;
 const SalesOrderDetailPage: React.FC = () => {
@@ -33,6 +34,14 @@ const SalesOrderDetailPage: React.FC = () => {
   const [productMaterial, setProductMaterial] = useState('');
   const [form] = Form.useForm();
   const qc = useQueryClient();
+  const canUpdateSO = usePermission('sales_order.update');
+  const canManageSOStatus = usePermission('sales_order.manage_status');
+  const canManageSOItems = usePermission('sales_order.manage_items');
+  const canCreatePO = usePermission('purchase_order.create');
+  const canCreateInv = usePermission('invoice.create');
+  const canUpdateInv = usePermission('invoice.update');
+  const canFinalizeInv = usePermission('invoice.finalize');
+  const canCancelInv = usePermission('invoice.cancel');
 
   const { data: orderData, isLoading } = useSalesOrder(id);
   const order = orderData?.data as any;
@@ -188,7 +197,7 @@ const SalesOrderDetailPage: React.FC = () => {
               <Text strong style={{ fontSize: 20, display: 'block' }}>{order.order_code}</Text>
               <Space size={6}>
                 <StatusTag status={order.status} type="sales" />
-                {!editing && (order.status === 'DRAFT' || order.status === 'CONFIRMED') && (
+                {canUpdateSO && !editing && (order.status === 'DRAFT' || order.status === 'CONFIRMED') && (
                   <Tooltip title={t('common.edit')}>
                     <Button icon={<EditOutlined />} size="small" onClick={() => {
                       setEditing(true);
@@ -236,22 +245,25 @@ const SalesOrderDetailPage: React.FC = () => {
             };
             const options = NEXT[order.status] || [];
             const showInvoice = order.status !== 'DRAFT';
-            if (options.length === 0 && !showInvoice) return null;
+            const showStatusButton = canManageSOStatus && options.length > 0;
+            if (!showStatusButton && !showInvoice) return null;
             return (
               <Space>
                 {showInvoice && (
                   salesInvoices.length === 0 ? (
-                    <Button icon={<FilePdfOutlined />} style={{ borderRadius: 8 }} loading={createInvMutation.isPending}
-                      onClick={() => Modal.confirm({ title: t('invoice.issueInvoice'), content: order.order_code, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => createInvMutation.mutate() })}>
-                      {t('invoice.issueInvoice')}
-                    </Button>
+                    canCreateInv ? (
+                      <Button icon={<FilePdfOutlined />} style={{ borderRadius: 8 }} loading={createInvMutation.isPending}
+                        onClick={() => Modal.confirm({ title: t('invoice.issueInvoice'), content: order.order_code, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => createInvMutation.mutate() })}>
+                        {t('invoice.issueInvoice')}
+                      </Button>
+                    ) : null
                   ) : (
                     <Button icon={<FilePdfOutlined />} style={{ borderRadius: 8 }} onClick={() => setActiveModal('invoice')}>
                       {t('invoice.viewInvoice')}
                     </Button>
                   )
                 )}
-                {options.length > 0 && (
+                {showStatusButton && (
                   <Dropdown menu={{ items: options.map((o) => ({ key: o.key, label: o.label, danger: o.danger })), onClick: ({ key }) => {
                     const opt = options.find((o) => o.key === key);
                     Modal.confirm({
@@ -407,7 +419,7 @@ const SalesOrderDetailPage: React.FC = () => {
               );
             }}
           />
-          {order.status === 'DRAFT' && (
+          {canManageSOItems && order.status === 'DRAFT' && (
             <Button type="dashed" icon={<PlusOutlined />} block style={{ borderRadius: 8, marginTop: 8 }} onClick={() => setDrawerOpen(true)}>
               {t('order.addProduct')}
             </Button>
@@ -454,7 +466,7 @@ const SalesOrderDetailPage: React.FC = () => {
                             ) : (
                               <>
                                 <Tag color="warning" style={{ borderRadius: 6 }}>{t('order.noPO')}</Tag>
-                                {order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
+                                {canCreatePO && order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
                                   <Button type="primary" size="small" icon={<PlusOutlined />}
                                     style={{ borderRadius: 8 }} onClick={() => openCreatePO(sid, group.supplier?.company_name || '', group.items)}>
                                     {t('order.createPurchaseOrder')}
@@ -505,7 +517,7 @@ const SalesOrderDetailPage: React.FC = () => {
       <Modal open={activeModal === 'invoice'} onCancel={() => setActiveModal(null)} footer={null}
         title={t('invoice.salesInvoice')} width={window.innerWidth < 640 ? '95vw' : 900}
         styles={{ body: { padding: 0 } }}>
-        {salesInvoices.length === 0 && (
+        {salesInvoices.length === 0 && canCreateInv && (
           <div style={{ padding: 24 }}>
             <Button icon={<PlusOutlined />} loading={createInvMutation.isPending} style={{ borderRadius: 8 }}
               onClick={() => Modal.confirm({ title: t('invoice.issueInvoice'), content: order.order_code, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => createInvMutation.mutate() })}>{t('invoice.issueInvoice')}</Button>
@@ -529,14 +541,14 @@ const SalesOrderDetailPage: React.FC = () => {
                 <Tooltip title={t('invoice.downloadPdf')}><Button type="text" size="small" icon={<DownloadOutlined />} onClick={() => {
                   window.open(`${invoiceApi.getPdfUrl(inv.id)}?token=${localStorage.getItem('token')}`, '_blank');
                 }} /></Tooltip>
-                {inv.status === 'DRAFT' && (
+                {canFinalizeInv && inv.status === 'DRAFT' && (
                   <Tooltip title={t('invoice.finalize')}><Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
                     onClick={() => Modal.confirm({ title: t('invoice.finalize'), content: inv.invoice_number, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => approveInvMutation.mutate(inv.id) })} /></Tooltip>
                 )}
-                {order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
+                {canUpdateInv && order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
                   <Tooltip title={t('invoice.editDraft')}><Button type="text" size="small" icon={<EditOutlined />} onClick={() => setEditInvId(inv.id)} /></Tooltip>
                 )}
-                {inv.status === 'DRAFT' && (
+                {canCancelInv && inv.status === 'DRAFT' && (
                   <Tooltip title={t('common.delete')}><Button type="text" size="small" danger icon={<DeleteOutlined />}
                     onClick={() => Modal.confirm({ title: t('invoice.confirmDelete'), content: inv.invoice_number, okText: t('common.confirm'), cancelText: t('common.cancel'), okButtonProps: { danger: true }, onOk: () => cancelInvMutation.mutate(inv.id) })} /></Tooltip>
                 )}
@@ -582,7 +594,7 @@ const SalesOrderDetailPage: React.FC = () => {
                   </Space>
                 )}
               </div>
-              {isDraft && (
+              {isDraft && canManageSOItems && (
                 <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                   <InputNumber size="small" min={1} value={item.quantity} style={{ width: 70, borderRadius: 6 }}
                     onBlur={(e) => { const v = Number(e.target.value); if (v > 0 && v !== item.quantity) updateItemMutation.mutate({ itemId: item.id, data: { quantity: v } }); }} />
@@ -640,7 +652,7 @@ const SalesOrderDetailPage: React.FC = () => {
                   {noSupplier.map((item: any, i: number) => renderItemRow(item, i))}
                 </Card>
               )}
-              {isDraft && (
+              {isDraft && canManageSOItems && (
                 <Button type="dashed" icon={<PlusOutlined />} block style={{ borderRadius: 8 }}
                   onClick={() => { setProductSearch(''); setProductCategory(''); setProductMaterial(''); setDrawerOpen(true); }}>
                   {t('order.addProduct')}

@@ -22,6 +22,7 @@
     "save": "Lưu",
     "add": "Thêm",
     "back": "Quay lại",
+    "next": "Tiếp theo",
     "backToList": "Quay lại danh sách",
     "search": "Tìm kiếm",
     "filter": "Lọc",
@@ -48,6 +49,7 @@
     "notes": "Ghi chú",
     "actions": "Thao tác",
     "stt": "STT",
+    "quantity": "Số lượng",
     "viewDetail": "Xem chi tiết",
     "editRecord": "Chỉnh sửa",
     "deleteRecord": "Xóa",
@@ -74,6 +76,7 @@
     "alerts": "Thông báo",
     "zalo": "Zalo",
     "users": "Nhân viên",
+    "roles": "Vai trò & Quyền",
     "settings": "Cài đặt",
     "catalog": "DANH MỤC",
     "orders": "ĐƠN HÀNG",
@@ -128,7 +131,9 @@
     "roleRequired": "Chọn vai trò",
     "roleAdmin": "Quản trị",
     "roleStaff": "Nhân viên",
-    "roleViewer": "Xem"
+    "roleViewer": "Xem",
+    "you": "Bạn",
+    "selfRowHint": "Đây là tài khoản của bạn — không thể tự vô hiệu hóa"
   },
   "product": {
     "title": "Quản lý sản phẩm",
@@ -990,7 +995,20 @@
     "days7": "7 ngày",
     "days30": "30 ngày",
     "allTime": "Tất cả",
-    "knowledge": "kiến thức"
+    "knowledge": "kiến thức",
+    "autoReply": "Auto-reply AI",
+    "autoReplyEnabled": "Bật auto-reply",
+    "autoReplyOffHoursOnly": "Chỉ ngoài giờ hành chính (8h-18h)",
+    "autoReplyPrompt": "Prompt tuỳ chỉnh",
+    "autoReplyPromptPlaceholder": "VD: Bạn là trợ lý của PackFlow, trả lời lịch sự, ngắn gọn về sản phẩm bao bì nhựa. Nếu không chắc, đề xuất khách chat với nhân viên.",
+    "autoReplyUpdated": "Đã cập nhật cài đặt auto-reply",
+    "autoReplyHint": "Khi bật, AI sẽ tự động trả lời tin nhắn đến. Có thể bật/tắt riêng cho từng hội thoại trong tab Tin nhắn.",
+    "sendMessageUrl": "URL USER_SEND_MESSAGE",
+    "sendMessageToken": "Token USER_SEND_MESSAGE",
+    "replyMessageUrl": "URL USER_REPLY_MESSAGE",
+    "replyMessageToken": "Token USER_REPLY_MESSAGE",
+    "sendTypingUrl": "URL USER_SEND_TYPING (tuỳ chọn)",
+    "sendTypingToken": "Token USER_SEND_TYPING (tuỳ chọn)"
   },
   "settings": {
     "title": "Cài đặt",
@@ -1215,6 +1233,154 @@
     "socialInsuranceEmployer": "BHXH DN (17.5%)",
     "healthInsuranceEmployer": "BHYT DN (3%)",
     "unemploymentInsuranceEmployer": "BHTN DN (1%)"
+  },
+  "role": {
+    "title": "Quản lý vai trò & quyền",
+    "subtitle": "Thiết lập vai trò và phân quyền chi tiết cho từng nhóm người dùng.",
+    "list": "Vai trò",
+    "createRole": "Thêm vai trò",
+    "editRole": "Sửa vai trò",
+    "deleteRole": "Xoá vai trò",
+    "managePermissions": "Phân quyền",
+    "deleteConfirm": "Xoá vai trò này? Các user có vai trò này phải được gán lại.",
+    "systemTag": "Hệ thống",
+    "userCount": "{{count}} người dùng",
+    "permissionCountShort": "{{count}} quyền",
+    "permissionShort": "quyền",
+    "noRoles": "Chưa có vai trò nào",
+    "selectRoleHint": "Chọn một vai trò để xem quyền",
+    "slug": "Mã vai trò (slug)",
+    "slugRequired": "Vui lòng nhập mã vai trò",
+    "slugInvalid": "Mã chỉ gồm chữ thường, số, '_' hoặc '-'",
+    "slugHelp": "Mã định danh duy nhất, không dấu — ví dụ: sales_manager",
+    "name": "Tên vai trò",
+    "nameRequired": "Vui lòng nhập tên vai trò",
+    "namePlaceholder": "VD: Trưởng kho",
+    "description": "Mô tả",
+    "descriptionPlaceholder": "Mô tả ngắn vai trò này phụ trách việc gì",
+    "permissionsMatrix": "Ma trận quyền",
+    "permissionKey": "Khoá quyền",
+    "permissionDescription": "Mô tả",
+    "selectAll": "Chọn tất cả",
+    "deselectAll": "Bỏ chọn",
+    "selectedCount": "Đang chọn {{selected}}/{{total}}",
+    "selectedShort": "đã chọn",
+    "save": "Lưu thay đổi",
+    "saveSuccess": "Cập nhật quyền thành công",
+    "saveFailed": "Cập nhật quyền thất bại",
+    "createSuccess": "Tạo vai trò thành công",
+    "updateSuccess": "Cập nhật vai trò thành công",
+    "deleteSuccess": "Xoá vai trò thành công",
+    "adminReadOnly": "Admin luôn có toàn quyền, không thể sửa.",
+    "selfEditWarning": "Bạn vừa sửa vai trò của chính mình, vui lòng đăng xuất và đăng nhập lại để cập nhật quyền.",
+    "overview": {
+      "totalRoles": "Tổng số vai trò",
+      "totalPermissions": "Tổng số quyền",
+      "totalUsers": "Người dùng được phân quyền",
+      "customRoles": "Vai trò tuỳ chỉnh"
+    },
+    "search": {
+      "placeholder": "Tìm quyền theo tên, mã hoặc mô tả...",
+      "noMatch": "Không tìm thấy quyền phù hợp"
+    },
+    "gridHeader": {
+      "module": "Tính năng",
+      "view": "Xem",
+      "create": "Thêm",
+      "update": "Sửa",
+      "delete": "Xoá",
+      "other": "Khác"
+    },
+    "actionLabels": {
+      "read": "Xem",
+      "create": "Thêm",
+      "update": "Sửa",
+      "delete": "Xoá",
+      "approve": "Duyệt",
+      "manage": "Quản lý",
+      "manage_status": "Đổi trạng thái",
+      "manage_items": "Sửa chi tiết",
+      "manage_images": "Ảnh sản phẩm",
+      "manage_categories": "Nhóm danh mục",
+      "manage_config": "Cấu hình",
+      "manage_employees": "Hồ sơ NV",
+      "manage_periods": "Kỳ lương",
+      "manage_training": "Huấn luyện AI",
+      "finalize": "Duyệt HĐ",
+      "cancel": "Huỷ HĐ",
+      "export": "Xuất báo cáo",
+      "record_payment": "Ghi TT",
+      "use": "Sử dụng",
+      "sync_messages": "Đồng bộ tin nhắn"
+    },
+    "stats": {
+      "granted": "{{granted}}/{{total}} quyền đang cấp"
+    },
+    "sticky": {
+      "unsavedChanges": "Bạn có thay đổi chưa lưu"
+    },
+    "dirtyBanner": {
+      "count": "{{count}} thay đổi chưa lưu"
+    },
+    "emptyState": {
+      "noSelection": "Chưa chọn vai trò",
+      "chooseRole": "Chọn một vai trò ở bên trái để xem và chỉnh sửa quyền"
+    },
+    "roleNames": {
+      "admin": "Quản trị viên",
+      "manager": "Quản lý",
+      "accountant": "Kế toán",
+      "sales": "Nhân viên kinh doanh"
+    },
+    "roleDescriptions": {
+      "admin": "Toàn quyền hệ thống",
+      "manager": "Quản lý toàn bộ (không gồm user/role/audit log)",
+      "accountant": "Quản lý công nợ, hoá đơn, chi phí, lương",
+      "sales": "Khách hàng, đơn bán, hoá đơn"
+    },
+    "admin": {
+      "heroTitle": "Quản trị viên",
+      "fullAccess": "Toàn quyền",
+      "heroDescription": "Vai trò Quản trị viên luôn có toàn quyền trên hệ thống. Không thể chỉnh sửa để đảm bảo không bị khoá tài khoản quản trị.",
+      "listTitle": "Danh sách {{count}} quyền đang được cấp"
+    },
+    "modal": {
+      "stepInfo": "Thông tin cơ bản",
+      "stepPermissions": "Sao chép quyền",
+      "cloneFrom": "Sao chép quyền từ vai trò khác (tuỳ chọn)",
+      "cloneFromPlaceholder": "Chọn vai trò để sao chép quyền...",
+      "cloneFromHint": "Bạn có thể sao chép bộ quyền từ một vai trò có sẵn để tiết kiệm thời gian. Bước này không bắt buộc.",
+      "cloneConfirm": "Sẽ sao chép {{count}} quyền từ vai trò đã chọn",
+      "emptyStart": "Bắt đầu với vai trò trống (không có quyền)"
+    },
+    "modules": {
+      "dashboard": "Tổng quan",
+      "product": "Sản phẩm",
+      "category": "Danh mục sản phẩm",
+      "customer": "Khách hàng",
+      "supplier": "Nhà cung cấp",
+      "sales_order": "Đơn bán hàng",
+      "purchase_order": "Đơn mua hàng",
+      "invoice": "Hoá đơn",
+      "receivable": "Công nợ phải thu",
+      "payable": "Công nợ phải trả",
+      "return": "Trả hàng",
+      "cash_book": "Sổ quỹ",
+      "operating_cost": "Chi phí vận hành",
+      "payroll": "Bảng lương",
+      "employee": "Hồ sơ nhân viên",
+      "report": "Báo cáo",
+      "alert": "Cảnh báo",
+      "zalo": "Zalo",
+      "user": "Nhân viên",
+      "role": "Vai trò",
+      "audit_log": "Nhật ký hệ thống",
+      "settings": "Cài đặt",
+      "ai_training": "Dữ liệu AI",
+      "ai": "Trợ lý AI",
+      "pricing": "Bảng giá",
+      "price": "Giá"
+    }
   },
   "auditLog": {
     "menuTitle": "Nhật ký hệ thống",

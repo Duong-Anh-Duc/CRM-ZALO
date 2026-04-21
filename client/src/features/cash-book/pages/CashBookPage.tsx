@@ -4,7 +4,7 @@ import { PlusOutlined, SearchOutlined, ArrowUpOutlined, ArrowDownOutlined, Walle
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip, Legend } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
-import { useAuthStore } from '@/stores/auth.store';
+import { usePermission } from '@/contexts/AbilityContext';
 import { useCashTransactions, useCashSummary, useCashCategories } from '../hooks';
 import { cashBookApi } from '../api';
 import { formatVND, formatDate } from '@/utils/format';
@@ -26,8 +26,8 @@ function getDateRange(period: string) {
 
 const CashBookPage: React.FC = () => {
   const { t } = useTranslation();
-  const hasRole = useAuthStore((s) => s.hasRole);
-  const canManage = hasRole('ADMIN', 'STAFF');
+  const canCreate = usePermission('cash_book.create');
+  const canUpdate = usePermission('cash_book.update');
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('ALL');
   const [period, setPeriod] = useState('thisMonth');
@@ -110,7 +110,7 @@ const CashBookPage: React.FC = () => {
                 <DatePicker.RangePicker format="DD/MM/YYYY" value={customRange} onChange={(dates) => { setCustomRange(dates as any); setPage(1); }}
                   style={{ borderRadius: 8 }} placeholder={[t('common.fromDate'), t('common.toDate')]} />
               )}
-              {canManage && (
+              {canCreate && (
                 <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setFormOpen(true)}>
                   {t('cashBook.createTransaction')}
                 </Button>
@@ -217,7 +217,7 @@ const CashBookPage: React.FC = () => {
               <Descriptions.Item label={t('cashBook.evidence')}>
                 {detailRecord.evidence_url ? (
                   <Image src={detailRecord.evidence_url} style={{ maxHeight: 200, borderRadius: 8 }} />
-                ) : (
+                ) : canUpdate ? (
                   <Upload.Dragger
                     accept="image/*,.pdf"
                     showUploadList={false}
@@ -237,7 +237,7 @@ const CashBookPage: React.FC = () => {
                     <p className="ant-upload-drag-icon"><InboxOutlined style={{ fontSize: 32, color: '#1677ff' }} /></p>
                     <p className="ant-upload-text" style={{ fontSize: 13 }}>{t('debt.uploadEvidence')}</p>
                   </Upload.Dragger>
-                )}
+                ) : '-'}
               </Descriptions.Item>
             </Descriptions>
           </>

@@ -5,12 +5,14 @@ import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { formatDate } from '@/utils/format';
 import { usePayrollPeriods, useCreatePeriod, useCalculatePeriod, useApprovePeriod, usePayPeriod, useDeletePeriod } from '../hooks';
+import { usePermission } from '@/contexts/AbilityContext';
 import PayrollRecordsModal from './PayrollRecordsModal';
 
 const statusColorMap: Record<string, string> = { DRAFT: 'default', CALCULATED: 'blue', APPROVED: 'cyan', PAID: 'green' };
 
 const PayrollPeriodsTab: React.FC = () => {
   const { t } = useTranslation();
+  const canManagePeriods = usePermission('payroll.manage_periods');
   const [createOpen, setCreateOpen] = useState(false);
   const [newYear, setNewYear] = useState(dayjs().year());
   const [newMonth, setNewMonth] = useState(dayjs().month() + 1);
@@ -50,7 +52,7 @@ const PayrollPeriodsTab: React.FC = () => {
       title: t('common.actions'), key: 'actions', width: 140, align: 'center' as const, fixed: 'right' as const,
       render: (_: any, rec: any) => (
         <Space size="small">
-          {rec.status === 'DRAFT' && (
+          {canManagePeriods && rec.status === 'DRAFT' && (
             <Tooltip title={t('payroll.calculate')}>
               <Button type="text" size="small" icon={<CalculatorOutlined />} style={{ color: '#1677ff' }}
                 onClick={() => Modal.confirm({ title: t('payroll.calculate'), content: `T${rec.month}/${rec.year}`, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => calculatePeriod.mutate(rec.id) })} />
@@ -61,7 +63,7 @@ const PayrollPeriodsTab: React.FC = () => {
               <Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }} onClick={() => setViewPeriod(rec)} />
             </Tooltip>
           )}
-          {rec.status === 'CALCULATED' && (
+          {canManagePeriods && rec.status === 'CALCULATED' && (
             <>
               <Tooltip title={t('payroll.calculate')}>
                 <Button type="text" size="small" icon={<CalculatorOutlined />} style={{ color: '#722ed1' }}
@@ -73,14 +75,14 @@ const PayrollPeriodsTab: React.FC = () => {
               </Tooltip>
             </>
           )}
-          {rec.status === 'APPROVED' && (
+          {canManagePeriods && rec.status === 'APPROVED' && (
             <Popconfirm title={t('payroll.payConfirm')} onConfirm={() => payPeriod.mutate(rec.id)} okText={t('common.confirm')} cancelText={t('common.cancel')}>
               <Tooltip title={t('payroll.pay')}>
                 <Button type="text" size="small" icon={<DollarOutlined />} style={{ color: '#52c41a' }} />
               </Tooltip>
             </Popconfirm>
           )}
-          {(rec.status === 'DRAFT' || rec.status === 'CALCULATED') && (
+          {canManagePeriods && (rec.status === 'DRAFT' || rec.status === 'CALCULATED') && (
             <Popconfirm title={t('common.deleteConfirm')} onConfirm={() => deletePeriod.mutate(rec.id)} okText={t('common.delete')} cancelText={t('common.cancel')} okButtonProps={{ danger: true }}>
               <Tooltip title={t('common.deleteRecord')}>
                 <Button type="text" size="small" danger icon={<DeleteOutlined />} />
@@ -113,11 +115,13 @@ const PayrollPeriodsTab: React.FC = () => {
         </Col>
       </Row>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setCreateOpen(true)}>
-          {t('payroll.createPeriod')}
-        </Button>
-      </div>
+      {canManagePeriods && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setCreateOpen(true)}>
+            {t('payroll.createPeriod')}
+          </Button>
+        </div>
+      )}
 
       <Table
         dataSource={periods} columns={columns} rowKey="id" size="small" loading={isLoading}

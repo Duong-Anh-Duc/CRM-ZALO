@@ -10,12 +10,6 @@ datasource db {
 
 // ─── ENUMS ──────────────────────────────────────────
 
-enum UserRole {
-  ADMIN
-  STAFF
-  VIEWER
-}
-
 enum CustomerType {
   INDIVIDUAL
   BUSINESS
@@ -141,14 +135,59 @@ model User {
   email         String   @unique
   password_hash String
   full_name     String
-  role          UserRole @default(STAFF)
+  role_id       String
   is_active     Boolean  @default(true)
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
+  role             Role             @relation(fields: [role_id], references: [id])
   employee_profile EmployeeProfile?
 
+  @@index([role_id])
   @@map("users")
+}
+
+// ─── RBAC ───────────────────────────────────────────
+
+model Role {
+  id          String   @id @default(uuid())
+  slug        String   @unique // "admin", "manager", "accountant", "sales", "viewer"
+  name        String
+  description String?
+  is_system   Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  key         String   @unique // e.g. "customer.view"
+  action      String
+  subject     String
+  module      String
+  description String?
+  created_at  DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  role_id       String
+  permission_id String
+  created_at    DateTime @default(now())
+
+  role       Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@id([role_id, permission_id])
+  @@map("role_permissions")
 }
 
 // ─── PAYROLL ────────────────────────────────────────
@@ -805,15 +844,41 @@ model ZaloConfig {
   // General
   account_token         String?
   webhook_secret        String?
+  // USER_SEND_MESSAGE
+  send_message_url      String?
+  send_message_token    String?
+  // USER_REPLY_MESSAGE
+  reply_message_url     String?
+  reply_message_token   String?
+  // USER_SEND_TYPING
+  send_typing_url       String?
+  send_typing_token     String?
   // AI Prompts
   ai_chat_prompt        String?  @db.Text
   ai_summary_prompt     String?  @db.Text
   ai_order_prompt       String?  @db.Text
+  // Auto-reply settings
+  auto_reply_enabled         Boolean  @default(false)
+  auto_reply_prompt          String?  @db.Text
+  auto_reply_off_hours_only  Boolean  @default(false)
   is_active             Boolean  @default(true)
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
   @@map("zalo_configs")
+}
+
+model ZaloThread {
+  id                    String   @id @default(uuid())
+  thread_key            String   @unique // sender_id (user) or group_id (group)
+  is_group              Boolean  @default(false)
+  auto_reply_enabled    Boolean  @default(false)
+  last_auto_reply_at    DateTime?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@index([thread_key])
+  @@map("zalo_threads")
 }
 
 model ZaloMessage {

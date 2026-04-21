@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Chatbot from '@/components/Chatbot';
+import { usePermission } from '@/contexts/AbilityContext';
 import { Layout, Menu, Dropdown, Avatar, Typography, Space, Drawer, theme, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -24,6 +25,7 @@ import {
   SunOutlined,
   MoonOutlined,
   FileSearchOutlined,
+  SafetyOutlined,
   // GlobalOutlined, // disabled with Universe page
 } from '@ant-design/icons';
 import { toast } from 'react-toastify';
@@ -62,21 +64,50 @@ const ENFlag = () => (
   </svg>
 );
 
-const getMenuItems = (t: (key: string) => string): MenuProps['items'] => [
-  { key: '/', icon: <DashboardOutlined />, label: t('menu.dashboard') },
-  // { key: '/universe', icon: <GlobalOutlined />, label: t('menu.universe') },
-  { type: 'group', label: t('menu.catalog') },
-  { key: '/products', icon: <ShoppingOutlined />, label: t('menu.products') },
-  { key: '/customers', icon: <TeamOutlined />, label: t('menu.customers') },
-  { key: '/suppliers', icon: <ShopOutlined />, label: t('menu.suppliers') },
-  { type: 'group', label: t('menu.orders') },
-  { key: '/sales-orders', icon: <FileTextOutlined />, label: t('menu.salesOrders') },
-  { key: '/purchase-orders', icon: <ImportOutlined />, label: t('menu.purchaseOrders') },
-  { key: '/returns', icon: <RollbackOutlined />, label: t('menu.returns') },
-  { type: 'group', label: t('menu.finance') },
-  { key: '/debts', icon: <DollarOutlined />, label: t('menu.debts') },
-  { key: '/cash-book', icon: <WalletOutlined />, label: t('menu.cashBook') },
-];
+type MenuItem = NonNullable<MenuProps['items']>[number];
+
+type PermCheck = (key: string) => boolean;
+
+/**
+ * Build sidebar menu items filtered by the current user's permissions.
+ * Empty groups (no visible children) are omitted so the sidebar never
+ * shows dangling section headers.
+ */
+const buildMenuItems = (t: (key: string) => string, hasPermission: PermCheck): MenuItem[] => {
+  const items: MenuItem[] = [];
+
+  if (hasPermission('dashboard.view')) {
+    items.push({ key: '/', icon: <DashboardOutlined />, label: t('menu.dashboard') });
+  }
+
+  const catalog: MenuItem[] = [
+    hasPermission('product.view') && { key: '/products', icon: <ShoppingOutlined />, label: t('menu.products') },
+    hasPermission('customer.view') && { key: '/customers', icon: <TeamOutlined />, label: t('menu.customers') },
+    hasPermission('supplier.view') && { key: '/suppliers', icon: <ShopOutlined />, label: t('menu.suppliers') },
+  ].filter(Boolean) as MenuItem[];
+  if (catalog.length) {
+    items.push({ type: 'group', label: t('menu.catalog') }, ...catalog);
+  }
+
+  const orders: MenuItem[] = [
+    hasPermission('sales_order.view') && { key: '/sales-orders', icon: <FileTextOutlined />, label: t('menu.salesOrders') },
+    hasPermission('purchase_order.view') && { key: '/purchase-orders', icon: <ImportOutlined />, label: t('menu.purchaseOrders') },
+    hasPermission('return.view') && { key: '/returns', icon: <RollbackOutlined />, label: t('menu.returns') },
+  ].filter(Boolean) as MenuItem[];
+  if (orders.length) {
+    items.push({ type: 'group', label: t('menu.orders') }, ...orders);
+  }
+
+  const finance: MenuItem[] = [
+    (hasPermission('receivable.view') || hasPermission('payable.view')) && { key: '/debts', icon: <DollarOutlined />, label: t('menu.debts') },
+    hasPermission('cash_book.view') && { key: '/cash-book', icon: <WalletOutlined />, label: t('menu.cashBook') },
+  ].filter(Boolean) as MenuItem[];
+  if (finance.length) {
+    items.push({ type: 'group', label: t('menu.finance') }, ...finance);
+  }
+
+  return items;
+};
 
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -86,7 +117,9 @@ const AppLayout: React.FC = () => {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, hasRole } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canUseAiChat = usePermission('ai.chat');
   const { darkMode, toggleDarkMode } = useThemeStore();
   const { token: { colorBgContainer } } = theme.useToken();
   const { t, i18n } = useTranslation();
@@ -104,18 +137,21 @@ const AppLayout: React.FC = () => {
 
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
-  const menuItems: MenuProps['items'] = [
-    ...getMenuItems(t)!,
-    { type: 'group' as const, label: t('menu.toolsAndAdmin') },
-    { key: '/zalo', icon: <MessageOutlined />, label: t('menu.zalo') },
-    ...(hasRole('ADMIN')
-      ? [
-          { key: '/users', icon: <UserOutlined />, label: t('menu.users') },
-          { key: '/audit-logs', icon: <FileSearchOutlined />, label: t('auditLog.menuTitle') },
-          { key: '/settings', icon: <SettingOutlined />, label: t('menu.settings') },
-        ]
-      : []),
-  ];
+  const menuItems: MenuProps['items'] = (() => {
+    const base = buildMenuItems(t, hasPermission);
+    const toolsAndAdmin: MenuItem[] = [
+      hasPermission('zalo.view') && { key: '/zalo', icon: <MessageOutlined />, label: t('menu.zalo') },
+      hasPermission('user.view') && { key: '/users', icon: <UserOutlined />, label: t('menu.users') },
+      hasPermission('audit_log.view') && { key: '/audit-logs', icon: <FileSearchOutlined />, label: t('auditLog.menuTitle') },
+      hasPermission('role.manage') && { key: '/admin/roles', icon: <SafetyOutlined />, label: t('menu.roles') },
+      hasPermission('role.manage') && { key: '/settings', icon: <SettingOutlined />, label: t('menu.settings') },
+    ].filter(Boolean) as MenuItem[];
+
+    if (toolsAndAdmin.length) {
+      return [...base, { type: 'group' as const, label: t('menu.toolsAndAdmin') }, ...toolsAndAdmin];
+    }
+    return base;
+  })();
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => navigate(key);
 
@@ -142,7 +178,15 @@ const AppLayout: React.FC = () => {
     i18n.changeLanguage(i18n.language === 'vi' ? 'en' : 'vi');
   };
 
-  const selectedKey = '/' + location.pathname.split('/').filter(Boolean)[0] || '/';
+  const selectedKey = (() => {
+    const segments = location.pathname.split('/').filter(Boolean);
+    if (segments.length === 0) return '/';
+    // Support nested admin routes like /admin/roles — keep two segments.
+    if (segments[0] === 'admin' && segments[1]) {
+      return `/${segments[0]}/${segments[1]}`;
+    }
+    return `/${segments[0]}`;
+  })();
 
   const siderContent = (
     <>
@@ -208,7 +252,7 @@ const AppLayout: React.FC = () => {
 
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
       <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
-      <Chatbot />
+      {canUseAiChat && <Chatbot />}
     </Layout>
   );
 };

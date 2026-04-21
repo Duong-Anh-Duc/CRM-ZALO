@@ -3,6 +3,7 @@ import { Card, Table, Tag, Button, Select, Space, Modal, Input, DatePicker, Tool
 import { EditOutlined, CheckCircleOutlined, CloseCircleOutlined, FilePdfOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useInvoices, useFinalizeInvoice, useCancelInvoice, useUpdateInvoice } from '../hooks';
+import { usePermission } from '@/contexts/AbilityContext';
 import { invoiceApi } from '../api';
 import { PageHeader } from '@/components/common';
 import { formatVND, formatDateTime } from '@/utils/format';
@@ -14,6 +15,9 @@ const cardStyle: React.CSSProperties = { borderRadius: 12, boxShadow: '0 2px 8px
 
 const InvoiceListPage: React.FC = () => {
   const { t } = useTranslation();
+  const canUpdate = usePermission('invoice.update');
+  const canFinalize = usePermission('invoice.finalize');
+  const canCancel = usePermission('invoice.cancel');
 
   const statusConfig: Record<string, { color: string; label: string }> = {
     DRAFT: { color: 'orange', label: t('invoice.statusDraft') },
@@ -98,17 +102,21 @@ const InvoiceListPage: React.FC = () => {
           </Tooltip>
           {r.status === 'DRAFT' && (
             <>
-              <Tooltip title={t('common.edit')}>
-                <Button type="text" size="small" icon={<EditOutlined />} onClick={() => setEditId(r.id)} />
-              </Tooltip>
-              <Tooltip title={t('invoice.finalize')}>
-                <Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                  onClick={() => Modal.confirm({ title: t('invoice.finalize'), content: `${r.invoice_number}`, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => finalizeMutation.mutate(r.id) })}
-                  loading={finalizeMutation.isPending} />
-              </Tooltip>
+              {canUpdate && (
+                <Tooltip title={t('common.edit')}>
+                  <Button type="text" size="small" icon={<EditOutlined />} onClick={() => setEditId(r.id)} />
+                </Tooltip>
+              )}
+              {canFinalize && (
+                <Tooltip title={t('invoice.finalize')}>
+                  <Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                    onClick={() => Modal.confirm({ title: t('invoice.finalize'), content: `${r.invoice_number}`, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => finalizeMutation.mutate(r.id) })}
+                    loading={finalizeMutation.isPending} />
+                </Tooltip>
+              )}
             </>
           )}
-          {r.status !== 'CANCELLED' && (
+          {canCancel && r.status !== 'CANCELLED' && (
             <Tooltip title={t('common.cancel')}>
               <Button type="text" size="small" danger icon={<CloseCircleOutlined />}
                 onClick={() => Modal.confirm({ title: t('invoice.cancelled'), content: `${r.invoice_number}`, okText: t('common.confirm'), cancelText: t('common.cancel'), okButtonProps: { danger: true }, onOk: () => cancelMutation.mutate(r.id) })} />

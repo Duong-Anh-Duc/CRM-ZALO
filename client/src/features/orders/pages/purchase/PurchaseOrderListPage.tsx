@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip, Legend }
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { usePurchaseOrders, useUpdatePurchaseOrderStatus } from '../../hooks';
+import { usePermission } from '@/contexts/AbilityContext';
 import { PurchaseOrder, PurchaseOrderStatus } from '@/types';
 import { formatVND, formatDate, purchaseStatusLabels } from '@/utils/format';
 import { PageHeader, StatusTag } from '@/components/common';
@@ -17,6 +18,8 @@ const PIE_COLORS = ['#8c8c8c', '#1890ff', '#fa8c16', '#52c41a', '#ff4d4f'];
 const PurchaseOrderListPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const canUpdate = usePermission('purchase_order.update');
+  const canManageStatus = usePermission('purchase_order.manage_status');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState<[any, any] | null>(null);
@@ -80,10 +83,10 @@ const PurchaseOrderListPage: React.FC = () => {
         return (
           <Space size="small">
             <Tooltip title={t('common.viewDetail')}><Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }} onClick={() => navigate(`/purchase-orders/${record.id}`)} /></Tooltip>
-            {(record.status as string) !== 'COMPLETED' && (record.status as string) !== 'CANCELLED' && (
+            {canUpdate && (record.status as string) !== 'COMPLETED' && (record.status as string) !== 'CANCELLED' && (
               <Tooltip title={t('common.edit')}><Button type="text" size="small" icon={<EditOutlined />} onClick={() => navigate(`/purchase-orders/${record.id}?edit=1`)} /></Tooltip>
             )}
-            {nextStatuses.length > 0 && (
+            {canManageStatus && nextStatuses.length > 0 && (
               <Dropdown menu={{ items: nextStatuses.map((s) => ({ key: s, label: purchaseStatusLabels[s], danger: s === 'CANCELLED' })), onClick: ({ key }) => {
                 Modal.confirm({
                   title: t('order.confirmStatusChange'),

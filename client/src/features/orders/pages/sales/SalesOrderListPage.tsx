@@ -7,6 +7,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip, Legend }
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSalesOrders, useUpdateSalesOrderStatus } from '../../hooks';
+import { usePermission } from '@/contexts/AbilityContext';
 import { SalesOrder, SalesOrderStatus } from '@/types';
 import { formatVND, formatDate, salesStatusLabels } from '@/utils/format';
 import { PageHeader, StatusTag } from '@/components/common';
@@ -17,6 +18,9 @@ const PIE_COLORS = ['#8c8c8c', '#1890ff', '#fa8c16', '#52c41a', '#ff4d4f'];
 const SalesOrderListPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const canCreate = usePermission('sales_order.create');
+  const canUpdate = usePermission('sales_order.update');
+  const canManageStatus = usePermission('sales_order.manage_status');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState<[any, any] | null>(null);
@@ -87,10 +91,10 @@ const SalesOrderListPage: React.FC = () => {
         return (
           <Space size="small">
             <Tooltip title={t('common.viewDetail')}><Button type="text" size="small" icon={<EyeOutlined />} style={{ color: '#1677ff' }} onClick={() => navigate(`/sales-orders/${record.id}`)} /></Tooltip>
-            {record.status !== 'COMPLETED' && record.status !== 'CANCELLED' && (
+            {canUpdate && record.status !== 'COMPLETED' && record.status !== 'CANCELLED' && (
               <Tooltip title={t('common.edit')}><Button type="text" size="small" icon={<EditOutlined />} onClick={() => navigate(`/sales-orders/${record.id}?edit=1`)} /></Tooltip>
             )}
-            {nextStatuses.length > 0 && (
+            {canManageStatus && nextStatuses.length > 0 && (
               <Dropdown menu={{ items: nextStatuses.map((s) => ({ key: s, label: salesStatusLabels[s], danger: s === 'CANCELLED' })), onClick: ({ key }) => {
                 Modal.confirm({
                   title: t('order.confirmStatusChange'),
@@ -114,7 +118,9 @@ const SalesOrderListPage: React.FC = () => {
   return (
     <Card style={{ borderRadius: 12 }}>
       <PageHeader title={t('order.salesOrders')} extra={
-        <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => navigate('/sales-orders/create')}>{t('order.createOrder')}</Button>
+        canCreate ? (
+          <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => navigate('/sales-orders/create')}>{t('order.createOrder')}</Button>
+        ) : undefined
       } />
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>

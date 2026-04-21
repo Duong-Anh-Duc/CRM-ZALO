@@ -14,6 +14,7 @@ import { formatVND, formatDate } from '@/utils/format';
 import { StatusTag } from '@/components/common';
 import { invoiceApi } from '@/features/invoices/api';
 import apiClient from '@/lib/api-client';
+import { usePermission } from '@/contexts/AbilityContext';
 
 const { Text } = Typography;
 const fieldStyle: React.CSSProperties = { background: '#f5f5f5', borderRadius: 8, padding: '12px 16px' };
@@ -26,6 +27,10 @@ const PurchaseOrderDetailPage: React.FC = () => {
   const qc = useQueryClient();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<'invoice' | 'products' | null>(null);
+  const canManagePOStatus = usePermission('purchase_order.manage_status');
+  const canCreateInv = usePermission('invoice.create');
+  const canFinalizeInv = usePermission('invoice.finalize');
+  const canCancelInv = usePermission('invoice.cancel');
 
   const { data: orderData, isLoading } = usePurchaseOrder(id);
   const order = orderData?.data as any;
@@ -95,15 +100,16 @@ const PurchaseOrderDetailPage: React.FC = () => {
             };
             const options = NEXT[order.status] || [];
             const showInvoice = order.status !== 'DRAFT';
-            if (options.length === 0 && !showInvoice) return null;
+            const showStatusButton = canManagePOStatus && options.length > 0;
+            if (!showStatusButton && !showInvoice) return null;
             return (
               <Space>
-                {showInvoice && (
+                {showInvoice && (invoice || canCreateInv) && (
                   <Button icon={<FilePdfOutlined />} style={{ borderRadius: 8 }} onClick={() => setActiveModal('invoice')}>
                     {invoice ? t('invoice.viewInvoice') : t('invoice.uploadFile')}
                   </Button>
                 )}
-                {options.length > 0 && (
+                {showStatusButton && (
                   <Dropdown menu={{ items: options.map((o) => ({ key: o.key, label: o.label, danger: o.danger })), onClick: ({ key }) => {
                     const opt = options.find((o) => o.key === key);
                     Modal.confirm({
@@ -208,11 +214,11 @@ const PurchaseOrderDetailPage: React.FC = () => {
                 {invoice.file_url && (
                   <Tooltip title={t('invoice.downloadPdf')}><Button type="text" size="small" icon={<DownloadOutlined />} onClick={() => window.open(invoice.file_url, '_blank')} /></Tooltip>
                 )}
-                {invoice.status === 'DRAFT' && (
+                {canFinalizeInv && invoice.status === 'DRAFT' && (
                   <Tooltip title={t('invoice.finalize')}><Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
                     onClick={() => Modal.confirm({ title: t('invoice.finalize'), content: invoice.invoice_number, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => approveInvMutation.mutate(invoice.id) })} /></Tooltip>
                 )}
-                {invoice.status === 'DRAFT' && (
+                {canCancelInv && invoice.status === 'DRAFT' && (
                   <Popconfirm title={t('invoice.confirmDelete')} onConfirm={() => cancelInvMutation.mutate(invoice.id)} okText={t('common.confirm')} cancelText={t('common.cancel')}>
                     <Tooltip title={t('common.delete')}><Button type="text" size="small" danger icon={<DeleteOutlined />} /></Tooltip>
                   </Popconfirm>

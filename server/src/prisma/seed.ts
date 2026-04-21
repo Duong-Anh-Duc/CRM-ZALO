@@ -7,45 +7,66 @@ import { seedSuppliers } from './seeds/suppliers';
 import { seedOrders } from './seeds/orders';
 import { seedOperatingCosts } from './seeds/operating-costs';
 import { seedCashBook } from './seeds/cash-book';
+import { seedRBAC } from './seeds/rbac';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Seeding database...');
 
+  // RBAC (roles + permissions) first so users can reference role_id.
+  await seedRBAC(prisma);
+  console.log('✅ RBAC seeded');
+
+  const adminRole = await prisma.role.findUniqueOrThrow({ where: { slug: 'admin' } });
+  const salesRole = await prisma.role.findUniqueOrThrow({ where: { slug: 'sales' } });
+
   // Users
   const adminHash = await bcrypt.hash('Duckhiem040603@', 12);
   const staffHash = await bcrypt.hash('Staff@123456', 12);
-  const viewerHash = await bcrypt.hash('Viewer@123456', 12);
 
   await prisma.user.upsert({
     where: { email: 'ducytcg123456@gmail.com' },
-    update: {},
-    create: { email: 'ducytcg123456@gmail.com', password_hash: adminHash, full_name: 'Nguyễn Văn Admin', role: 'ADMIN' },
+    update: { role_id: adminRole.id },
+    create: {
+      email: 'ducytcg123456@gmail.com',
+      password_hash: adminHash,
+      full_name: 'Nguyễn Văn Admin',
+      role_id: adminRole.id,
+    },
   });
 
   await prisma.user.upsert({
     where: { email: 'admin2@packflow.vn' },
-    update: {},
-    create: { email: 'admin2@packflow.vn', password_hash: adminHash, full_name: 'Trần Thị Quản Lý', role: 'ADMIN' },
+    update: { role_id: adminRole.id },
+    create: {
+      email: 'admin2@packflow.vn',
+      password_hash: adminHash,
+      full_name: 'Trần Thị Quản Lý',
+      role_id: adminRole.id,
+    },
   });
 
   await prisma.user.upsert({
     where: { email: 'staff1@packflow.vn' },
-    update: {},
-    create: { email: 'staff1@packflow.vn', password_hash: staffHash, full_name: 'Lê Văn Nhân Viên', role: 'STAFF' },
+    update: { role_id: salesRole.id },
+    create: {
+      email: 'staff1@packflow.vn',
+      password_hash: staffHash,
+      full_name: 'Lê Văn Nhân Viên',
+      role_id: salesRole.id,
+    },
   });
 
   await prisma.user.upsert({
     where: { email: 'staff2@packflow.vn' },
-    update: {},
-    create: { email: 'staff2@packflow.vn', password_hash: staffHash, full_name: 'Phạm Thị Bán Hàng', role: 'STAFF' },
-  });
-
-  await prisma.user.upsert({
-    where: { email: 'viewer@packflow.vn' },
-    update: {},
-    create: { email: 'viewer@packflow.vn', password_hash: viewerHash, full_name: 'Hoàng Văn Xem', role: 'VIEWER' },
+    update: { role_id: salesRole.id },
+    create: {
+      email: 'staff2@packflow.vn',
+      password_hash: staffHash,
+      full_name: 'Phạm Thị Bán Hàng',
+      role_id: salesRole.id,
+    },
   });
 
   console.log('✅ Users seeded');

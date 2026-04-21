@@ -5,6 +5,7 @@ import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSuppliers, useDeleteSupplier } from '../hooks';
+import { usePermission } from '@/contexts/AbilityContext';
 import { Supplier } from '@/types';
 import { formatVND } from '@/utils/format';
 import { PageHeader } from '@/components/common';
@@ -13,6 +14,9 @@ import SupplierFormModal from '../components/SupplierFormModal';
 const SupplierListPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const canCreate = usePermission('supplier.create');
+  const canUpdate = usePermission('supplier.update');
+  const canDelete = usePermission('supplier.delete');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -93,34 +97,38 @@ const SupplierListPage: React.FC = () => {
               onClick={() => navigate(`/suppliers/${record.id}`)}
             />
           </Tooltip>
-          <Tooltip title={t('common.editRecord')}>
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              style={{ color: '#faad14' }}
-              onClick={() => {
-                setEditSupplier(record);
-                setModalOpen(true);
-              }}
-            />
-          </Tooltip>
-          <Popconfirm
-            title={t('common.deleteConfirm')}
-            onConfirm={() => deleteMutation.mutate(record.id)}
-            okText={t('common.delete')}
-            cancelText={t('common.cancel')}
-            okButtonProps={{ danger: true }}
-          >
-            <Tooltip title={t('common.deleteRecord')}>
+          {canUpdate && (
+            <Tooltip title={t('common.editRecord')}>
               <Button
                 type="text"
                 size="small"
-                danger
-                icon={<DeleteOutlined />}
+                icon={<EditOutlined />}
+                style={{ color: '#faad14' }}
+                onClick={() => {
+                  setEditSupplier(record);
+                  setModalOpen(true);
+                }}
               />
             </Tooltip>
-          </Popconfirm>
+          )}
+          {canDelete && (
+            <Popconfirm
+              title={t('common.deleteConfirm')}
+              onConfirm={() => deleteMutation.mutate(record.id)}
+              okText={t('common.delete')}
+              cancelText={t('common.cancel')}
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip title={t('common.deleteRecord')}>
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -132,14 +140,16 @@ const SupplierListPage: React.FC = () => {
         <PageHeader
           title={t('supplier.title')}
           extra={
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              style={{ borderRadius: 8 }}
-              onClick={() => setModalOpen(true)}
-            >
-              {t('supplier.addSupplier')}
-            </Button>
+            canCreate ? (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                style={{ borderRadius: 8 }}
+                onClick={() => setModalOpen(true)}
+              >
+                {t('supplier.addSupplier')}
+              </Button>
+            ) : undefined
           }
         />
 
