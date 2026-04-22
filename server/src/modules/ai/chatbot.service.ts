@@ -1223,6 +1223,73 @@ ${systemContext}`,
   }
 
   /**
+   * Extract packaging product attributes from a customer image URL.
+   * Uses GPT-4o-mini vision with structured JSON output.
+   */
+  static async identifyProductFromImage(imageUrl: string): Promise<{
+    loai: string | null;
+    chat_lieu: string | null;
+    dung_tich_ml: number | null;
+    mau: string | null;
+    hinh_dang: string | null;
+    co_chai_mm: number | null;
+    ghi_chu: string | null;
+    confidence: number;
+  }> {
+    try {
+      const response = await openai.chat.completions.create({
+        model: config.openai.visionModel || config.openai.model || 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Bạn là chuyên gia nhận diện bao bì nhựa. Phân tích ảnh và trả về JSON với các trường:
+- loai: "chai" | "hu" | "nap" | "can" | "thung" | null
+- chat_lieu: "PET" | "HDPE" | "PP" | "PVC" | "PS" | "ABS" | null
+- dung_tich_ml: số (ước lượng ml, vd 500, 1000, null nếu không đoán được)
+- mau: "TRANSPARENT" | "WHITE" | "CUSTOM" (với màu khác) | null
+- hinh_dang: "ROUND" | "SQUARE" | "OVAL" | "FLAT" | null
+- co_chai_mm: số (đường kính cổ chai mm, vd 28, 32, null)
+- ghi_chu: ngắn gọn (vd "có nắp pump, dùng đựng mỹ phẩm")
+- confidence: 0.0-1.0 (độ tin cậy nhận diện)
+
+Nếu ảnh KHÔNG phải bao bì nhựa (vd quần áo, đồ ăn, phong cảnh...) → trả loại = null + confidence = 0.
+Trả về JSON thuần, KHÔNG markdown.`,
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Phân tích ảnh bao bì này:' },
+              { type: 'image_url', image_url: { url: imageUrl } },
+            ],
+          },
+        ],
+        temperature: 0.2,
+        max_tokens: 300,
+        response_format: { type: 'json_object' },
+      });
+
+      const raw = response.choices[0]?.message?.content || '{}';
+      const parsed = JSON.parse(raw);
+      return {
+        loai: parsed.loai || null,
+        chat_lieu: parsed.chat_lieu || null,
+        dung_tich_ml: typeof parsed.dung_tich_ml === 'number' ? parsed.dung_tich_ml : null,
+        mau: parsed.mau || null,
+        hinh_dang: parsed.hinh_dang || null,
+        co_chai_mm: typeof parsed.co_chai_mm === 'number' ? parsed.co_chai_mm : null,
+        ghi_chu: parsed.ghi_chu || null,
+        confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+      };
+    } catch (err) {
+      logger.error('identifyProductFromImage error:', err);
+      return {
+        loai: null, chat_lieu: null, dung_tich_ml: null, mau: null,
+        hinh_dang: null, co_chai_mm: null, ghi_chu: null, confidence: 0,
+      };
+    }
+  }
+
+  /**
    * Customer-facing reply for Zalo auto-reply.
    * No function calling (read-only, safe for external customers).
    * Uses a shop-assistant persona (not CRM internal assistant).

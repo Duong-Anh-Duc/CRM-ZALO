@@ -295,4 +295,67 @@ export class ProductService {
       take: 10,
     });
   }
+
+  /**
+   * Fuzzy-match products by packaging attributes extracted from customer image.
+   * Returns top 5 candidates ranked by number of attribute matches.
+   */
+  static async fuzzyMatchByAttributes(attrs: {
+    loai?: string | null;
+    chat_lieu?: string | null;
+    dung_tich_ml?: number | null;
+    mau?: string | null;
+    hinh_dang?: string | null;
+  }) {
+    const CAPACITY_TOLERANCE = 0.15; // ±15%
+    const where: Record<string, unknown> = { is_active: true };
+
+    if (attrs.chat_lieu) {
+      where.material = attrs.chat_lieu.toUpperCase();
+    }
+    if (attrs.dung_tich_ml && attrs.dung_tich_ml > 0) {
+      where.capacity_ml = {
+        gte: Math.round(attrs.dung_tich_ml * (1 - CAPACITY_TOLERANCE)),
+        lte: Math.round(attrs.dung_tich_ml * (1 + CAPACITY_TOLERANCE)),
+      };
+    }
+    if (attrs.mau) {
+      where.color = attrs.mau.toUpperCase();
+    }
+    if (attrs.hinh_dang) {
+      where.shape = attrs.hinh_dang.toUpperCase();
+    }
+    if (attrs.loai) {
+      // Loại bao bì chủ yếu thể hiện qua tên sản phẩm (chai/hũ/nắp/can/thùng)
+      where.name = { contains: attrs.loai, mode: 'insensitive' };
+    }
+
+    // Primary query with all constraints
+    let products = await prisma.product.findMany({
+      where,
+      take: 5,
+      include: { images: { where: { is_primary: true }, take: 1 } },
+      orderBy: { updated_at: 'desc' },
+    });
+
+    // Fallback: loosen constraints if too few results
+    if (products.length < 3) {
+      const relaxedWhere: Record<string, unknown> = { is_active: true };
+      if (attrs.chat_lieu) relaxedWhere.material = attrs.chat_lieu.toUpperCase();
+      if (attrs.dung_tich_ml && attrs.dung_tich_ml > 0) {
+        relaxedWhere.capacity_ml = {
+          gte: Math.round(attrs.dung_tich_ml * 0.7),
+          lte: Math.round(attrs.dung_tich_ml * 1.3),
+        };
+      }
+      products = await prisma.product.findMany({
+        where: relaxedWhere,
+        take: 5,
+        include: { images: { where: { is_primary: true }, take: 1 } },
+        orderBy: { updated_at: 'desc' },
+      });
+    }
+
+    return products;
+  }
 }

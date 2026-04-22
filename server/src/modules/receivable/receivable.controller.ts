@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../types';
 import { ReceivableService } from './receivable.service';
 import { ReceivableLedgerService } from './receivable-ledger.service';
-import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response';
+import { sendSuccess, sendCreated, sendPaginated, buildContentDisposition } from '../../utils/response';
 
 export class ReceivableController {
   static async list(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -68,7 +68,7 @@ export class ReceivableController {
       const pdf = await ReceivableService.exportCustomerPdf(req.params.customerId as string, from_date, to_date, lang);
       res.set({
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="receivable-${req.params.customerId}.pdf"`,
+        'Content-Disposition': buildContentDisposition('inline', `receivable-${req.params.customerId}.pdf`),
         'Content-Length': pdf.length.toString(),
       });
       res.send(pdf);
@@ -93,7 +93,7 @@ export class ReceivableController {
       const buf = await ReceivableService.exportCustomerExcel(req.params.customerId as string, from_date, to_date, lang);
       res.set({
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="chi-tiet-cong-no-${req.params.customerId}.xlsx"`,
+        'Content-Disposition': buildContentDisposition('attachment', `chi-tiet-cong-no-${req.params.customerId}.xlsx`),
         'Content-Length': buf.length.toString(),
       });
       res.send(buf);

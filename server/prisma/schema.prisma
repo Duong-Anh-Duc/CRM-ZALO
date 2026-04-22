@@ -853,6 +853,9 @@ model ZaloConfig {
   // USER_SEND_TYPING
   send_typing_url       String?
   send_typing_token     String?
+  // USER_SEND_IMAGES
+  send_images_url       String?
+  send_images_token     String?
   // AI Prompts
   ai_chat_prompt        String?  @db.Text
   ai_summary_prompt     String?  @db.Text

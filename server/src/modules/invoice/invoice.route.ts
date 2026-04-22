@@ -5,7 +5,7 @@ import fs from 'fs';
 import { authenticate } from '../../middleware/auth.middleware';
 import { requireAbility } from '../../middleware/ability.middleware';
 import { InvoiceService } from './invoice.service';
-import { sendSuccess } from '../../utils/response';
+import { sendSuccess, buildContentDisposition } from '../../utils/response';
 import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../../types';
 
@@ -89,7 +89,7 @@ router.get('/:id/pdf', requireAbility('read', 'Invoice'), async (req: Authentica
     const pdf = await InvoiceService.generatePdf(req.params.id as string);
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="invoice-${req.params.id}.pdf"`,
+      'Content-Disposition': buildContentDisposition('inline', `invoice-${req.params.id}.pdf`),
       'Content-Length': pdf.length.toString(),
     });
     res.send(pdf);
@@ -103,7 +103,7 @@ router.get('/sales-order/:id', requireAbility('read', 'Invoice'), async (req: Au
     const pdf = await InvoiceService.generatePdf(invoice.id);
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="invoice-${req.params.id}.pdf"`,
+      'Content-Disposition': buildContentDisposition('inline', `invoice-${req.params.id}.pdf`),
       'Content-Length': pdf.length.toString(),
     });
     res.send(pdf);

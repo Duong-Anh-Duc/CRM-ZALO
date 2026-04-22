@@ -40,3 +40,23 @@ export function sendPaginated(
 export function sendMessage(res: Response, message: string) {
   return sendSuccess(res, null, { message });
 }
+
+/**
+ * Build a RFC 5987-compliant Content-Disposition header value safe for non-ASCII filenames.
+ * HTTP headers only accept ASCII — Vietnamese diacritics must be stripped for filename=
+ * and the full Unicode name goes in filename*= (UTF-8 percent-encoded).
+ */
+export function buildContentDisposition(
+  disposition: 'inline' | 'attachment',
+  filename: string,
+): string {
+  const asciiFallback = filename
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .replace(/[^\x20-\x7E]/g, '_')
+    .replace(/"/g, '_');
+  const encoded = encodeURIComponent(filename);
+  return `${disposition}; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
+}

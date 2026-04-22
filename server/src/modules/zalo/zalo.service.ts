@@ -85,6 +85,28 @@ export class ZaloService {
     return result;
   }
 
+  static async sendImages(userId: string, imageUrls: string[]): Promise<any> {
+    if (!imageUrls || imageUrls.length === 0) return null;
+    const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.send_images_url || !cfg?.send_images_token) {
+      logger.warn('sendImages skipped — send_images_url not configured');
+      return null;
+    }
+    const result = await this.callFunc(cfg.send_images_url, cfg.send_images_token, {
+      user_id: userId,
+      urls: imageUrls,
+    });
+    await prisma.zaloMessage.create({
+      data: {
+        direction: 'OUTGOING', platform: 'ZALO_USER',
+        sender_id: '', recipient_id: userId, content: imageUrls.join(' | '),
+        msg_type: 'webchat', event: 'SENT_IMAGES',
+        status: 'SENT', raw_payload: result,
+      },
+    });
+    return result;
+  }
+
   static async replyMessage(userId: string, originalPayload: any, content: string): Promise<any> {
     const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
     if (!cfg?.reply_message_url || !cfg?.reply_message_token || !originalPayload) {
@@ -114,7 +136,6 @@ export class ZaloService {
       const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
       if (!cfg?.auto_reply_enabled) return;
 
-      // Per-thread toggle (auto-create entry for first-time sender; default enabled)
       const thread = await prisma.zaloThread.upsert({
         where: { thread_key: senderId },
         create: { thread_key: senderId, is_group: false, auto_reply_enabled: true },
@@ -122,54 +143,62 @@ export class ZaloService {
       });
       if (!thread.auto_reply_enabled) return;
 
-      // Off-hours filter (business hours 8:00-18:00 local)
       if (cfg.auto_reply_off_hours_only) {
         const hour = new Date().getHours();
         if (hour >= 8 && hour < 18) return;
       }
 
-      // Rate limit: skip if last auto-reply < 3s ago (prevents webhook-retry dupes,
-      // doesn't block natural back-and-forth conversation)
       if (thread.last_auto_reply_at && Date.now() - thread.last_auto_reply_at.getTime() < 3_000) return;
 
-      // Skip too-short messages
-      if (!content || content.trim().length < 3) return;
+      // ── Branch: image vs text ──
+      const isImage = originalPayload?.msgType === 'chat.photo'
+        || originalPayload?.type === 'ATTACHMENT'
+        || (typeof content === 'string' && content.startsWith('https://') && /\.(jpg|jpeg|png|webp)/i.test(content));
 
-      // Get recent conversation context (last 6 messages)
-      const history = await prisma.zaloMessage.findMany({
-        where: {
-          OR: [{ sender_id: senderId }, { recipient_id: senderId }],
-          msg_type: { not: 'control' },
-        },
-        orderBy: { created_at: 'desc' },
-        take: 6,
-      });
-      const historyForAI = history.reverse().map((m) => ({
-        role: m.direction === 'INCOMING' ? 'user' : 'ai',
-        content: m.content || '',
-      }));
-
-      // Typing indicator (best-effort, may be unconfigured)
       await this.sendTyping(senderId);
 
-      // Call customer-facing AI (shop assistant persona, no CRM function calling)
-      const { ChatbotService } = await import('../ai/chatbot.service');
-      const answer = await ChatbotService.customerReply(
-        content,
-        historyForAI,
-        cfg.auto_reply_prompt || undefined,
-      );
+      let answer = '';
+      let productImageUrls: string[] = [];
+      if (isImage) {
+        const imageUrl = (content && content.startsWith('http')) ? content
+          : (originalPayload?.content?.href || originalPayload?.attachments?.[0]?.url || '');
+        if (!imageUrl) {
+          logger.warn(`Auto-reply: image detected but no URL found for ${senderName}`);
+          return;
+        }
+        const built = await this.buildImageProductReply(imageUrl);
+        answer = built.text;
+        productImageUrls = built.imageUrls;
+      } else {
+        if (!content || content.trim().length < 3) return;
+        const history = await prisma.zaloMessage.findMany({
+          where: { OR: [{ sender_id: senderId }, { recipient_id: senderId }], msg_type: { not: 'control' } },
+          orderBy: { created_at: 'desc' }, take: 6,
+        });
+        const historyForAI = history.reverse().map((m) => ({
+          role: m.direction === 'INCOMING' ? 'user' : 'ai',
+          content: m.content || '',
+        }));
+        const { ChatbotService } = await import('../ai/chatbot.service');
+        answer = await ChatbotService.customerReply(content, historyForAI, cfg.auto_reply_prompt || undefined);
+      }
 
       if (!answer || answer.trim().length === 0) return;
 
-      // Send reply (try replyMessage first, fallback to sendMessage inside)
       if (originalPayload) {
         await this.replyMessage(senderId, originalPayload, answer);
       } else {
         await this.sendMessage(senderId, answer);
       }
 
-      // Update last_auto_reply_at
+      // If this was an image search → also send candidate product images
+      if (productImageUrls.length > 0) {
+        await this.delay(500);
+        await this.sendImages(senderId, productImageUrls).catch((err) => {
+          logger.warn('Failed to send product images:', err);
+        });
+      }
+
       await prisma.zaloThread.update({
         where: { thread_key: senderId },
         data: { last_auto_reply_at: new Date() },
@@ -179,6 +208,51 @@ export class ZaloService {
     } catch (err) {
       logger.error('Auto-reply error:', err);
     }
+  }
+
+  /**
+   * Build reply for customer-sent image — returns text + candidate product image URLs.
+   */
+  private static async buildImageProductReply(imageUrl: string): Promise<{ text: string; imageUrls: string[] }> {
+    const { ChatbotService } = await import('../ai/chatbot.service');
+    const { ProductService } = await import('../product/product.service');
+
+    const attrs = await ChatbotService.identifyProductFromImage(imageUrl);
+    logger.info(`Image analysis: ${JSON.stringify(attrs)}`);
+
+    if (!attrs.loai || attrs.confidence < 0.4) {
+      return {
+        text: 'Dạ em nhận ảnh rồi nhưng chưa xác định rõ sản phẩm bao bì ạ. Anh/chị gửi giúp em thêm ảnh góc khác hoặc ghi rõ dung tích, chất liệu để em tìm đúng mẫu nhé.',
+        imageUrls: [],
+      };
+    }
+
+    const products = await ProductService.fuzzyMatchByAttributes(attrs);
+
+    if (products.length === 0) {
+      return {
+        text: `Dạ em thấy anh/chị đang tìm ${attrs.loai}${attrs.dung_tich_ml ? ` ${attrs.dung_tich_ml}ml` : ''}${attrs.chat_lieu ? ` ${attrs.chat_lieu}` : ''} nhưng hiện bên em chưa có mẫu giống. Anh/chị để lại SĐT để nhân viên tư vấn báo giá trực tiếp nhé ạ.`,
+        imageUrls: [],
+      };
+    }
+
+    const lines: string[] = ['Dạ em thấy giống các mẫu sau bên em đang có ạ:'];
+    const imageUrls: string[] = [];
+    products.forEach((p: any, i: number) => {
+      const price = p.retail_price ? ` · ~${Math.round(p.retail_price).toLocaleString('vi-VN')}đ` : '';
+      const specs: string[] = [];
+      if (p.capacity_ml) specs.push(`${p.capacity_ml}ml`);
+      if (p.material) specs.push(p.material);
+      const specStr = specs.length > 0 ? ` (${specs.join(', ')})` : '';
+      lines.push(`${i + 1}. ${p.name}${specStr} · SKU ${p.sku}${price}`);
+      // Collect first image URL for each product (must be public HTTPS URL accessible by Zalo)
+      const img = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
+      if (img?.url && /^https?:\/\//.test(img.url)) imageUrls.push(img.url);
+    });
+    lines.push('');
+    lines.push('Anh/chị cho em xin số lượng dự kiến để em báo giá chính xác nhé ạ.');
+
+    return { text: lines.join('\n'), imageUrls };
   }
 
   // ──── Per-thread auto-reply toggle ────
@@ -436,6 +510,9 @@ export class ZaloService {
       const accountId = payload?.payload?.account_id || payload?.account_id || '';
       const data = payload?.payload?.data?.data || payload?.data?.data || payload?.data || {};
 
+      // DEBUG: log full payload to investigate unknown message types (photos, stickers, files)
+      logger.info(`Zalo webhook event=${event} data_keys=[${Object.keys(data).join(',')}] payload_preview=${JSON.stringify(payload).substring(0, 1500)}`);
+
       const msgs = data?.msgs || [];
       const controls = data?.controls || [];
 
@@ -443,18 +520,32 @@ export class ZaloService {
         const direction = event.includes('SENT') ? 'OUTGOING' : 'INCOMING';
         const isGroup = event.includes('GROUP');
 
-        const records = msgs.map((msg: any) => ({
-          direction, platform, account_id: accountId,
-          sender_id: msg.uidFrom || msg.senderId || '',
-          sender_name: msg.dName || msg.senderName || '',
-          recipient_id: msg.idTo || '',
-          group_id: isGroup ? (msg.idTo || msg.groupId || null) : null,
-          msg_id: msg.msgId || msg.globalMsgId || '',
-          msg_type: isGroup ? 'group' : 'webchat',
-          content: msg.content || msg.text || '',
-          event, raw_payload: msg,
-          status: direction === 'OUTGOING' ? 'SENT' : 'RECEIVED',
-        }));
+        const records = msgs.map((msg: any) => {
+          // For image/sticker/file messages, content may be an object {href, thumb, ...}
+          // or empty. Extract URL so we save a usable string.
+          let textContent = '';
+          if (typeof msg.content === 'string') {
+            textContent = msg.content;
+          } else if (msg.content && typeof msg.content === 'object') {
+            // Image: {href, thumb, ...} | Sticker: {href, catId, ...} | File: {href, fileName}
+            textContent = msg.content.href || msg.content.url || msg.content.thumb || '';
+          } else if (typeof msg.text === 'string') {
+            textContent = msg.text;
+          }
+
+          return {
+            direction, platform, account_id: accountId,
+            sender_id: msg.uidFrom || msg.senderId || '',
+            sender_name: msg.dName || msg.senderName || '',
+            recipient_id: msg.idTo || '',
+            group_id: isGroup ? (msg.idTo || msg.groupId || null) : null,
+            msg_id: msg.msgId || msg.globalMsgId || '',
+            msg_type: isGroup ? 'group' : 'webchat',
+            content: textContent,
+            event, raw_payload: msg,
+            status: direction === 'OUTGOING' ? 'SENT' : 'RECEIVED',
+          };
+        });
 
         await prisma.zaloMessage.createMany({ data: records });
         logger.info(`Zalo webhook: saved ${records.length} ${direction} messages (${event})`);
@@ -752,9 +843,24 @@ export class ZaloService {
 
         for (const msg of allMsgs) {
           const msgId = msg.origin?.msgId || msg.id || '';
-          const content = msg.text || msg.content || '';
+          let content = msg.text || msg.content || '';
 
-          if (!content && msg.type !== 'TEXT') continue;
+          // Extract URL for non-text messages (image/sticker/file)
+          if (!content) {
+            const firstAttach = Array.isArray(msg.attachments) && msg.attachments.length > 0 ? msg.attachments[0] : null;
+            const attachUrl = firstAttach?.url || firstAttach?.href || '';
+            const stickerUrl = msg.origin?.content?.href || msg.origin?.content?.thumb || '';
+            if (msg.type === 'PHOTO' || msg.type === 'IMAGE' || firstAttach?.type === 'image') {
+              content = attachUrl || stickerUrl || '[IMAGE]';
+            } else if (msg.type === 'STICKER' || msg.origin?.msgType === 'chat.sticker') {
+              content = stickerUrl || '[STICKER]';
+            } else if (msg.type === 'ATTACHMENT' || msg.type === 'FILE') {
+              content = attachUrl || '[FILE]';
+            } else {
+              // Unknown non-text → skip to avoid empty rows
+              continue;
+            }
+          }
 
           if (msgId) {
             const exists = await prisma.zaloMessage.findFirst({ where: { msg_id: msgId } });

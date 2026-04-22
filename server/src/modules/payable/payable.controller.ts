@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../types';
 import { PayableService } from './payable.service';
 import { PayableLedgerService } from './payable-ledger.service';
-import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response';
+import { sendSuccess, sendCreated, sendPaginated, buildContentDisposition } from '../../utils/response';
 
 export class PayableController {
   static async list(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -68,7 +68,7 @@ export class PayableController {
       const pdf = await PayableService.exportSupplierPdf(req.params.supplierId as string, from_date, to_date, lang);
       res.set({
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="payable-${req.params.supplierId}.pdf"`,
+        'Content-Disposition': buildContentDisposition('inline', `payable-${req.params.supplierId}.pdf`),
         'Content-Length': pdf.length.toString(),
       });
       res.send(pdf);
@@ -93,7 +93,7 @@ export class PayableController {
       const buf = await PayableService.exportSupplierExcel(req.params.supplierId as string, from_date, to_date, lang);
       res.set({
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="chi-tiet-cong-no-ncc-${req.params.supplierId}.xlsx"`,
+        'Content-Disposition': buildContentDisposition('attachment', `chi-tiet-cong-no-ncc-${req.params.supplierId}.xlsx`),
         'Content-Length': buf.length.toString(),
       });
       res.send(buf);
