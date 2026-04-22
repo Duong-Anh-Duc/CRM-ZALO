@@ -125,6 +125,20 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'find_product_by_image',
+      description: 'Tìm sản phẩm trong DB từ ảnh khách gửi. Dùng khi user upload ảnh + hỏi "sản phẩm này có không". Trích xuất thuộc tính (loại, chất liệu, dung tích, màu) rồi fuzzy-match catalog. LUÔN dùng tool này thay vì đoán keyword cho search_product.',
+      parameters: {
+        type: 'object',
+        properties: {
+          image_url: { type: 'string', description: 'URL ảnh khách gửi (từ attachment)' },
+        },
+        required: ['image_url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'create_customer',
       description: 'Tạo khách hàng mới. Trả về id khách vừa tạo.',
       parameters: {
@@ -276,6 +290,26 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'update_sales_order',
+      description: 'Sửa thông tin chung của đơn bán (KHÔNG sửa items — dùng add/remove_sales_order_item). Hỗ trợ: notes, expected_delivery (ngày giao YYYY-MM-DD), vat_rate, shipping_fee, other_fee, other_fee_note.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'UUID đơn bán' },
+          notes: { type: 'string' },
+          expected_delivery: { type: 'string', description: 'YYYY-MM-DD' },
+          vat_rate: { type: 'string', enum: ['VAT_0', 'VAT_5', 'VAT_8', 'VAT_10'] },
+          shipping_fee: { type: 'number' },
+          other_fee: { type: 'number' },
+          other_fee_note: { type: 'string' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'add_sales_order_item',
       description: 'Thêm 1 sản phẩm vào đơn bán DRAFT',
       parameters: {
@@ -321,6 +355,22 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
         type: 'object',
         properties: { id: { type: 'string' }, status: { type: 'string', enum: ['DRAFT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED'] } },
         required: ['id', 'status'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_purchase_order',
+      description: 'Sửa thông tin chung của đơn mua (hiện hỗ trợ: notes, expected_delivery YYYY-MM-DD). KHÔNG sửa items.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'UUID đơn mua' },
+          notes: { type: 'string' },
+          expected_delivery: { type: 'string', description: 'YYYY-MM-DD' },
+        },
+        required: ['id'],
       },
     },
   },
@@ -439,6 +489,40 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
         type: 'object',
         properties: { sales_order_id: { type: 'string' } },
         required: ['sales_order_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_purchase_invoice',
+      description: 'Tạo hoá đơn mua (PURCHASE) từ 1 đơn mua. Trả về HĐ ở trạng thái DRAFT — cần finalize_invoice để duyệt.',
+      parameters: {
+        type: 'object',
+        properties: {
+          purchase_order_id: { type: 'string', description: 'UUID đơn mua' },
+          notes: { type: 'string', description: 'Ghi chú (optional)' },
+        },
+        required: ['purchase_order_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_sales_invoice',
+      description: 'Sửa hoá đơn bán đang DRAFT (chưa finalize). Hỗ trợ: notes, invoice_date (YYYY-MM-DD), vat_amount, subtotal, total.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'UUID hoá đơn' },
+          notes: { type: 'string' },
+          invoice_date: { type: 'string', description: 'YYYY-MM-DD' },
+          vat_amount: { type: 'number' },
+          subtotal: { type: 'number' },
+          total: { type: 'number' },
+        },
+        required: ['id'],
       },
     },
   },
@@ -646,6 +730,288 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  // ─── Cash / Operating cost edits ───
+  {
+    type: 'function',
+    function: {
+      name: 'update_cash_transaction',
+      description: 'Sửa giao dịch sổ quỹ đã tạo (id UUID)',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          amount: { type: 'number' },
+          category_id: { type: 'string' },
+          transaction_date: { type: 'string', description: 'YYYY-MM-DD' },
+          description: { type: 'string' },
+          type: { type: 'string', enum: ['INCOME', 'EXPENSE'] },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_cash_transaction',
+      description: 'Xoá giao dịch sổ quỹ (id UUID). Không xoá được GD tự động.',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_operating_cost',
+      description: 'Sửa chi phí vận hành (id UUID)',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          amount: { type: 'number' },
+          category_id: { type: 'string' },
+          cost_date: { type: 'string', description: 'YYYY-MM-DD' },
+          description: { type: 'string' },
+          notes: { type: 'string' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_operating_cost',
+      description: 'Xoá chi phí vận hành (id UUID)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  // ─── Payment evidence ───
+  {
+    type: 'function',
+    function: {
+      name: 'update_receivable_payment_evidence',
+      description: 'Cập nhật URL minh chứng (ảnh/PDF) cho 1 payment phải thu',
+      parameters: {
+        type: 'object',
+        properties: {
+          payment_id: { type: 'string' },
+          evidence_url: { type: 'string' },
+        },
+        required: ['payment_id', 'evidence_url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_payable_payment_evidence',
+      description: 'Cập nhật URL minh chứng (ảnh/PDF) cho 1 payment phải trả',
+      parameters: {
+        type: 'object',
+        properties: {
+          payment_id: { type: 'string' },
+          evidence_url: { type: 'string' },
+        },
+        required: ['payment_id', 'evidence_url'],
+      },
+    },
+  },
+  // ─── Price deletions ───
+  {
+    type: 'function',
+    function: {
+      name: 'delete_customer_product_price',
+      description: 'Xoá giá riêng của 1 KH cho 1 SP (id UUID của bản ghi customer_product_price)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_supplier_price',
+      description: 'Xoá giá NCC cho 1 sản phẩm (id UUID của bản ghi supplier_price)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  // ─── Update / Delete return ───
+  {
+    type: 'function',
+    function: {
+      name: 'update_sales_return',
+      description: 'Sửa phiếu trả hàng bán (chỉ đổi reason/notes, không đổi items)',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          reason: { type: 'string' },
+          notes: { type: 'string' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_sales_return',
+      description: 'Xoá phiếu trả hàng bán (chỉ khi chưa APPROVED/RECEIVING/COMPLETED)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_purchase_return',
+      description: 'Sửa phiếu trả hàng mua (chỉ đổi reason/notes)',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          reason: { type: 'string' },
+          notes: { type: 'string' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_purchase_return',
+      description: 'Xoá phiếu trả hàng mua (chỉ khi chưa APPROVED/RECEIVING/COMPLETED)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  // ─── Employee profile (payroll) ───
+  {
+    type: 'function',
+    function: {
+      name: 'create_employee_profile',
+      description: 'Tạo hồ sơ nhân viên (payroll). Bắt buộc user_id (UUID của User đã tồn tại). Mỗi User chỉ có 1 profile.',
+      parameters: {
+        type: 'object',
+        properties: {
+          user_id: { type: 'string', description: 'UUID của User đã tồn tại' },
+          base_salary: { type: 'number' },
+          meal_allowance: { type: 'number' },
+          phone_allowance: { type: 'number' },
+          fuel_allowance: { type: 'number' },
+          dependents: { type: 'number' },
+          insurance_number: { type: 'string' },
+          tax_code: { type: 'string' },
+          bank_account: { type: 'string' },
+          bank_name: { type: 'string' },
+          employment_status: { type: 'string', enum: ['ACTIVE', 'PROBATION', 'INACTIVE'] },
+          join_date: { type: 'string', description: 'YYYY-MM-DD' },
+        },
+        required: ['user_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_employee_profile',
+      description: 'Cập nhật hồ sơ nhân viên (id là EmployeeProfile id)',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          base_salary: { type: 'number' },
+          meal_allowance: { type: 'number' },
+          phone_allowance: { type: 'number' },
+          fuel_allowance: { type: 'number' },
+          dependents: { type: 'number' },
+          insurance_number: { type: 'string' },
+          tax_code: { type: 'string' },
+          bank_account: { type: 'string' },
+          bank_name: { type: 'string' },
+          employment_status: { type: 'string', enum: ['ACTIVE', 'PROBATION', 'INACTIVE'] },
+          join_date: { type: 'string' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_employee_profile',
+      description: 'Nghỉ việc — đánh dấu employment_status = INACTIVE (soft delete)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  // ─── Update / Delete category ───
+  {
+    type: 'function',
+    function: {
+      name: 'update_product_category',
+      description: 'Sửa danh mục sản phẩm (chỉ đổi tên)',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+        },
+        required: ['id', 'name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_product_category',
+      description: 'Xoá danh mục sản phẩm (soft delete, is_active=false)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_cash_category',
+      description: 'Sửa danh mục sổ quỹ (chỉ đổi name hoặc is_active, KHÔNG đổi type)',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          is_active: { type: 'boolean' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_cash_category',
+      description: 'Xoá danh mục sổ quỹ (soft delete, is_active=false)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_operating_cost_category',
+      description: 'Sửa danh mục chi phí vận hành (chỉ đổi tên)',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+        },
+        required: ['id', 'name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_operating_cost_category',
+      description: 'Xoá danh mục chi phí vận hành (soft delete, is_active=false)',
+      parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+    },
+  },
   // ─── Help ───
   {
     type: 'function',
@@ -803,6 +1169,24 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       if (products.length === 0) return 'Không tìm thấy SP.';
       return products.map((p, i) => `${i + 1}. ${p.name} (${p.sku}) [id:${p.id}] | Giá tham khảo: ${p.retail_price ? Number(p.retail_price).toLocaleString() : '-'}`).join('\n');
     }
+    case 'find_product_by_image': {
+      const imageUrl = args.image_url;
+      if (!imageUrl) return '⚠️ Thiếu image_url.';
+      const attrs = await ChatbotService.identifyProductFromImage(imageUrl);
+      const { ProductService } = await import('../product/product.service');
+      const products = await ProductService.fuzzyMatchByAttributes(attrs);
+      if (products.length === 0) return `Nhận diện: ${JSON.stringify(attrs)}\nKhông có sản phẩm match trong DB.`;
+      const header = `Nhận diện ảnh → loại=${attrs.loai ?? '?'} chất_liệu=${attrs.chat_lieu ?? '?'} dung_tích=${attrs.dung_tich_ml ?? '?'}ml (confidence ${attrs.confidence})`;
+      const rows = products.map((p: any, i: number) => {
+        const specs: string[] = [];
+        if (p.capacity_ml) specs.push(`${p.capacity_ml}ml`);
+        if (p.material) specs.push(p.material);
+        const specStr = specs.length ? ` (${specs.join(', ')})` : '';
+        const price = p.retail_price ? ` | ~${Number(p.retail_price).toLocaleString()}đ` : '';
+        return `${i + 1}. ${p.name}${specStr} · SKU ${p.sku} [id:${p.id}]${price}`;
+      });
+      return [header, 'Top match:', ...rows].join('\n');
+    }
     case 'create_customer': {
       const c = await prisma.customer.create({
         data: {
@@ -869,6 +1253,12 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       const o = await prisma.salesOrder.update({ where: { id: args.id }, data: { status: args.status } });
       return `✅ Đơn ${o.order_code} → ${args.status} [id:${o.id}]`;
     }
+    case 'update_sales_order': {
+      const { SalesOrderService } = await import('../sales-order/sales-order.service');
+      const { id, ...data } = args;
+      const o = await SalesOrderService.update(id, data);
+      return `✅ Đã cập nhật đơn bán ${o.order_code} [id:${o.id}] — Tổng: ${Number(o.grand_total).toLocaleString()} VND`;
+    }
     case 'add_sales_order_item': {
       const { SalesOrderService } = await import('../sales-order/sales-order.service');
       const item = await SalesOrderService.addItem(args.sales_order_id, {
@@ -888,6 +1278,12 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
     case 'update_purchase_order_status': {
       const p = await prisma.purchaseOrder.update({ where: { id: args.id }, data: { status: args.status } });
       return `✅ PO ${p.order_code} → ${args.status} [id:${p.id}]`;
+    }
+    case 'update_purchase_order': {
+      const { PurchaseOrderService } = await import('../purchase-order/purchase-order.service');
+      const { id, ...data } = args;
+      const p = await PurchaseOrderService.update(id, data);
+      return `✅ Đã cập nhật đơn mua ${p.order_code} [id:${p.id}] — Tổng: ${Number(p.total).toLocaleString()} VND`;
     }
     case 'record_receivable_payment': {
       const { ReceivableService } = await import('../receivable/receivable.service');
@@ -966,6 +1362,22 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       const { InvoiceService } = await import('../invoice/invoice.service');
       const inv = await InvoiceService.createFromOrder(args.sales_order_id);
       return `✅ Đã tạo hóa đơn ${inv.invoice_number} [id:${inv.id}] · status: ${inv.status}`;
+    }
+    case 'create_purchase_invoice': {
+      const { InvoiceService } = await import('../invoice/invoice.service');
+      const inv = await InvoiceService.createPurchaseInvoice(args.purchase_order_id);
+      if (args.notes) {
+        await InvoiceService.updateInvoice(inv.id, { notes: args.notes });
+      }
+      return `✅ Đã tạo hóa đơn mua #${inv.invoice_number} [id:${inv.id}] · status: ${inv.status}`;
+    }
+    case 'update_sales_invoice': {
+      const { InvoiceService } = await import('../invoice/invoice.service');
+      const { id, invoice_date, ...rest } = args;
+      const data: Record<string, unknown> = { ...rest };
+      if (invoice_date) data.invoice_date = new Date(invoice_date);
+      const inv = await InvoiceService.updateInvoice(id, data);
+      return `✅ Đã cập nhật hóa đơn #${inv.invoice_number} [id:${inv.id}]`;
     }
     case 'finalize_invoice': {
       const { InvoiceService } = await import('../invoice/invoice.service');
@@ -1056,6 +1468,137 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       await AlertService.takeAction(args.alert_id, args.action, args.new_expected_date);
       return `✅ Đã ghi nhận action "${args.action}" cho alert [id:${args.alert_id}]`;
     }
+    // ─── Cash / Operating cost edits ───
+    case 'update_cash_transaction': {
+      const { CashBookService } = await import('../cash-book/cash-book.service');
+      const { id, transaction_date, ...rest } = args;
+      const data: Record<string, any> = { ...rest };
+      if (transaction_date) data.date = transaction_date;
+      const ct = await CashBookService.update(id, data);
+      return `✓ Đã cập nhật giao dịch sổ quỹ ${Number(ct.amount).toLocaleString()} VND [id:${ct.id}]`;
+    }
+    case 'delete_cash_transaction': {
+      const { CashBookService } = await import('../cash-book/cash-book.service');
+      await CashBookService.delete(args.id);
+      return `✓ Đã xoá giao dịch sổ quỹ [id:${args.id}]`;
+    }
+    case 'update_operating_cost': {
+      const { OperatingCostService } = await import('../operating-cost/operating-cost.service');
+      const { id, cost_date, ...rest } = args;
+      const data: Record<string, any> = { ...rest };
+      if (cost_date) data.date = cost_date;
+      const c = await OperatingCostService.update(id, data);
+      return `✓ Đã cập nhật chi phí vận hành ${Number(c.amount).toLocaleString()} VND [id:${c.id}]`;
+    }
+    case 'delete_operating_cost': {
+      const { OperatingCostService } = await import('../operating-cost/operating-cost.service');
+      await OperatingCostService.delete(args.id);
+      return `✓ Đã xoá chi phí vận hành [id:${args.id}]`;
+    }
+    // ─── Payment evidence ───
+    case 'update_receivable_payment_evidence': {
+      const { ReceivableService } = await import('../receivable/receivable.service');
+      const r = await ReceivableService.updatePaymentEvidence(args.payment_id, args.evidence_url);
+      return `✓ Đã cập nhật minh chứng payment phải thu [id:${r.id}]`;
+    }
+    case 'update_payable_payment_evidence': {
+      const { PayableService } = await import('../payable/payable.service');
+      const r = await PayableService.updatePaymentEvidence(args.payment_id, args.evidence_url);
+      return `✓ Đã cập nhật minh chứng payment phải trả [id:${r.id}]`;
+    }
+    // ─── Price deletions ───
+    case 'delete_customer_product_price': {
+      const { CustomerProductPriceService } = await import('../customer-product-price/customer-product-price.service');
+      await CustomerProductPriceService.delete(args.id);
+      return `✓ Đã xoá giá KH cho SP [id:${args.id}]`;
+    }
+    case 'delete_supplier_price': {
+      const { SupplierPriceService } = await import('../supplier-price/supplier-price.service');
+      await SupplierPriceService.delete(args.id);
+      return `✓ Đã xoá giá NCC cho SP [id:${args.id}]`;
+    }
+    // ─── Update / Delete return ───
+    case 'update_sales_return': {
+      const data: Record<string, any> = {};
+      if (args.reason !== undefined) data.reason = args.reason;
+      if (args.notes !== undefined) data.notes = args.notes;
+      if (Object.keys(data).length === 0) return '⚠️ Không có trường nào để cập nhật.';
+      const r = await prisma.salesReturn.update({ where: { id: args.id }, data });
+      return `✅ Đã cập nhật phiếu trả bán ${r.return_code} [id:${r.id}]`;
+    }
+    case 'delete_sales_return': {
+      const { SalesReturnService } = await import('../return/sales-return.service');
+      await SalesReturnService.delete(args.id);
+      return `✅ Đã xoá phiếu trả hàng bán [id:${args.id}]`;
+    }
+    case 'update_purchase_return': {
+      const data: Record<string, any> = {};
+      if (args.reason !== undefined) data.reason = args.reason;
+      if (args.notes !== undefined) data.notes = args.notes;
+      if (Object.keys(data).length === 0) return '⚠️ Không có trường nào để cập nhật.';
+      const r = await prisma.purchaseReturn.update({ where: { id: args.id }, data });
+      return `✅ Đã cập nhật phiếu trả mua ${r.return_code} [id:${r.id}]`;
+    }
+    case 'delete_purchase_return': {
+      const { PurchaseReturnService } = await import('../return/purchase-return.service');
+      await PurchaseReturnService.delete(args.id);
+      return `✅ Đã xoá phiếu trả hàng mua [id:${args.id}]`;
+    }
+    // ─── Employee profile ───
+    case 'create_employee_profile': {
+      const { PayrollService } = await import('../payroll/payroll.service');
+      const p = await PayrollService.createEmployee(args);
+      return `✅ Đã tạo hồ sơ NV "${(p as any).user?.full_name || ''}" [id:${p.id}]`;
+    }
+    case 'update_employee_profile': {
+      const { PayrollService } = await import('../payroll/payroll.service');
+      const { id, ...data } = args;
+      if (data.join_date) data.join_date = new Date(data.join_date);
+      const p = await PayrollService.updateEmployee(id, data);
+      return `✅ Đã cập nhật hồ sơ NV "${(p as any).user?.full_name || ''}" [id:${p.id}]`;
+    }
+    case 'delete_employee_profile': {
+      const p = await prisma.employeeProfile.update({
+        where: { id: args.id },
+        data: { employment_status: 'INACTIVE' },
+      });
+      return `✅ Đã đánh dấu NV nghỉ việc (INACTIVE) [id:${p.id}]`;
+    }
+    // ─── Update / Delete category ───
+    case 'update_product_category': {
+      const c = await prisma.category.update({ where: { id: args.id }, data: { name: args.name } });
+      return `✅ Đã đổi tên danh mục SP → "${c.name}" [id:${c.id}]`;
+    }
+    case 'delete_product_category': {
+      const c = await prisma.category.update({ where: { id: args.id }, data: { is_active: false } });
+      return `✅ Đã xoá danh mục SP "${c.name}" [id:${c.id}]`;
+    }
+    case 'update_cash_category': {
+      const { CashBookService } = await import('../cash-book/cash-book.service');
+      const data: { name?: string; is_active?: boolean } = {};
+      if (args.name !== undefined) data.name = args.name;
+      if (args.is_active !== undefined) data.is_active = args.is_active;
+      if (Object.keys(data).length === 0) return '⚠️ Không có trường nào để cập nhật.';
+      const c = await CashBookService.updateCategory(args.id, data);
+      return `✅ Đã cập nhật danh mục sổ quỹ [${c.type}] "${c.name}" [id:${c.id}]`;
+    }
+    case 'delete_cash_category': {
+      const { CashBookService } = await import('../cash-book/cash-book.service');
+      const c = await CashBookService.updateCategory(args.id, { is_active: false });
+      return `✅ Đã xoá danh mục sổ quỹ "${c.name}" [id:${c.id}]`;
+    }
+    case 'update_operating_cost_category': {
+      const { OperatingCostService } = await import('../operating-cost/operating-cost.service');
+      const c = await OperatingCostService.updateCategory(args.id, args.name);
+      return `✅ Đã đổi tên danh mục chi phí VH → "${c.name}" [id:${c.id}]`;
+    }
+    case 'delete_operating_cost_category': {
+      const c = await prisma.operatingCostCategory.update({
+        where: { id: args.id },
+        data: { is_active: false },
+      });
+      return `✅ Đã xoá danh mục chi phí VH "${c.name}" [id:${c.id}]`;
+    }
     // ─── Help ───
     case 'help': {
       return tools.map((t) => {
@@ -1103,11 +1646,28 @@ Sổ quỹ: Thu ${Number(cashIncome._sum.amount || 0).toLocaleString()}, Chi ${N
   }
 
   /**
-   * Chat with function calling + streaming
+   * Chat with function calling + streaming. Optional image attachments are sent
+   * to the vision model so Aura can "see" invoices, product photos, etc.
    */
-  static async *chatStream(question: string, history: Array<{ role: string; content: string }> = []): AsyncGenerator<string> {
+  static async *chatStream(
+    question: string,
+    history: Array<{ role: string; content: string }> = [],
+    attachments: Array<{ url: string; type: 'image' | 'file' }> = [],
+  ): AsyncGenerator<string> {
     try {
       const systemContext = await this.getSystemContext();
+      const imageUrls = attachments.filter((a) => a.type === 'image').map((a) => a.url);
+      const hasImages = imageUrls.length > 0;
+      const modelName = hasImages
+        ? (config.openai.visionModel || config.openai.model || 'gpt-4o-mini')
+        : (config.openai.model || 'gpt-4o-mini');
+
+      const userContent: OpenAI.Chat.ChatCompletionUserMessageParam['content'] = hasImages
+        ? [
+            { type: 'text' as const, text: question },
+            ...imageUrls.map((url) => ({ type: 'image_url' as const, image_url: { url } })),
+          ]
+        : question;
 
       const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
         {
@@ -1122,10 +1682,10 @@ BẠN CÓ QUYỀN THỰC HIỆN HÀNH ĐỘNG (không chỉ đọc):
 - Tạo/sửa/XÓA KH: create_customer, update_customer, delete_customer
 - Tạo/sửa/XÓA NCC: create_supplier, update_supplier, delete_supplier
 - Tạo/sửa/XÓA SP: create_product, update_product, delete_product
-- Tạo đơn bán: create_sales_order · thêm item add_sales_order_item · gỡ item remove_sales_order_item
-- Tạo đơn mua: create_purchase_order (cần sales_order_id + supplier_id + items)
+- Tạo/sửa đơn bán: create_sales_order · update_sales_order · thêm item add_sales_order_item · gỡ item remove_sales_order_item
+- Tạo/sửa đơn mua: create_purchase_order (cần sales_order_id + supplier_id + items) · update_purchase_order
 - Đổi trạng thái: update_sales_order_status, update_purchase_order_status
-- Hóa đơn: create_sales_invoice, finalize_invoice, cancel_invoice
+- Hóa đơn: create_sales_invoice, create_purchase_invoice, update_sales_invoice, finalize_invoice, cancel_invoice
 - Trả hàng: create_sales_return, create_purchase_return
 - Ghi nhận thanh toán: record_receivable_payment, record_payable_payment (evidence_url bắt buộc)
 - Sổ quỹ: create_cash_transaction · create_cash_category
@@ -1141,6 +1701,11 @@ QUY TRÌNH cho hành động có tham chiếu đối tượng:
 2. Với hành động phức tạp (tạo đơn): luôn xác nhận lại với user (tóm tắt input + hỏi "em thực hiện nhé?") TRƯỚC KHI gọi function write, TRỪ KHI user đã nói rõ "tạo ngay" / "xác nhận" / "làm đi".
 3. Sau khi tạo xong, trả lời kèm action link đến bản ghi vừa tạo.
 
+KHI USER GỬI ẢNH + HỎI "SẢN PHẨM NÀY CÓ KHÔNG" / "TÌM SP NÀY":
+- LUÔN gọi find_product_by_image với image_url trước — KHÔNG tự đoán keyword rồi search_product
+- Nếu find_product_by_image trả về top match → liệt kê cho user chọn
+- Nếu không có match → mới hỏi thêm thông tin (tên, kích thước, chất liệu)
+
 QUAN TRỌNG: id phải là UUID THẬT (36 ký tự, dạng xxxxxxxx-xxxx-...) lấy từ function response ([id:xxx]). CẤM bịa "123", "abc123". Nếu chưa có id → gọi search tool trước.
 
 Khi trả lời xong, nếu có thể điều hướng, thêm dòng cuối:
@@ -1151,19 +1716,26 @@ Khi trả lời xong, nếu có thể điều hướng, thêm dòng cuối:
 - SP: /products/{id}
 - Đơn bán: /sales-orders/{id}  |  Đơn mua: /purchase-orders/{id}
 
+XỬ LÝ ẢNH ĐÍNH KÈM: Nếu user gửi ảnh, em nhìn trực tiếp vào ảnh và phân tích. Các tình huống thường gặp:
+- Ảnh hóa đơn/phiếu mua hàng NCC → đọc ra NCC, từng dòng SP, số lượng, đơn giá, tổng tiền → xác nhận lại với user → gọi create_purchase_order.
+- Ảnh sản phẩm bao bì → mô tả (loại, chất liệu, dung tích, màu) → nếu user muốn tạo SP mới thì hỏi thông tin bổ sung rồi gọi create_product.
+- Ảnh danh sách khách hàng/NCC chép tay → đọc text → hỏi xác nhận → gọi create_customer/create_supplier lần lượt.
+- Ảnh chuyển khoản/bill → đọc số tiền + tham chiếu → có thể dùng làm evidence_url cho record_*_payment (ảnh vừa upload đã có URL ở phía user).
+Nếu không chắc nội dung ảnh, hỏi lại thay vì bịa.
+
 Ngày hôm nay: ${dayjs().format('DD/MM/YYYY')}
 
 ${systemContext}`,
         },
         ...history.slice(-10).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
-        { role: 'user', content: question },
+        { role: 'user', content: userContent },
       ];
 
       // Multi-round tool calling (up to 5 rounds)
       const MAX_ROUNDS = 5;
       for (let round = 0; round < MAX_ROUNDS; round++) {
         const response = await openai.chat.completions.create({
-          model: config.openai.model || 'gpt-4o-mini',
+          model: modelName,
           messages, tools, tool_choice: 'auto',
           temperature: 0.3, max_tokens: 1500,
         });
@@ -1172,7 +1744,7 @@ ${systemContext}`,
         if (choice.finish_reason !== 'tool_calls' || !choice.message.tool_calls) {
           // No more tools — stream final response
           const stream = await openai.chat.completions.create({
-            model: config.openai.model || 'gpt-4o-mini',
+            model: modelName,
             messages, temperature: 0.3, max_tokens: 1500, stream: true,
           });
           for await (const chunk of stream) {
@@ -1198,7 +1770,7 @@ ${systemContext}`,
       }
       // Max rounds reached — stream a final summary
       const stream = await openai.chat.completions.create({
-        model: config.openai.model || 'gpt-4o-mini',
+        model: modelName,
         messages, temperature: 0.3, max_tokens: 1500, stream: true,
       });
       for await (const chunk of stream) {
@@ -1214,9 +1786,13 @@ ${systemContext}`,
   /**
    * Non-streaming fallback
    */
-  static async chat(question: string, history: Array<{ role: string; content: string }> = []): Promise<string> {
+  static async chat(
+    question: string,
+    history: Array<{ role: string; content: string }> = [],
+    attachments: Array<{ url: string; type: 'image' | 'file' }> = [],
+  ): Promise<string> {
     let result = '';
-    for await (const chunk of this.chatStream(question, history)) {
+    for await (const chunk of this.chatStream(question, history, attachments)) {
       result += chunk;
     }
     return result;
@@ -1237,23 +1813,29 @@ ${systemContext}`,
     confidence: number;
   }> {
     try {
-      const response = await openai.chat.completions.create({
+      // cx/gpt-5.4 vision + JSON mode is flaky — retry up to 3 times on empty response
+      let raw = '';
+      for (let attempt = 0; attempt < 3 && !raw; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 2500));
+        const response = await openai.chat.completions.create({
         model: config.openai.visionModel || config.openai.model || 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: `Bạn là chuyên gia nhận diện bao bì nhựa. Phân tích ảnh và trả về JSON với các trường:
-- loai: "chai" | "hu" | "nap" | "can" | "thung" | null
-- chat_lieu: "PET" | "HDPE" | "PP" | "PVC" | "PS" | "ABS" | null
-- dung_tich_ml: số (ước lượng ml, vd 500, 1000, null nếu không đoán được)
-- mau: "TRANSPARENT" | "WHITE" | "CUSTOM" (với màu khác) | null
-- hinh_dang: "ROUND" | "SQUARE" | "OVAL" | "FLAT" | null
-- co_chai_mm: số (đường kính cổ chai mm, vd 28, 32, null)
-- ghi_chu: ngắn gọn (vd "có nắp pump, dùng đựng mỹ phẩm")
-- confidence: 0.0-1.0 (độ tin cậy nhận diện)
+            content: `Phân tích ảnh bao bì nhựa. Trả JSON đúng schema:
+{"loai":"chai|hu|nap|can|thung|tui|mang|hop|null","chat_lieu":"PET|HDPE|LDPE|PP|OPP|PVC|PS|ABS|PE|null","dung_tich_ml":number|null,"kich_thuoc":"string hoặc null","mau":"TRANSPARENT|WHITE|CUSTOM|null","hinh_dang":"ROUND|SQUARE|OVAL|FLAT|null","co_chai_mm":number|null,"ghi_chu":"string","confidence":0-1}
 
-Nếu ảnh KHÔNG phải bao bì nhựa (vd quần áo, đồ ăn, phong cảnh...) → trả loại = null + confidence = 0.
-Trả về JSON thuần, KHÔNG markdown.`,
+Phân biệt loại:
+- chai: có cổ+nắp vặn, thân cứng
+- hu: miệng rộng, ngắn
+- nap: riêng cái nắp
+- can: có quai xách
+- thung: to đựng hàng
+- tui: dẹt mỏng mềm (túi nilon/OPP/PE)
+- mang: cuộn mỏng quấn hàng
+- hop: hộp rỗng cứng
+
+Nếu KHÔNG phải bao bì nhựa → null + confidence=0. JSON thuần.`,
           },
           {
             role: 'user',
@@ -1267,8 +1849,9 @@ Trả về JSON thuần, KHÔNG markdown.`,
         max_tokens: 300,
         response_format: { type: 'json_object' },
       });
-
-      const raw = response.choices[0]?.message?.content || '{}';
+        raw = (response.choices[0]?.message?.content || '').trim();
+      }
+      if (!raw) raw = '{}';
       const parsed = JSON.parse(raw);
       return {
         loai: parsed.loai || null,
@@ -1306,19 +1889,36 @@ Xưng "em", gọi khách là "anh/chị". Lịch sự, thân thiện, trả lờ
 NHIỆM VỤ:
 - Chào hỏi, cảm ơn khách nhắn tin
 - Tư vấn chung về sản phẩm bao bì nhựa (chai PET, hũ, nắp, thùng, can...)
-- Giải đáp câu hỏi cơ bản về giao hàng, thanh toán
-- Nếu câu hỏi cụ thể về giá, số lượng lớn, MOQ, deadline → mời khách để lại SĐT hoặc chờ nhân viên tư vấn
+- Khi khách hỏi về sản phẩm cụ thể (giá, thông số, MOQ) → GỌI lookup_product để tra cứu rồi trả lời
+- Khi khách hỏi còn hàng / tồn kho / giao hàng cụ thể → mời để lại SĐT cho nhân viên
 
 QUY TẮC:
 - KHÔNG nói mình là AI / chatbot / trợ lý CRM
 - KHÔNG đề cập đến hệ thống nội bộ (đơn bán, công nợ, phân quyền)
-- KHÔNG bịa giá cụ thể hay thông tin mình không chắc
-- Không chắc chắn → "Dạ anh/chị chờ em chút, em báo lại nhân viên phụ trách nhé"
-- Trả lời KHÔNG dùng markdown (**, ##, -). Đơn giản, tự nhiên như người thật.`;
+- KHÔNG bịa giá cụ thể — LUÔN dùng lookup_product trước khi nói giá
+- Trả lời KHÔNG dùng markdown. Đơn giản, tự nhiên như người thật.
+- Giá trả về từ lookup_product là giá tham khảo — khi nói giá cụ thể thêm "giá tham khảo, tuỳ số lượng có thể thay đổi"`;
 
       const systemPrompt = (customSystemPrompt && customSystemPrompt.trim().length > 0)
         ? customSystemPrompt
         : defaultPrompt;
+
+      const customerTools: OpenAI.Chat.ChatCompletionTool[] = [
+        {
+          type: 'function',
+          function: {
+            name: 'lookup_product',
+            description: 'Tra cứu sản phẩm theo tên, SKU, hoặc số thứ tự mẫu đã gợi ý trước đó. Trả về giá tham khảo + thông số (dung tích, chất liệu, MOQ).',
+            parameters: {
+              type: 'object',
+              properties: {
+                query: { type: 'string', description: 'Tên SP, SKU, hoặc mô tả (vd "chai PET 500ml", "PET-500-TR", "mẫu 1")' },
+              },
+              required: ['query'],
+            },
+          },
+        },
+      ];
 
       const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
         { role: 'system', content: systemPrompt },
@@ -1329,16 +1929,83 @@ QUY TẮC:
         { role: 'user', content: question },
       ];
 
-      const response = await openai.chat.completions.create({
+      // Up to 2 rounds of tool calling
+      for (let round = 0; round < 2; round++) {
+        const response = await openai.chat.completions.create({
+          model: config.openai.model || 'gpt-4o-mini',
+          messages, tools: customerTools, tool_choice: 'auto',
+          temperature: 0.6, max_tokens: 400,
+        });
+        const choice = response.choices[0];
+
+        if (choice.finish_reason !== 'tool_calls' || !choice.message.tool_calls) {
+          return (choice.message.content || '').trim();
+        }
+
+        messages.push(choice.message);
+        for (const tc of choice.message.tool_calls) {
+          const fn = (tc as any).function;
+          let result: string;
+          try {
+            const args = JSON.parse(fn.arguments || '{}');
+            if (fn.name === 'lookup_product') {
+              result = await this.customerLookupProduct(args.query || '');
+            } else {
+              result = `Tool "${fn.name}" không hỗ trợ`;
+            }
+          } catch (err: any) {
+            result = `Lỗi: ${err?.message || 'unknown'}`;
+          }
+          messages.push({ role: 'tool', tool_call_id: tc.id, content: result });
+        }
+      }
+
+      // Fallback: final response without more tools
+      const final = await openai.chat.completions.create({
         model: config.openai.model || 'gpt-4o-mini',
-        messages,
-        temperature: 0.6,
-        max_tokens: 300,
+        messages, temperature: 0.6, max_tokens: 400,
       });
-      return response.choices[0]?.message?.content?.trim() || '';
+      return (final.choices[0]?.message?.content || '').trim();
     } catch (err) {
       logger.error('customerReply error:', err);
       return '';
+    }
+  }
+
+  /** Safe product lookup for customer queries — read-only, no pricing secrets. */
+  private static async customerLookupProduct(query: string): Promise<string> {
+    try {
+      const q = (query || '').trim();
+      if (!q) return 'Không có từ khoá để tìm.';
+      const products = await prisma.product.findMany({
+        where: {
+          is_active: true,
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { sku: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
+          ],
+        },
+        take: 5,
+        select: {
+          sku: true, name: true, retail_price: true,
+          material: true, capacity_ml: true, moq: true,
+          height_mm: true, body_dia_mm: true,
+        },
+      });
+      if (products.length === 0) return `Không tìm thấy sản phẩm khớp với "${q}".`;
+      const lines = products.map((p) => {
+        const parts: string[] = [`${p.name} (SKU ${p.sku})`];
+        if (p.material) parts.push(p.material);
+        if (p.capacity_ml) parts.push(`${p.capacity_ml}ml`);
+        if (p.retail_price) parts.push(`giá tham khảo ${Math.round(p.retail_price).toLocaleString('vi-VN')}đ`);
+        if (p.moq) parts.push(`MOQ ${p.moq}`);
+        return parts.join(' — ');
+      });
+      return lines.join('\n');
+    } catch (err) {
+      logger.error('customerLookupProduct error:', err);
+      return 'Lỗi khi tra cứu sản phẩm.';
     }
   }
 }

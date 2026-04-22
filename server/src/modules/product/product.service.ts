@@ -1,6 +1,6 @@
 import prisma from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
-import { PlasticMaterial } from '@prisma/client';
+import { PlasticMaterial, Prisma } from '@prisma/client';
 import { t } from '../../locales';
 import { delCache } from '../../lib/redis';
 import { uploadImage, deleteImage, deleteImages } from '../../lib/cloudinary';
@@ -298,7 +298,8 @@ export class ProductService {
 
   /**
    * Fuzzy-match products by packaging attributes extracted from customer image.
-   * Returns top 5 candidates ranked by number of attribute matches.
+   * Strategy: fetch candidates by loosest possible criteria, then rank by closeness.
+   * Always returns up to 5 results, even if match is imperfect (tư vấn gần nhất).
    */
   static async fuzzyMatchByAttributes(attrs: {
     loai?: string | null;
@@ -307,54 +308,93 @@ export class ProductService {
     mau?: string | null;
     hinh_dang?: string | null;
   }) {
-    const CAPACITY_TOLERANCE = 0.15; // ±15%
-    const where: Record<string, unknown> = { is_active: true };
+    // Map loai keyword → Vietnamese name variants in DB (handle diacritics).
+    // Product names in DB use full diacritics ("Chai", "Hũ", "Túi"...) but LLM
+    // may return either "chai" (no diacritic) or "túi" (with) — match both.
+    const LOAI_VARIANTS: Record<string, string[]> = {
+      chai: ['chai'],
+      hu: ['hũ', 'hu'],
+      nap: ['nắp', 'nap'],
+      can: ['can'],
+      thung: ['thùng', 'thung'],
+      tui: ['túi', 'tui'],
+      mang: ['màng', 'mang'],
+      hop: ['hộp', 'hop'],
+    };
+    const loaiKey = attrs.loai?.toLowerCase().replace(/[àáảãạăắằẳẵặâấầẩẫậ]/g, 'a').replace(/[èéẻẽẹêếềểễệ]/g, 'e').replace(/[ìíỉĩị]/g, 'i').replace(/[òóỏõọôốồổỗộơớờởỡợ]/g, 'o').replace(/[ùúủũụưứừửữự]/g, 'u').replace(/[ỳýỷỹỵ]/g, 'y').replace(/đ/g, 'd');
+    const nameVariants = loaiKey ? (LOAI_VARIANTS[loaiKey] ?? [attrs.loai!]) : [];
+    const nameFilter: Prisma.ProductWhereInput | undefined = nameVariants.length > 0
+      ? { OR: nameVariants.map((v) => ({ name: { contains: v, mode: 'insensitive' as const } })) }
+      : undefined;
 
-    if (attrs.chat_lieu) {
-      where.material = attrs.chat_lieu.toUpperCase();
-    }
-    if (attrs.dung_tich_ml && attrs.dung_tich_ml > 0) {
-      where.capacity_ml = {
-        gte: Math.round(attrs.dung_tich_ml * (1 - CAPACITY_TOLERANCE)),
-        lte: Math.round(attrs.dung_tich_ml * (1 + CAPACITY_TOLERANCE)),
-      };
-    }
-    if (attrs.mau) {
-      where.color = attrs.mau.toUpperCase();
-    }
-    if (attrs.hinh_dang) {
-      where.shape = attrs.hinh_dang.toUpperCase();
-    }
-    if (attrs.loai) {
-      // Loại bao bì chủ yếu thể hiện qua tên sản phẩm (chai/hũ/nắp/can/thùng)
-      where.name = { contains: attrs.loai, mode: 'insensitive' };
+    // Map AI-returned materials (OPP/PE/LDPE) to closest enum value in DB
+    const MATERIAL_MAP: Record<string, PlasticMaterial | undefined> = {
+      PET: 'PET', HDPE: 'HDPE', PP: 'PP', PVC: 'PVC', PS: 'PS', ABS: 'ABS',
+      // Soft plastics commonly grouped under HDPE/PP in bag products
+      PE: 'HDPE', LDPE: 'HDPE', OPP: 'PP',
+    };
+    const material = attrs.chat_lieu ? MATERIAL_MAP[attrs.chat_lieu.toUpperCase()] : undefined;
+    const baseWhere: Prisma.ProductWhereInput = { is_active: true };
+    if (material) baseWhere.material = material;
+    if (nameFilter) Object.assign(baseWhere, nameFilter);
+
+    const INCLUDE = { images: { where: { is_primary: true }, take: 1 } };
+
+    // Fetch up to 50 candidates matching material + type
+    let candidates = await prisma.product.findMany({ where: baseWhere, take: 50, include: INCLUDE });
+
+    // Fallback 1: if no material+type match, drop MATERIAL (keep type — more important to user)
+    if (candidates.length === 0 && nameFilter) {
+      candidates = await prisma.product.findMany({
+        where: { is_active: true, ...nameFilter },
+        take: 50, include: INCLUDE,
+      });
     }
 
-    // Primary query with all constraints
-    let products = await prisma.product.findMany({
-      where,
-      take: 5,
-      include: { images: { where: { is_primary: true }, take: 1 } },
-      orderBy: { updated_at: 'desc' },
-    });
+    // Fallback 2: if still empty, drop TYPE — just filter by material
+    if (candidates.length === 0 && material) {
+      candidates = await prisma.product.findMany({
+        where: { is_active: true, material },
+        take: 50, include: INCLUDE,
+      });
+    }
 
-    // Fallback: loosen constraints if too few results
-    if (products.length < 3) {
-      const relaxedWhere: Record<string, unknown> = { is_active: true };
-      if (attrs.chat_lieu) relaxedWhere.material = attrs.chat_lieu.toUpperCase();
-      if (attrs.dung_tich_ml && attrs.dung_tich_ml > 0) {
-        relaxedWhere.capacity_ml = {
-          gte: Math.round(attrs.dung_tich_ml * 0.7),
-          lte: Math.round(attrs.dung_tich_ml * 1.3),
-        };
-      }
-      products = await prisma.product.findMany({
-        where: relaxedWhere,
-        take: 5,
-        include: { images: { where: { is_primary: true }, take: 1 } },
+    // Fallback 3: last resort — return recent active products
+    if (candidates.length === 0) {
+      candidates = await prisma.product.findMany({
+        where: { is_active: true },
+        take: 20, include: INCLUDE,
         orderBy: { updated_at: 'desc' },
       });
     }
+
+    // Helper: strip diacritics for comparison
+    const strip = (s: string) => s.toLowerCase()
+      .replace(/[àáảãạăắằẳẵặâấầẩẫậ]/g, 'a').replace(/[èéẻẽẹêếềểễệ]/g, 'e')
+      .replace(/[ìíỉĩị]/g, 'i').replace(/[òóỏõọôốồổỗộơớờởỡợ]/g, 'o')
+      .replace(/[ùúủũụưứừửữự]/g, 'u').replace(/[ỳýỷỹỵ]/g, 'y').replace(/đ/g, 'd');
+
+    // Score + rank candidates by how close they match input attributes
+    const scored = candidates.map((p) => {
+      let score = 0;
+      // Material match: +3
+      if (attrs.chat_lieu && p.material === attrs.chat_lieu.toUpperCase()) score += 3;
+      // Type (name contains): +2 — diacritic-insensitive
+      if (loaiKey && strip(p.name).includes(loaiKey)) score += 2;
+      // Capacity closeness: up to +3 (closer = higher)
+      if (attrs.dung_tich_ml && attrs.dung_tich_ml > 0 && p.capacity_ml) {
+        const ratio = Math.min(p.capacity_ml, attrs.dung_tich_ml) / Math.max(p.capacity_ml, attrs.dung_tich_ml);
+        score += ratio * 3; // ratio ∈ [0,1] → up to +3
+      }
+      // Color match: +1
+      if (attrs.mau && p.color === attrs.mau.toUpperCase()) score += 1;
+      // Shape match: +1
+      if (attrs.hinh_dang && p.shape === attrs.hinh_dang.toUpperCase()) score += 1;
+      return { product: p, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    const products = scored.slice(0, 5).map((s) => s.product);
 
     return products;
   }

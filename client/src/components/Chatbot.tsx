@@ -1,16 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, Input, Spin, Typography, Tooltip, theme } from 'antd';
-import { SendOutlined, CloseOutlined, MinusOutlined, DeleteOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { SendOutlined, CloseOutlined, MinusOutlined, DeleteOutlined, ArrowRightOutlined, PaperClipOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import chatbotIcon from '/chatbot.png';
+import { useChatAttachments } from '../hooks/useChatAttachments';
+import { useDragDrop } from '../hooks/useDragDrop';
+import type { Message } from '../types/chat';
 
 const { Text } = Typography;
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
 
 const STORAGE_KEY = 'packflow_chatbot_history';
 
@@ -62,6 +60,26 @@ const Chatbot: React.FC = () => {
   const [hintIndex, setHintIndex] = useState(0);
   const [hintFade, setHintFade] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const attach = useChatAttachments();
+  const dnd = useDragDrop((files) => { attach.addFiles(files); });
+
+  // Paste image from clipboard (Cmd/Ctrl+V) anywhere in the chatbot while open
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length > 0) {
+      e.preventDefault();
+      attach.addFiles(files);
+    }
+  }, [attach]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streamingText]);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-50))); } catch { /* */ } }, [messages]);
@@ -77,28 +95,34 @@ const Chatbot: React.FC = () => {
 
   const handleSend = useCallback(async (text?: string) => {
     const question = (text || input).trim();
-    if (!question || loading) return;
+    const outgoingAttachments = attach.pending;
+    if ((!question && outgoingAttachments.length === 0) || loading) return;
 
-    const userMsg: Message = { role: 'user', content: question };
+    const userMsg: Message = {
+      role: 'user',
+      content: question,
+      attachments: outgoingAttachments.length > 0 ? outgoingAttachments : undefined,
+    };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    attach.clear();
     setLoading(true);
     setStreamingText('');
 
     try {
       const token = localStorage.getItem('token');
+      const body = JSON.stringify({ question, history: messages.slice(-10), attachments: outgoingAttachments });
       const res = await fetch('/api/chatbot/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ question, history: messages.slice(-10) }),
+        body,
       });
 
       if (!res.ok || !res.body) {
-        // Fallback to non-streaming
         const fallback = await fetch('/api/chatbot/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ question, history: messages.slice(-10) }),
+          body,
         });
         const data = await fallback.json();
         setMessages((prev) => [...prev, { role: 'assistant', content: data.data?.answer || t('chatbot.errorDefault') }]);
@@ -141,30 +165,86 @@ const Chatbot: React.FC = () => {
       setLoading(false);
       setStreamingText('');
     }
-  }, [input, loading, messages, t]);
+  }, [input, loading, messages, t, attach]);
 
   const clearHistory = () => { setMessages([welcomeMsg]); localStorage.removeItem(STORAGE_KEY); };
   const showSuggestions = messages.length <= 1;
 
+  const renderAttachments = (attachments: NonNullable<Message['attachments']>) => {
+    const imgs = attachments.filter((a) => !a.name || /\.(jpe?g|png|gif|webp|avif)$/i.test(a.name) || a.url);
+    const n = imgs.length;
+    if (n === 0) return null;
+
+    // Messenger-style grid: 1 → full; 2 → 2 cols; 3 → 1 large + 2 half; 4+ → 2x2 grid
+    const gridStyle: React.CSSProperties = { display: 'grid', gap: 2, borderRadius: 14, overflow: 'hidden' };
+    if (n === 1) gridStyle.gridTemplateColumns = '1fr';
+    else if (n === 2) gridStyle.gridTemplateColumns = '1fr 1fr';
+    else if (n === 3) gridStyle.gridTemplateColumns = '1fr 1fr';
+    else gridStyle.gridTemplateColumns = '1fr 1fr';
+
+    const thumbBase: React.CSSProperties = {
+      width: '100%', objectFit: 'cover', display: 'block',
+      cursor: 'pointer', background: '#f0f0f0',
+    };
+
+    return (
+      <div style={gridStyle}>
+        {imgs.slice(0, 4).map((a, j) => {
+          let cellStyle: React.CSSProperties = { ...thumbBase };
+          if (n === 1) cellStyle = { ...cellStyle, maxHeight: 260 };
+          else if (n === 2) cellStyle = { ...cellStyle, height: 140 };
+          else if (n === 3 && j === 0) {
+            cellStyle = { ...cellStyle, height: 220, gridColumn: 'span 2' };
+          } else cellStyle = { ...cellStyle, height: n === 3 ? 110 : 130 };
+
+          return (
+            <a key={j} href={a.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', position: 'relative', overflow: 'hidden' }}>
+              <img src={a.url} alt={a.name || ''} style={cellStyle} />
+              {j === 3 && imgs.length > 4 && (
+                <div style={{
+                  position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)',
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 20, fontWeight: 600,
+                }}>
+                  +{imgs.length - 4}
+                </div>
+              )}
+            </a>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderMessage = (msg: Message, i: number) => {
     const isUser = msg.role === 'user';
     const { cleanText, actions } = isUser ? { cleanText: msg.content, actions: [] } : parseActions(msg.content);
+    const hasAttach = msg.attachments && msg.attachments.length > 0;
 
     return (
       <div key={i}>
         <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 6 }}>
           {!isUser && <img src={chatbotIcon} alt="" style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0 }} />}
           <div style={{
-            maxWidth: '80%', padding: '10px 14px',
-            borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+            maxWidth: '78%',
+            borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
             background: isUser ? 'linear-gradient(135deg, #1677ff 0%, #4096ff 100%)' : token.colorBgContainer,
             color: isUser ? '#fff' : token.colorText,
-            fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap',
-            boxShadow: isUser ? '0 2px 8px rgba(22,119,255,0.3)' : '0 1px 4px rgba(0,0,0,0.06)',
-            wordBreak: 'break-word',
+            fontSize: 13.5, lineHeight: 1.5,
+            boxShadow: isUser ? '0 2px 8px rgba(22,119,255,0.25)' : '0 1px 3px rgba(0,0,0,0.05)',
             border: !isUser ? `1px solid ${token.colorBorderSecondary}` : 'none',
+            overflow: 'hidden',
           }}>
-            {cleanText}
+            {cleanText && (
+              <div style={{
+                padding: hasAttach ? '9px 13px 8px' : '9px 13px',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}>
+                {cleanText}
+              </div>
+            )}
+            {hasAttach && renderAttachments(msg.attachments!)}
           </div>
         </div>
         {actions.length > 0 && (
@@ -202,7 +282,16 @@ const Chatbot: React.FC = () => {
   }
 
   return (
-    <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000, width: 400, height: 560, borderRadius: 20, boxShadow: '0 12px 40px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}` }}>
+    <div {...dnd.handlers} onPaste={handlePaste}
+      style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000, width: 400, height: 560, borderRadius: 20, boxShadow: '0 12px 40px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}` }}>
+      {dnd.isDragging && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(22,119,255,0.12)', border: `2px dashed ${token.colorPrimary}`, borderRadius: 20, pointerEvents: 'none' }}>
+          <div style={{ padding: '12px 20px', background: token.colorBgContainer, borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PaperClipOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
+            <Text style={{ color: token.colorPrimary, fontWeight: 500 }}>{t('chatbot.dropHere')}</Text>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #1677ff 0%, #4096ff 100%)', padding: '18px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 72, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
@@ -230,18 +319,20 @@ const Chatbot: React.FC = () => {
         {loading && streamingText && (
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
             <img src={chatbotIcon} alt="" style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0 }} />
-            <div style={{ maxWidth: '80%', padding: '10px 14px', borderRadius: '16px 16px 16px 4px', background: token.colorBgContainer, color: token.colorText, fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: `1px solid ${token.colorBorderSecondary}`, wordBreak: 'break-word' }}>
-              {streamingText}<span style={{ animation: 'blink 1s infinite', opacity: 0.6 }}>|</span>
+            <div style={{ maxWidth: '78%', padding: '9px 13px', borderRadius: '18px 18px 18px 4px', background: token.colorBgContainer, color: token.colorText, fontSize: 13.5, lineHeight: 1.5, whiteSpace: 'pre-wrap', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: `1px solid ${token.colorBorderSecondary}`, wordBreak: 'break-word' }}>
+              {streamingText}<span style={{ animation: 'blink 1s infinite', opacity: 0.6, marginLeft: 1 }}>|</span>
             </div>
           </div>
         )}
 
-        {/* Loading without stream yet */}
+        {/* Loading without stream yet — 3 dots typing indicator */}
         {loading && !streamingText && (
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
             <img src={chatbotIcon} alt="" style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0 }} />
-            <div style={{ padding: '10px 16px', background: token.colorBgContainer, borderRadius: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: `1px solid ${token.colorBorderSecondary}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Spin size="small" /><Text type="secondary" style={{ fontSize: 12 }}>{t('chatbot.searching')}</Text>
+            <div style={{ padding: '10px 14px', background: token.colorBgContainer, borderRadius: '18px 18px 18px 4px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: `1px solid ${token.colorBorderSecondary}`, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span className="dot-typing" style={{ background: token.colorTextTertiary }} />
+              <span className="dot-typing" style={{ background: token.colorTextTertiary, animationDelay: '0.15s' }} />
+              <span className="dot-typing" style={{ background: token.colorTextTertiary, animationDelay: '0.3s' }} />
             </div>
           </div>
         )}
@@ -257,13 +348,45 @@ const Chatbot: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Pending attachments */}
+      {(attach.pending.length > 0 || attach.uploading || attach.error) && (
+        <div style={{ padding: '8px 14px 0', background: token.colorBgContainer, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          {attach.pending.map((a, i) => (
+            <div key={i} style={{ position: 'relative', width: 48, height: 48, borderRadius: 8, overflow: 'hidden', border: `1px solid ${token.colorBorderSecondary}` }}>
+              <img src={a.url} alt={a.name || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <Button type="primary" danger shape="circle" size="small" icon={<CloseOutlined style={{ fontSize: 10 }} />}
+                onClick={() => attach.removeAt(i)}
+                style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, minWidth: 18, padding: 0 }} />
+            </div>
+          ))}
+          {attach.uploading && <Spin size="small" />}
+          {attach.error && <Text type="danger" style={{ fontSize: 11 }}>{attach.error}</Text>}
+        </div>
+      )}
+
       {/* Input */}
-      <div style={{ padding: '10px 14px', display: 'flex', gap: 8, background: token.colorBgContainer, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
+      <div style={{ padding: '10px 14px', display: 'flex', gap: 6, background: token.colorBgContainer, borderTop: `1px solid ${token.colorBorderSecondary}`, alignItems: 'center' }}>
+        <input ref={fileInputRef} type="file" accept={attach.accept} multiple hidden
+          onChange={(e) => { if (e.target.files) attach.addFiles(e.target.files); e.target.value = ''; }} />
+        <Tooltip title={t('chatbot.attach')}>
+          <Button type="text" shape="circle" icon={<PaperClipOutlined />} disabled={loading || attach.uploading}
+            onClick={() => fileInputRef.current?.click()} />
+        </Tooltip>
         <Input value={input} onChange={(e) => setInput(e.target.value)} onPressEnter={() => handleSend()} placeholder={t('chatbot.placeholder')} style={{ borderRadius: 20, fontSize: 13, padding: '6px 16px' }} disabled={loading} />
         <Button type="primary" shape="circle" icon={<SendOutlined />} onClick={() => handleSend()} loading={loading} style={{ flexShrink: 0, boxShadow: '0 2px 8px rgba(22,119,255,0.3)' }} />
       </div>
 
-      <style>{`@keyframes blink { 0%,100% { opacity: 0; } 50% { opacity: 1; } }`}</style>
+      <style>{`
+        @keyframes blink { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
+        @keyframes dotTyping {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+          30% { transform: translateY(-4px); opacity: 1; }
+        }
+        .dot-typing {
+          width: 6px; height: 6px; border-radius: 50%;
+          display: inline-block; animation: dotTyping 1.4s infinite;
+        }
+      `}</style>
     </div>
   );
 };

@@ -19,6 +19,10 @@ export default defineConfig({
         changeOrigin: true,
         timeout: 600000,
       },
+      '/uploads': {
+        target: process.env.VITE_SERVER_URL || 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
 });

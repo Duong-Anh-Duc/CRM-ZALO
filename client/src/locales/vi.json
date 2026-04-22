@@ -1125,7 +1125,9 @@
     "suggestion2": "Khách nào nợ nhiều nhất?",
     "suggestion3": "Doanh thu và lợi nhuận?",
     "suggestion4": "Đơn hàng quá hạn?",
-    "suggestion5": "Tình hình sổ quỹ?"
+    "suggestion5": "Tình hình sổ quỹ?",
+    "attach": "Đính kèm ảnh",
+    "dropHere": "Thả ảnh vào đây"
   },
   "payroll": {
     "title": "Quản lý bảng lương",

@@ -231,26 +231,24 @@ export class ZaloService {
 
     if (products.length === 0) {
       return {
-        text: `Dạ em thấy anh/chị đang tìm ${attrs.loai}${attrs.dung_tich_ml ? ` ${attrs.dung_tich_ml}ml` : ''}${attrs.chat_lieu ? ` ${attrs.chat_lieu}` : ''} nhưng hiện bên em chưa có mẫu giống. Anh/chị để lại SĐT để nhân viên tư vấn báo giá trực tiếp nhé ạ.`,
+        text: `Dạ em thấy anh/chị đang tìm ${attrs.loai}${attrs.dung_tich_ml ? ` ~${attrs.dung_tich_ml}ml` : ''}${attrs.chat_lieu ? ` ${attrs.chat_lieu}` : ''} nhưng hiện bên em chưa có mẫu giống. Anh/chị để lại SĐT để nhân viên tư vấn báo giá trực tiếp nhé ạ.`,
         imageUrls: [],
       };
     }
 
-    const lines: string[] = ['Dạ em thấy giống các mẫu sau bên em đang có ạ:'];
+    const lines: string[] = [`Dạ bên em có ${products.length} mẫu gần giống với ảnh anh/chị gửi ạ:`];
     const imageUrls: string[] = [];
     products.forEach((p: any, i: number) => {
-      const price = p.retail_price ? ` · ~${Math.round(p.retail_price).toLocaleString('vi-VN')}đ` : '';
       const specs: string[] = [];
       if (p.capacity_ml) specs.push(`${p.capacity_ml}ml`);
       if (p.material) specs.push(p.material);
-      const specStr = specs.length > 0 ? ` (${specs.join(', ')})` : '';
-      lines.push(`${i + 1}. ${p.name}${specStr} · SKU ${p.sku}${price}`);
-      // Collect first image URL for each product (must be public HTTPS URL accessible by Zalo)
+      const specStr = specs.length > 0 ? ` — ${specs.join(', ')}` : '';
+      lines.push(`${i + 1}. ${p.name}${specStr}`);
       const img = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
       if (img?.url && /^https?:\/\//.test(img.url)) imageUrls.push(img.url);
     });
     lines.push('');
-    lines.push('Anh/chị cho em xin số lượng dự kiến để em báo giá chính xác nhé ạ.');
+    lines.push('Anh/chị cần em tư vấn thêm về mẫu nào ạ? (giá, số lượng tồn, quy cách đóng gói...)');
 
     return { text: lines.join('\n'), imageUrls };
   }

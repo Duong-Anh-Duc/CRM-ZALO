@@ -1125,7 +1125,9 @@
     "suggestion2": "Top debtor?",
     "suggestion3": "Revenue & profit?",
     "suggestion4": "Overdue orders?",
-    "suggestion5": "Cash book status?"
+    "suggestion5": "Cash book status?",
+    "attach": "Attach image",
+    "dropHere": "Drop images here"
   },
   "payroll": {
     "title": "Payroll Management",
