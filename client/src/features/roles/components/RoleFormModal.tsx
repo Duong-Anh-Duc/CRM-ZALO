@@ -89,7 +89,7 @@ const RoleFormModal: React.FC<RoleFormModalProps> = ({
   return (
     <Modal
       open={open}
-      width={560}
+      width={Math.min(window.innerWidth * 0.95, 560)}
       title={mode === 'edit' ? t('role.editRole') : t('role.createRole')}
       onCancel={onCancel}
       destroyOnClose

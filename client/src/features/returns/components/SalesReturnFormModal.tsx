@@ -89,7 +89,7 @@ const SalesReturnFormModal: React.FC<Props> = ({ open, onClose, onSuccess }) => 
       title={t('return.createSalesReturn')}
       okText={t('common.save')}
       cancelText={t('common.cancel')}
-      width={750}
+      width={Math.min(window.innerWidth * 0.95, 750)}
       onCancel={onClose}
       onOk={handleSubmit}
       confirmLoading={createMutation.isPending}

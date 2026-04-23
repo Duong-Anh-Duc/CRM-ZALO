@@ -320,7 +320,21 @@ const Chatbot: React.FC = () => {
 
   return (
     <div {...dnd.handlers} onPaste={handlePaste}
-      style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000, width: 400, height: 580, borderRadius: 16, boxShadow: '0 20px 48px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}` }}>
+      style={{
+        position: 'fixed',
+        bottom: window.innerWidth < 480 ? 0 : 24,
+        right: window.innerWidth < 480 ? 0 : 24,
+        left: window.innerWidth < 480 ? 0 : undefined,
+        top: window.innerWidth < 480 ? 0 : undefined,
+        zIndex: 1000,
+        width: window.innerWidth < 480 ? '100vw' : Math.min(400, window.innerWidth - 24),
+        height: window.innerWidth < 480 ? '100vh' : 580,
+        borderRadius: window.innerWidth < 480 ? 0 : 16,
+        boxShadow: '0 20px 48px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        background: token.colorBgContainer,
+        border: `1px solid ${token.colorBorderSecondary}`,
+      }}>
       {dnd.isDragging && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(22,119,255,0.08)', border: `2px dashed ${token.colorPrimary}`, borderRadius: 16, pointerEvents: 'none' }}>
           <div style={{ padding: '12px 20px', background: token.colorBgContainer, borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -520,7 +534,7 @@ const Chatbot: React.FC = () => {
                 autoFocusSearch={false}
                 emojiStyle={EmojiStyle.NATIVE}
                 theme={token.colorBgContainer === '#ffffff' ? EmojiTheme.LIGHT : EmojiTheme.DARK}
-                width={320}
+                width={Math.min(320, window.innerWidth - 40)}
                 height={400}
                 previewConfig={{ showPreview: false }}
                 searchPlaceHolder={i18n.language === 'en' ? 'Search' : 'Tìm emoji'}

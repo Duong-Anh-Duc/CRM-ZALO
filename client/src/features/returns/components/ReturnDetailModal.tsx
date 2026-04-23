@@ -63,7 +63,7 @@ const ReturnDetailModal: React.FC<Props> = ({ open, returnId, type, onClose }) =
       open={open}
       title={`${t('return.detail')} - ${detail?.return_code || ''}`}
       footer={null}
-      width={750}
+      width={Math.min(window.innerWidth * 0.95, 750)}
       onCancel={onClose}
     >
       {query.isLoading && <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>}

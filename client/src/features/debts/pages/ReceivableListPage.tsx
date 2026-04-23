@@ -90,15 +90,15 @@ const ReceivableListPage: React.FC = () => {
       render: (_: unknown, r: any) => <Text strong>{r.customer?.company_name || r.customer?.contact_name}</Text>,
     },
     {
-      title: t('debt.invoiceCount'), key: 'count', width: 100, align: 'center' as const,
+      title: t('debt.invoiceCount'), key: 'count', width: 100, align: 'center' as const, responsive: ['md'] as any,
       render: (_: unknown, r: any) => <Tag style={{ borderRadius: 6 }}>{r.invoice_count} {t('debt.invoices')}</Tag>,
     },
     {
-      title: t('debt.totalDebt'), key: 'total', width: 160, align: 'right' as const,
+      title: t('debt.totalDebt'), key: 'total', width: 160, align: 'right' as const, responsive: ['lg'] as any,
       render: (_: unknown, r: any) => formatVND(r.total_original),
     },
     {
-      title: t('debt.totalPaid'), key: 'paid', width: 140, align: 'right' as const,
+      title: t('debt.totalPaid'), key: 'paid', width: 140, align: 'right' as const, responsive: ['lg'] as any,
       render: (_: unknown, r: any) => formatVND(r.total_paid),
     },
     {
@@ -180,12 +180,12 @@ const ReceivableListPage: React.FC = () => {
         </Card>
       )}
 
-      <Space wrap style={{ marginBottom: 16 }}>
+      <Space wrap style={{ marginBottom: 16, width: '100%' }}>
         <Select value={status} options={statusOptions}
-          onChange={(val) => { setStatus(val); setPage(1); }} style={{ minWidth: 160 }} />
+          onChange={(val) => { setStatus(val); setPage(1); }} style={{ maxWidth: 200, flex: '1 1 160px' }} />
         <Input prefix={<SearchOutlined />} placeholder={t('debt.searchCustomer')} allowClear
           value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={{ width: 220, borderRadius: 8 }} />
+          style={{ maxWidth: 260, flex: '1 1 180px', borderRadius: 8 }} />
       </Space>
 
       <Table rowKey="customer_id" columns={columns} dataSource={list} loading={isLoading}

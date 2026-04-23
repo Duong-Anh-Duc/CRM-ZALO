@@ -55,9 +55,9 @@ const SalesReturnTab: React.FC = () => {
     { title: t('return.returnCode'), dataIndex: 'return_code', key: 'code', width: 160 },
     { title: t('customer.name'), key: 'customer', ellipsis: true, render: (_: any, rec: any) => rec.customer?.company_name || rec.customer?.contact_name || '-' },
     { title: t('order.orderCode'), key: 'order', width: 170, responsive: ['md'] as any, render: (_: any, rec: any) => rec.sales_order ? <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/sales-orders/${rec.sales_order.id}`)}>{rec.sales_order.order_code}</Button> : '-' },
-    { title: t('return.returnDate'), dataIndex: 'return_date', key: 'date', width: 110, render: formatDate },
+    { title: t('return.returnDate'), dataIndex: 'return_date', key: 'date', width: 110, responsive: ['lg'] as any, render: formatDate },
     { title: t('return.totalAmount'), dataIndex: 'total_amount', key: 'amount', width: 140, align: 'right' as const, render: (v: number) => formatVND(v) },
-    { title: t('product.status'), key: 'status', width: 140, render: (_: any, rec: any) => <StatusTag status={rec.status} type="return" /> },
+    { title: t('product.status'), key: 'status', width: 140, responsive: ['lg'] as any, render: (_: any, rec: any) => <StatusTag status={rec.status} type="return" /> },
     {
       title: t('common.actions'), key: 'actions', width: 90, align: 'center' as const, fixed: 'right' as const,
       render: (_: any, rec: any) => (
@@ -84,8 +84,8 @@ const SalesReturnTab: React.FC = () => {
 
       <Space wrap style={{ marginBottom: 12, width: '100%', justifyContent: 'space-between' }}>
         <Space wrap>
-          <Input placeholder={t('return.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ width: 220, borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          <Select placeholder={t('debt.filterStatus')} allowClear style={{ width: 170, borderRadius: 8 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={statusOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
+          <Input placeholder={t('return.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ maxWidth: 240, flex: '1 1 180px', borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <Select placeholder={t('debt.filterStatus')} allowClear style={{ maxWidth: 180, flex: '1 1 140px', borderRadius: 8 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={statusOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
         </Space>
         {canCreate && <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setFormOpen(true)}>{t('return.createSalesReturn')}</Button>}
       </Space>
@@ -131,9 +131,9 @@ const PurchaseReturnTab: React.FC = () => {
     { title: t('return.returnCode'), dataIndex: 'return_code', key: 'code', width: 160 },
     { title: t('supplier.name'), key: 'supplier', ellipsis: true, render: (_: any, rec: any) => rec.supplier?.company_name || '-' },
     { title: t('order.orderCode'), key: 'order', width: 170, responsive: ['md'] as any, render: (_: any, rec: any) => rec.purchase_order ? <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/purchase-orders/${rec.purchase_order.id}`)}>{rec.purchase_order.order_code}</Button> : '-' },
-    { title: t('return.returnDate'), dataIndex: 'return_date', key: 'date', width: 110, render: formatDate },
+    { title: t('return.returnDate'), dataIndex: 'return_date', key: 'date', width: 110, responsive: ['lg'] as any, render: formatDate },
     { title: t('return.totalAmount'), dataIndex: 'total_amount', key: 'amount', width: 140, align: 'right' as const, render: (v: number) => formatVND(v) },
-    { title: t('product.status'), key: 'status', width: 140, render: (_: any, rec: any) => <StatusTag status={rec.status} type="return" /> },
+    { title: t('product.status'), key: 'status', width: 140, responsive: ['lg'] as any, render: (_: any, rec: any) => <StatusTag status={rec.status} type="return" /> },
     {
       title: t('common.actions'), key: 'actions', width: 90, align: 'center' as const, fixed: 'right' as const,
       render: (_: any, rec: any) => (
@@ -160,8 +160,8 @@ const PurchaseReturnTab: React.FC = () => {
 
       <Space wrap style={{ marginBottom: 12, width: '100%', justifyContent: 'space-between' }}>
         <Space wrap>
-          <Input placeholder={t('return.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ width: 220, borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          <Select placeholder={t('debt.filterStatus')} allowClear style={{ width: 170, borderRadius: 8 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={statusOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
+          <Input placeholder={t('return.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ maxWidth: 240, flex: '1 1 180px', borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <Select placeholder={t('debt.filterStatus')} allowClear style={{ maxWidth: 180, flex: '1 1 140px', borderRadius: 8 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={statusOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
         </Space>
         {canCreate && <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setFormOpen(true)}>{t('return.createPurchaseReturn')}</Button>}
       </Space>

@@ -60,6 +60,7 @@ export class ZaloService {
 
   static async sendTyping(userId: string): Promise<void> {
     const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.send_typing_enabled) return;
     if (!cfg?.send_typing_url || !cfg?.send_typing_token) return; // optional
     try {
       await this.callFunc(cfg.send_typing_url, cfg.send_typing_token, { user_id: userId });
@@ -70,6 +71,9 @@ export class ZaloService {
 
   static async sendMessage(userId: string, content: string): Promise<any> {
     const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.send_message_enabled) {
+      throw new AppError('USER_SEND_MESSAGE đang bị tắt trong cấu hình', 400);
+    }
     if (!cfg?.send_message_url || !cfg?.send_message_token) {
       throw new AppError('Zalo send_message_url chưa cấu hình', 400);
     }
@@ -88,6 +92,10 @@ export class ZaloService {
   static async sendImages(userId: string, imageUrls: string[]): Promise<any> {
     if (!imageUrls || imageUrls.length === 0) return null;
     const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.send_images_enabled) {
+      logger.warn('sendImages skipped — action disabled');
+      return null;
+    }
     if (!cfg?.send_images_url || !cfg?.send_images_token) {
       logger.warn('sendImages skipped — send_images_url not configured');
       return null;
@@ -109,6 +117,10 @@ export class ZaloService {
 
   static async replyMessage(userId: string, originalPayload: any, content: string): Promise<any> {
     const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.reply_message_enabled) {
+      // fallback to sendMessage when reply disabled
+      return this.sendMessage(userId, content);
+    }
     if (!cfg?.reply_message_url || !cfg?.reply_message_token || !originalPayload) {
       // fallback to sendMessage if no reply config or no original msg payload to quote
       return this.sendMessage(userId, content);
@@ -123,6 +135,94 @@ export class ZaloService {
         direction: 'OUTGOING', platform: 'ZALO_USER',
         sender_id: '', recipient_id: userId, content,
         msg_type: 'webchat', event: 'SENT_REPLY',
+        status: 'SENT', raw_payload: result,
+      },
+    });
+    return result;
+  }
+
+  // ──── Group APIs (GROUP_SEND_MESSAGE / GROUP_SEND_IMAGE / GROUP_REPLY_MESSAGE) ────
+
+  static async groupSendMessage(
+    groupId: string,
+    content: string,
+    extras?: { mentions?: any[]; styles?: any[] },
+  ): Promise<any> {
+    const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.group_send_message_enabled) {
+      throw new AppError('GROUP_SEND_MESSAGE đang bị tắt trong cấu hình', 400);
+    }
+    if (!cfg?.group_send_message_url || !cfg?.group_send_message_token) {
+      throw new AppError('Zalo group_send_message_url chưa cấu hình', 400);
+    }
+    const result = await this.callFunc(cfg.group_send_message_url, cfg.group_send_message_token, {
+      group_id: groupId,
+      message: content,
+      mentions: extras?.mentions ?? [],
+      styles: extras?.styles ?? [],
+    });
+    await prisma.zaloMessage.create({
+      data: {
+        direction: 'OUTGOING', platform: 'ZALO_USER',
+        sender_id: '', group_id: groupId, content,
+        msg_type: 'group', event: 'SENT_GROUP_MESSAGE',
+        status: 'SENT', raw_payload: result,
+      },
+    });
+    return result;
+  }
+
+  static async groupSendImage(groupId: string, url: string, desc?: string): Promise<any> {
+    if (!url) return null;
+    const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.group_send_image_enabled) {
+      logger.warn('groupSendImage skipped — action disabled');
+      return null;
+    }
+    if (!cfg?.group_send_image_url || !cfg?.group_send_image_token) {
+      logger.warn('groupSendImage skipped — group_send_image_url not configured');
+      return null;
+    }
+    const result = await this.callFunc(cfg.group_send_image_url, cfg.group_send_image_token, {
+      group_id: groupId,
+      url,
+      desc: desc ?? '',
+    });
+    await prisma.zaloMessage.create({
+      data: {
+        direction: 'OUTGOING', platform: 'ZALO_USER',
+        sender_id: '', group_id: groupId, content: url,
+        msg_type: 'group', event: 'SENT_GROUP_IMAGE',
+        status: 'SENT', raw_payload: result,
+      },
+    });
+    return result;
+  }
+
+  static async groupReplyMessage(
+    groupId: string,
+    originalPayload: any,
+    content: string,
+    extras?: { styles?: any[] },
+  ): Promise<any> {
+    const cfg = await prisma.zaloConfig.findFirst({ where: { is_active: true } });
+    if (!cfg?.group_reply_message_enabled) {
+      return this.groupSendMessage(groupId, content);
+    }
+    if (!cfg?.group_reply_message_url || !cfg?.group_reply_message_token || !originalPayload) {
+      return this.groupSendMessage(groupId, content);
+    }
+    const result = await this.callFunc(cfg.group_reply_message_url, cfg.group_reply_message_token, {
+      group_id: groupId,
+      message: content,
+      reply_message: originalPayload,
+      styles: extras?.styles ?? [],
+    });
+    await prisma.zaloMessage.create({
+      data: {
+        direction: 'OUTGOING', platform: 'ZALO_USER',
+        sender_id: '', group_id: groupId, content,
+        msg_type: 'group', event: 'SENT_GROUP_REPLY',
         status: 'SENT', raw_payload: result,
       },
     });

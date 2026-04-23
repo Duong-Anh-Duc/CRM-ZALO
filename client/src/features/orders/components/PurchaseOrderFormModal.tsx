@@ -55,7 +55,7 @@ const PurchaseOrderFormModal: React.FC<PurchaseOrderFormModalProps> = ({ open, o
     <Modal
       open={open}
       title={t('order.createPurchaseOrder')}
-      width={800}
+      width={Math.min(window.innerWidth * 0.95, 800)}
       onCancel={onClose}
       destroyOnClose
       footer={

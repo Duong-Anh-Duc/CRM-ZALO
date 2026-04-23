@@ -78,7 +78,7 @@ const PayrollRecordsModal: React.FC<Props> = ({ open, period, onCancel }) => {
         title={`${t('payroll.periodRecords')} - ${periodLabel}`}
         onCancel={onCancel}
         footer={null}
-        width={800}
+        width={Math.min(window.innerWidth * 0.95, 800)}
         destroyOnClose
       >
         <Table

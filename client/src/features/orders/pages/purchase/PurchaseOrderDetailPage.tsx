@@ -165,7 +165,7 @@ const PurchaseOrderDetailPage: React.FC = () => {
 
       {/* Invoice Modal — upload file for purchase */}
       <Modal open={activeModal === 'invoice'} onCancel={() => setActiveModal(null)} footer={null}
-        title={t('invoice.purchaseInvoice')} width={window.innerWidth < 640 ? '95vw' : 700}>
+        title={t('invoice.purchaseInvoice')} width={Math.min(window.innerWidth * 0.95, 700)}>
         {!invoice ? (
           <div style={{ padding: 16, textAlign: 'center' }}>
             <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>{t('invoice.uploadDescription')}</Text>
@@ -231,12 +231,12 @@ const PurchaseOrderDetailPage: React.FC = () => {
 
       {/* Products Modal */}
       <Modal open={activeModal === 'products'} onCancel={() => setActiveModal(null)} footer={null}
-        title={t('order.productDetails') + ` (${order.items?.length || 0})`} width={window.innerWidth < 640 ? '95vw' : 850}>
+        title={t('order.productDetails') + ` (${order.items?.length || 0})`} width={Math.min(window.innerWidth * 0.95, 850)}>
         <Table columns={itemColumns} dataSource={order.items} pagination={false} size="small" scroll={{ x: 600 }} rowKey="id" />
       </Modal>
 
       {/* PDF Preview Modal */}
-      <Modal open={!!previewUrl} onCancel={() => setPreviewUrl(null)} footer={null} width={window.innerWidth < 640 ? '95vw' : 900}
+      <Modal open={!!previewUrl} onCancel={() => setPreviewUrl(null)} footer={null} width={Math.min(window.innerWidth * 0.95, 900)}
         title={t('invoice.preview')} styles={{ body: { padding: 0, height: '80vh' } }}>
         {previewUrl && <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Invoice" />}
       </Modal>

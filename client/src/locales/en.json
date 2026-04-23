@@ -1008,7 +1008,26 @@
     "replyMessageUrl": "USER_REPLY_MESSAGE URL",
     "replyMessageToken": "USER_REPLY_MESSAGE Token",
     "sendTypingUrl": "USER_SEND_TYPING URL (optional)",
-    "sendTypingToken": "USER_SEND_TYPING Token (optional)"
+    "sendTypingToken": "USER_SEND_TYPING Token (optional)",
+    "sectionRead": "Read APIs",
+    "sectionUser": "Direct message APIs",
+    "sectionGroup": "Group message APIs",
+    "actionEnabled": "On",
+    "actionDisabled": "Off",
+    "apiToken": "API Token",
+    "api": {
+      "getThreads": "List conversations",
+      "getMessages": "Get messages by conversation",
+      "getGroupInfo": "Get group info",
+      "getUserInfo": "Get user info",
+      "userSendMessage": "Send direct message to user",
+      "userReplyMessage": "Reply to user message (quoted)",
+      "userSendTyping": "Show typing indicator",
+      "userSendImages": "Send images to user",
+      "groupSendMessage": "Send message to group",
+      "groupSendImage": "Send image to group",
+      "groupReplyMessage": "Reply in group (quoted)"
+    }
   },
   "settings": {
     "title": "Settings",

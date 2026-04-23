@@ -237,7 +237,7 @@ const SupplierDetailPage: React.FC = () => {
       </Card>
 
       {/* Invoice PDF Preview */}
-      <Modal open={!!previewInvoiceId} onCancel={() => setPreviewInvoiceId(null)} footer={null} width={900} title={t('invoice.preview')} styles={{ body: { padding: 0, height: '75vh' } }}>
+      <Modal open={!!previewInvoiceId} onCancel={() => setPreviewInvoiceId(null)} footer={null} width={Math.min(window.innerWidth * 0.95, 900)} title={t('invoice.preview')} styles={{ body: { padding: 0, height: '75vh' } }}>
         {previewInvoiceId && <iframe src={`${invoiceApi.getPdfUrl(previewInvoiceId)}?token=${localStorage.getItem('token')}`} style={{ width: '100%', height: '75vh', border: 'none' }} title="Invoice Preview" />}
       </Modal>
 
@@ -246,7 +246,7 @@ const SupplierDetailPage: React.FC = () => {
         open={!!paymentModal}
         title={`${t('debt.paymentHistory')} — ${paymentModal?.invoice_number || ''}`}
         footer={null}
-        width={650}
+        width={Math.min(window.innerWidth * 0.95, 650)}
         onCancel={() => setPaymentModal(null)}
       >
         <Table

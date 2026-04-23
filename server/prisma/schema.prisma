@@ -851,21 +851,38 @@ model ZaloConfig {
   // USER_SEND_MESSAGE
   send_message_url      String?
   send_message_token    String?
+  send_message_enabled  Boolean  @default(true)
   // USER_REPLY_MESSAGE
   reply_message_url     String?
   reply_message_token   String?
+  reply_message_enabled Boolean  @default(true)
   // USER_SEND_TYPING
   send_typing_url       String?
   send_typing_token     String?
+  send_typing_enabled   Boolean  @default(true)
   // USER_SEND_IMAGES
   send_images_url       String?
   send_images_token     String?
+  send_images_enabled   Boolean  @default(true)
+  // GROUP_SEND_MESSAGE
+  group_send_message_url      String?
+  group_send_message_token    String?
+  group_send_message_enabled  Boolean  @default(true)
+  // GROUP_SEND_IMAGE
+  group_send_image_url        String?
+  group_send_image_token      String?
+  group_send_image_enabled    Boolean  @default(true)
+  // GROUP_REPLY_MESSAGE
+  group_reply_message_url     String?
+  group_reply_message_token   String?
+  group_reply_message_enabled Boolean  @default(true)
   // AI Prompts
   ai_chat_prompt        String?  @db.Text
   ai_summary_prompt     String?  @db.Text
   ai_order_prompt       String?  @db.Text
   // Auto-reply settings
   auto_reply_enabled         Boolean  @default(false)
+  auto_reply_group_enabled   Boolean  @default(false)
   auto_reply_prompt          String?  @db.Text
   auto_reply_off_hours_only  Boolean  @default(false)
   is_active             Boolean  @default(true)

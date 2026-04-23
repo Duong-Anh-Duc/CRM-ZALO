@@ -515,7 +515,7 @@ const SalesOrderDetailPage: React.FC = () => {
 
       {/* Invoice Modal */}
       <Modal open={activeModal === 'invoice'} onCancel={() => setActiveModal(null)} footer={null}
-        title={t('invoice.salesInvoice')} width={window.innerWidth < 640 ? '95vw' : 900}
+        title={t('invoice.salesInvoice')} width={Math.min(window.innerWidth * 0.95, 900)}
         styles={{ body: { padding: 0 } }}>
         {salesInvoices.length === 0 && canCreateInv && (
           <div style={{ padding: 24 }}>
@@ -560,7 +560,7 @@ const SalesOrderDetailPage: React.FC = () => {
 
       {/* Products Modal — group by NCC */}
       <Modal open={activeModal === 'products'} onCancel={() => setActiveModal(null)} footer={null}
-        title={t('order.productDetails') + ` (${order.items?.length || 0})`} width={window.innerWidth < 640 ? '95vw' : 800}>
+        title={t('order.productDetails') + ` (${order.items?.length || 0})`} width={Math.min(window.innerWidth * 0.95, 800)}>
         {(() => {
           const items = order.items || [];
           const isDraft = order.status === 'DRAFT';
@@ -665,7 +665,7 @@ const SalesOrderDetailPage: React.FC = () => {
 
       {/* Product Search Drawer (for adding items in DRAFT) */}
       <Drawer title={t('order.searchProduct')} placement="right"
-        width={window.innerWidth < 640 ? '100%' : 600} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+        width={Math.min(window.innerWidth * 0.95, 600)} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Input prefix={<SearchOutlined />} placeholder={t('order.searchProductPlaceholder')}
           value={productSearch} onChange={(e) => setProductSearch(e.target.value)}
           allowClear size="large" style={{ borderRadius: 8, marginBottom: 12 }} autoFocus />
@@ -731,7 +731,7 @@ const SalesOrderDetailPage: React.FC = () => {
 
       {/* PDF Preview Modal */}
       <Modal open={!!previewInvId} onCancel={() => setPreviewInvId(null)} footer={null}
-        width={window.innerWidth < 640 ? '95vw' : 900} title={t('invoice.preview')}
+        width={Math.min(window.innerWidth * 0.95, 900)} title={t('invoice.preview')}
         styles={{ body: { padding: 0, height: '80vh' } }}>
         {previewInvId && (
           <iframe src={`${invoiceApi.getPdfUrl(previewInvId)}?token=${localStorage.getItem('token')}`}
@@ -820,7 +820,7 @@ const SalesOrderDetailPage: React.FC = () => {
       {/* Create PO Review Modal */}
       <Modal open={!!createPOState} onCancel={() => setCreatePOState(null)}
         title={<><ShopOutlined /> {t('order.createPurchaseOrder')}{createPOState ? ` — ${createPOState.supplierName}` : ''}</>}
-        width={window.innerWidth < 640 ? '95vw' : 820}
+        width={Math.min(window.innerWidth * 0.95, 820)}
         okText={t('common.confirm')} cancelText={t('common.cancel')}
         onOk={submitCreatePO} confirmLoading={createPOMutation.isPending}
         okButtonProps={{ style: { borderRadius: 8 } }}>

@@ -27,7 +27,7 @@ const ChangePasswordModal: React.FC<Props> = ({ open, onClose }) => {
   return (
     <Modal open={open} title={t('auth.changePassword')} onCancel={onClose} onOk={handleSubmit}
       okText={t('auth.changePassword')} cancelText={t('common.cancel')} confirmLoading={mutation.isPending}
-      destroyOnClose width={450} styles={{ body: { paddingTop: 8 } }}>
+      destroyOnClose width={Math.min(window.innerWidth * 0.95, 450)} styles={{ body: { paddingTop: 8 } }}>
       <Form form={form} layout="vertical">
         <Form.Item name="old_password" label={t('auth.currentPassword')} rules={[{ required: true, message: t('auth.passwordRequired') }]}>
           <Input.Password prefix={<LockOutlined />} placeholder={t('auth.currentPasswordPlaceholder')} style={{ borderRadius: 8 }} size="large" />

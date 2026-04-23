@@ -1008,7 +1008,26 @@
     "replyMessageUrl": "URL USER_REPLY_MESSAGE",
     "replyMessageToken": "Token USER_REPLY_MESSAGE",
     "sendTypingUrl": "URL USER_SEND_TYPING (tuỳ chọn)",
-    "sendTypingToken": "Token USER_SEND_TYPING (tuỳ chọn)"
+    "sendTypingToken": "Token USER_SEND_TYPING (tuỳ chọn)",
+    "sectionRead": "API đọc dữ liệu",
+    "sectionUser": "API gửi tin cá nhân",
+    "sectionGroup": "API gửi tin trong nhóm",
+    "actionEnabled": "Bật",
+    "actionDisabled": "Tắt",
+    "apiToken": "Mã API Token",
+    "api": {
+      "getThreads": "Lấy danh sách hội thoại",
+      "getMessages": "Lấy tin nhắn theo hội thoại",
+      "getGroupInfo": "Lấy thông tin nhóm",
+      "getUserInfo": "Lấy thông tin người dùng",
+      "userSendMessage": "Gửi tin nhắn cho cá nhân",
+      "userReplyMessage": "Trả lời tin nhắn cá nhân (có trích dẫn)",
+      "userSendTyping": "Hiển thị hiệu ứng đang soạn tin",
+      "userSendImages": "Gửi ảnh cho cá nhân",
+      "groupSendMessage": "Gửi tin nhắn vào nhóm",
+      "groupSendImage": "Gửi ảnh vào nhóm",
+      "groupReplyMessage": "Trả lời tin nhắn trong nhóm (có trích dẫn)"
+    }
   },
   "settings": {
     "title": "Cài đặt",

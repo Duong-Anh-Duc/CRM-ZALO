@@ -213,7 +213,7 @@ const CustomerDetailPage: React.FC = () => {
         open={!!previewInvoiceId}
         onCancel={() => setPreviewInvoiceId(null)}
         footer={null}
-        width={900}
+        width={Math.min(window.innerWidth * 0.95, 900)}
         title={t('invoice.preview')}
         styles={{ body: { padding: 0, height: '75vh' } }}
       >
@@ -231,7 +231,7 @@ const CustomerDetailPage: React.FC = () => {
         open={!!paymentModal}
         title={`${t('customer.paymentHistory')} — ${paymentModal?.invoice_number || ''}`}
         footer={null}
-        width={650}
+        width={Math.min(window.innerWidth * 0.95, 650)}
         onCancel={() => setPaymentModal(null)}
       >
         <Table

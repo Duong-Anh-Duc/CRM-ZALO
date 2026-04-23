@@ -77,7 +77,7 @@ const AuditLogPage: React.FC = () => {
       render: (_: unknown, __: unknown, i: number) => ((filters.page || 1) - 1) * (filters.limit || 50) + i + 1,
     },
     {
-      title: t('auditLog.time'), dataIndex: 'created_at', key: 'created_at', width: 160,
+      title: t('auditLog.time'), dataIndex: 'created_at', key: 'created_at', width: 160, responsive: ['md'] as any,
       render: (v: string) => (
         <Space direction="vertical" size={0}>
           <Text>{formatDate(v)}</Text>
@@ -86,7 +86,7 @@ const AuditLogPage: React.FC = () => {
       ),
     },
     {
-      title: t('auditLog.operator'), key: 'operator', width: 200,
+      title: t('auditLog.operator'), key: 'operator', width: 200, responsive: ['md'] as any,
       render: (_: unknown, rec: AuditLog) => rec.user_full_name
         ? <Space direction="vertical" size={0}>
             <Text strong>{rec.user_full_name}</Text>
@@ -125,20 +125,20 @@ const AuditLogPage: React.FC = () => {
 
   return (
     <div>
-      <Card style={{ borderRadius: 12, marginBottom: 16 }} styles={{ body: { overflowX: 'auto' } }}>
-        <Space size={8} style={{ flexWrap: 'nowrap' }}>
+      <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+        <Space size={8} wrap style={{ width: '100%' }}>
           <Input
             placeholder={t('auditLog.searchPlaceholder')}
             prefix={<SearchOutlined />}
             allowClear
-            style={{ width: 200, borderRadius: 8 }}
+            style={{ maxWidth: 240, flex: '1 1 180px', borderRadius: 8 }}
             value={filters.search}
             onChange={(e) => updateFilter({ search: e.target.value || undefined })}
           />
           <Select
             placeholder={t('auditLog.filterAction')}
             allowClear
-            style={{ width: 120, borderRadius: 8 }}
+            style={{ maxWidth: 160, flex: '1 1 120px', borderRadius: 8 }}
             value={filters.action}
             onChange={(v) => updateFilter({ action: v })}
             options={[
@@ -153,7 +153,7 @@ const AuditLogPage: React.FC = () => {
             allowClear
             showSearch
             optionFilterProp="label"
-            style={{ width: 160, borderRadius: 8 }}
+            style={{ maxWidth: 200, flex: '1 1 140px', borderRadius: 8 }}
             value={filters.model_name}
             onChange={(v) => updateFilter({ model_name: v })}
             options={modelOptions}
@@ -163,14 +163,14 @@ const AuditLogPage: React.FC = () => {
             allowClear
             showSearch
             optionFilterProp="label"
-            style={{ width: 180, borderRadius: 8 }}
+            style={{ maxWidth: 220, flex: '1 1 160px', borderRadius: 8 }}
             value={filters.user_id}
             onChange={(v) => updateFilter({ user_id: v })}
             options={userOptions}
           />
           <DatePicker.RangePicker
             format="DD/MM/YYYY"
-            style={{ borderRadius: 8, width: 260 }}
+            style={{ borderRadius: 8, maxWidth: 280, flex: '1 1 220px' }}
             placeholder={[t('common.fromDate'), t('common.toDate')]}
             onChange={(d) => updateFilter({
               from_date: d?.[0]?.format('YYYY-MM-DD'),

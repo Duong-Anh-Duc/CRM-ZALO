@@ -52,7 +52,7 @@ const PayslipModal: React.FC<Props> = ({ open, periodId, employeeId, periodLabel
       title={t('payroll.payslipTitle')}
       onCancel={onCancel}
       footer={null}
-      width={640}
+      width={Math.min(window.innerWidth * 0.95, 640)}
       destroyOnClose
     >
       {isLoading ? (

@@ -68,7 +68,7 @@ const EmployeeProfileFormModal: React.FC<Props> = ({
       onCancel={onCancel}
       onOk={handleOk}
       confirmLoading={loading}
-      width={600}
+      width={Math.min(window.innerWidth * 0.95, 600)}
       destroyOnClose
     >
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>

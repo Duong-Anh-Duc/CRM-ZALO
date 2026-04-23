@@ -91,6 +91,7 @@ const ProductListPage: React.FC = () => {
       dataIndex: 'is_active',
       key: 'is_active',
       width: 110,
+      responsive: ['lg'] as any,
       render: (active: boolean) => (
         <Tag
           color={active ? 'green' : 'default'}
@@ -178,7 +179,7 @@ const ProductListPage: React.FC = () => {
             placeholder={t('product.searchPlaceholder')}
             prefix={<SearchOutlined />}
             allowClear
-            style={{ width: 260, borderRadius: 8 }}
+            style={{ maxWidth: 260, flex: '1 1 200px', borderRadius: 8 }}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -190,7 +191,7 @@ const ProductListPage: React.FC = () => {
             allowClear
             showSearch
             optionFilterProp="label"
-            style={{ width: 220, borderRadius: 8 }}
+            style={{ maxWidth: 220, flex: '1 1 180px', borderRadius: 8 }}
             value={supplierId}
             onChange={(v) => {
               setSupplierId(v);

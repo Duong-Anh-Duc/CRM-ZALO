@@ -112,7 +112,7 @@ const RolePermissionsDrawer: React.FC<Props> = ({
     <Drawer
       open={open}
       onClose={onClose}
-      width={720}
+      width={Math.min(window.innerWidth * 0.95, 720)}
       destroyOnClose
       styles={{
         body: { padding: 0 },

@@ -284,7 +284,7 @@ const SupplierDebtDetailPage: React.FC = () => {
       </Card>
 
       {/* Modal chi tiết sản phẩm */}
-      <Modal open={modalData?.type === 'items'} title={`${t('order.productDetails')} - ${modalData?.record?.invoice_number || ''}`} footer={null} width={700} onCancel={() => setModalData(null)}>
+      <Modal open={modalData?.type === 'items'} title={`${t('order.productDetails')} - ${modalData?.record?.invoice_number || ''}`} footer={null} width={Math.min(window.innerWidth * 0.95, 700)} onCancel={() => setModalData(null)}>
         {modalData?.type === 'items' && (() => {
           const rec = modalData.record; const items = rec.purchase_order?.items || [];
           return (<>

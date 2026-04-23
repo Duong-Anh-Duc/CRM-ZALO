@@ -85,7 +85,7 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
     <Modal
       open={open}
       title={t('order.createSalesOrder')}
-      width={850}
+      width={Math.min(window.innerWidth * 0.95, 850)}
       onCancel={onClose}
       destroyOnClose
       footer={

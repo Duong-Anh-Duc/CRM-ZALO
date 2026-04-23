@@ -91,7 +91,7 @@ const UserManagementPage: React.FC = () => {
   const columns: ColumnsType<AuthUser> = [
     { title: 'STT', key: 'stt', width: 60, align: 'center', render: (_: unknown, __: unknown, i: number) => (page - 1) * pageSize + i + 1 },
     { title: t('user.fullName'), dataIndex: 'full_name', key: 'full_name', ellipsis: true },
-    { title: t('auth.email'), dataIndex: 'email', key: 'email', ellipsis: true },
+    { title: t('auth.email'), dataIndex: 'email', key: 'email', ellipsis: true, responsive: ['md'] as any },
     {
       title: t('user.role'),
       key: 'role',
@@ -112,7 +112,7 @@ const UserManagementPage: React.FC = () => {
       },
     },
     {
-      title: t('common.status'), dataIndex: 'is_active', key: 'is_active', width: 120, align: 'center',
+      title: t('common.status'), dataIndex: 'is_active', key: 'is_active', width: 120, align: 'center', responsive: ['lg'] as any,
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'} style={{ borderRadius: 8 }}>{v ? t('common.active') : t('common.disabled')}</Tag>,
     },
     {

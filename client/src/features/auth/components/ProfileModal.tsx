@@ -30,7 +30,7 @@ const ProfileModal: React.FC<Props> = ({ open, onClose }) => {
   return (
     <Modal open={open} title={t('auth.profile')} onCancel={onClose} onOk={handleSubmit}
       okText={t('common.update')} cancelText={t('common.cancel')} confirmLoading={mutation.isPending}
-      destroyOnClose width={480} styles={{ body: { paddingTop: 8 } }}>
+      destroyOnClose width={Math.min(window.innerWidth * 0.95, 480)} styles={{ body: { paddingTop: 8 } }}>
       <Descriptions column={1} bordered size="small" style={{ marginBottom: 20, borderRadius: 8 }}>
         <Descriptions.Item label={t('auth.email')}>
           <MailOutlined style={{ marginRight: 8, color: '#8c8c8c' }} />{user?.email}

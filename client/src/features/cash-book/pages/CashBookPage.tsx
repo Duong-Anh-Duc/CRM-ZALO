@@ -68,12 +68,12 @@ const CashBookPage: React.FC = () => {
 
   const columns: any[] = [
     { title: 'STT', key: 'stt', width: 50, align: 'center' as const, render: (_: any, __: any, i: number) => (page - 1) * pageSize + i + 1 },
-    { title: t('cashBook.date'), dataIndex: 'date', key: 'date', width: 110, render: formatDate },
+    { title: t('cashBook.date'), dataIndex: 'date', key: 'date', width: 110, responsive: ['md'] as any, render: formatDate },
     ...(activeTab === 'ALL' ? [{
       title: t('cashBook.type'), key: 'type', width: 80,
       render: (_: any, rec: any) => <Tag color={rec.type === 'INCOME' ? 'green' : 'red'} style={{ borderRadius: 6 }}>{rec.type === 'INCOME' ? t('cashBook.income') : t('cashBook.expense')}</Tag>,
     }] : []),
-    { title: t('cashBook.category'), key: 'category', width: 150, render: (_: any, rec: any) => rec.category?.name || '-' },
+    { title: t('cashBook.category'), key: 'category', width: 150, responsive: ['md'] as any, render: (_: any, rec: any) => rec.category?.name || '-' },
     { title: t('cashBook.content'), dataIndex: 'description', key: 'desc', ellipsis: true },
     {
       title: t('cashBook.amount'), dataIndex: 'amount', key: 'amount', width: 150, align: 'right' as const,
@@ -171,9 +171,9 @@ const CashBookPage: React.FC = () => {
           style={{ marginBottom: 4 }}
         />
 
-        <Space wrap style={{ marginBottom: 12 }}>
-          <Input placeholder={t('cashBook.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ width: 220, borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          <Select placeholder={t('cashBook.filterCategory')} allowClear showSearch optionFilterProp="label" style={{ width: 180, borderRadius: 8 }} value={categoryFilter} onChange={(v) => { setCategoryFilter(v); setPage(1); }} options={categoryOptions} />
+        <Space wrap style={{ marginBottom: 12, width: '100%' }}>
+          <Input placeholder={t('cashBook.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ maxWidth: 240, flex: '1 1 180px', borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <Select placeholder={t('cashBook.filterCategory')} allowClear showSearch optionFilterProp="label" style={{ maxWidth: 200, flex: '1 1 160px', borderRadius: 8 }} value={categoryFilter} onChange={(v) => { setCategoryFilter(v); setPage(1); }} options={categoryOptions} />
         </Space>
 
         <Table
@@ -191,7 +191,7 @@ const CashBookPage: React.FC = () => {
         open={!!detailRecord}
         title={t('cashBook.viewDetail')}
         footer={null}
-        width={500}
+        width={Math.min(window.innerWidth * 0.95, 500)}
         onCancel={() => setDetailRecord(null)}
       >
         {detailRecord && (

@@ -128,7 +128,7 @@ const AuditLogDetailModal: React.FC<Props> = ({ log, open, onClose }) => {
       open={open}
       title={t('auditLog.detailTitle')}
       footer={null}
-      width={720}
+      width={Math.min(window.innerWidth * 0.95, 720)}
       onCancel={onClose}
     >
       <Descriptions column={2} size="small" bordered style={{ marginBottom: 16 }}>

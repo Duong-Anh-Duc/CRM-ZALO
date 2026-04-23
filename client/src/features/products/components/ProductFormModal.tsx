@@ -261,7 +261,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
     <Modal
       open={open}
       title={isEdit ? t('product.editProduct') : t('product.addNewProduct')}
-      width={720}
+      width={Math.min(window.innerWidth * 0.95, 720)}
       onCancel={onClose}
       destroyOnClose
       styles={{ body: { borderRadius: 12 } }}

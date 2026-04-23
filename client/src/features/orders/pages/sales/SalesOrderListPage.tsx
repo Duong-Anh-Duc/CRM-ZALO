@@ -82,7 +82,7 @@ const SalesOrderListPage: React.FC = () => {
     { title: t('order.customer'), key: 'customer', ellipsis: true, render: (_: unknown, record: any) => record.customer?.company_name || record.customer?.contact_name || '-' },
     { title: t('order.orderDate'), dataIndex: 'order_date', key: 'order_date', width: 120, responsive: ['md'], render: (val: string) => formatDate(val) },
     { title: t('order.grandTotal'), dataIndex: 'grand_total', key: 'grand_total', width: 160, align: 'right', render: (val: number) => formatVND(val) },
-    { title: t('common.status'), dataIndex: 'status', key: 'status', width: 140, render: (val: SalesOrderStatus) => <StatusTag status={val} type="sales" /> },
+    { title: t('common.status'), dataIndex: 'status', key: 'status', width: 140, responsive: ['lg'] as any, render: (val: SalesOrderStatus) => <StatusTag status={val} type="sales" /> },
     { title: t('order.expectedDelivery'), dataIndex: 'expected_delivery', key: 'expected_delivery', width: 160, responsive: ['md'], render: (val: string) => formatDate(val) },
     {
       title: t('common.actions'), key: 'actions', width: 100, fixed: 'right' as const,
@@ -147,8 +147,8 @@ const SalesOrderListPage: React.FC = () => {
 
       <Space wrap style={{ marginBottom: 16, width: '100%' }}>
         <Input prefix={<SearchOutlined />} placeholder={t('order.searchPlaceholder')} allowClear value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ width: '100%', maxWidth: 400, borderRadius: 8 }} />
-        <Select value={status} options={statusOptions} onChange={(val) => { setStatus(val); setPage(1); }} style={{ minWidth: 180 }} />
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ maxWidth: 360, flex: '1 1 200px', borderRadius: 8 }} />
+        <Select value={status} options={statusOptions} onChange={(val) => { setStatus(val); setPage(1); }} style={{ maxWidth: 220, flex: '1 1 160px' }} />
         <RangePicker format="DD/MM/YYYY" onChange={(dates) => { setDateRange(dates as any); setPage(1); }}
           style={{ borderRadius: 8 }} placeholder={[t('common.fromDate'), t('common.toDate')]} />
       </Space>

@@ -54,14 +54,47 @@ const CompanyInfoTab: React.FC = () => {
 };
 
 /* ---- Zalo API Config Tab ---- */
-const ApiConfigItem: React.FC<{ name: string; label: string; urlField: string; tokenField: string }> = ({ name, label, urlField, tokenField }) => {
+const ApiConfigItem: React.FC<{
+  titleKey: string;
+  code: string;
+  urlField: string;
+  tokenField: string;
+  enabledField?: string;
+  required?: boolean;
+}> = ({ titleKey, code, urlField, tokenField, enabledField, required = true }) => {
   const { t } = useTranslation();
   return (
-    <Card size="small" title={<span style={{ color: '#1677ff', fontWeight: 600 }}>{name}</span>} style={{ ...cardStyle, marginBottom: 12 }}>
-      <Form.Item name={urlField} label={`${label} URL`} rules={[{ required: true, message: t('zalo.urlRequired') }]} style={{ marginBottom: 8 }}>
+    <Card
+      size="small"
+      title={
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+          <span style={{ color: '#1677ff', fontWeight: 600 }}>{t(titleKey)}</span>
+          <Typography.Text type="secondary" style={{ fontSize: 11, fontWeight: 400 }}>{code}</Typography.Text>
+        </div>
+      }
+      extra={
+        enabledField ? (
+          <Form.Item name={enabledField} valuePropName="checked" noStyle>
+            <Switch checkedChildren={t('zalo.actionEnabled')} unCheckedChildren={t('zalo.actionDisabled')} />
+          </Form.Item>
+        ) : null
+      }
+      style={{ ...cardStyle, marginBottom: 12 }}
+    >
+      <Form.Item
+        name={urlField}
+        label="URL"
+        rules={required ? [{ required: true, message: t('zalo.urlRequired') }] : undefined}
+        style={{ marginBottom: 8 }}
+      >
         <Input placeholder="https://public-api.func.vn/functions/xxxxxx" style={{ borderRadius: 8 }} />
       </Form.Item>
-      <Form.Item name={tokenField} label="API Token" rules={[{ required: true, message: t('zalo.tokenRequired') }]} style={{ marginBottom: 0 }}>
+      <Form.Item
+        name={tokenField}
+        label={t('zalo.apiToken')}
+        rules={required ? [{ required: true, message: t('zalo.tokenRequired') }] : undefined}
+        style={{ marginBottom: 0 }}
+      >
         <Input.Password placeholder="eyJhbGci..." style={{ borderRadius: 8 }} />
       </Form.Item>
     </Card>
@@ -91,52 +124,56 @@ const ZaloConfigTab: React.FC = () => {
           : <Badge status="default" text={t('zalo.notConnected')} />
         }
       >
-        <ApiConfigItem name="FUNC_GET_THREADS" label="Get Threads" urlField="get_threads_url" tokenField="get_threads_token" />
-        <ApiConfigItem name="FUNC_GET_MESSAGES" label="Get Messages" urlField="get_messages_url" tokenField="get_messages_token" />
-        <ApiConfigItem name="GET_GROUP_INFO" label="Group Info" urlField="get_group_info_url" tokenField="get_group_info_token" />
-        <ApiConfigItem name="GET_USER_INFO_V2" label="User Info" urlField="get_user_info_url" tokenField="get_user_info_token" />
+        <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>{t('zalo.sectionRead')}</Typography.Title>
+        <ApiConfigItem titleKey="zalo.api.getThreads" code="FUNC_GET_THREADS" urlField="get_threads_url" tokenField="get_threads_token" />
+        <ApiConfigItem titleKey="zalo.api.getMessages" code="FUNC_GET_MESSAGES" urlField="get_messages_url" tokenField="get_messages_token" />
+        <ApiConfigItem titleKey="zalo.api.getGroupInfo" code="GET_GROUP_INFO" urlField="get_group_info_url" tokenField="get_group_info_token" />
+        <ApiConfigItem titleKey="zalo.api.getUserInfo" code="GET_USER_INFO_V2" urlField="get_user_info_url" tokenField="get_user_info_token" />
 
         <Divider />
 
-        {/* Send / Reply / Typing API for auto-reply */}
-        <Card
-          size="small"
-          title={<span style={{ color: '#1677ff', fontWeight: 600 }}>USER_SEND_MESSAGE</span>}
-          style={{ ...cardStyle, marginBottom: 12 }}
-        >
-          <Form.Item name="send_message_url" label={t('zalo.sendMessageUrl')} style={{ marginBottom: 8 }}>
-            <Input placeholder="https://public-api.func.vn/functions/xxxxxx" style={{ borderRadius: 8 }} />
-          </Form.Item>
-          <Form.Item name="send_message_token" label={t('zalo.sendMessageToken')} style={{ marginBottom: 0 }}>
-            <Input.Password placeholder="eyJhbGci..." style={{ borderRadius: 8 }} />
-          </Form.Item>
-        </Card>
+        {/* Send / Reply / Typing / Images API (user DM) */}
+        <Typography.Title level={5} style={{ marginBottom: 12 }}>{t('zalo.sectionUser')}</Typography.Title>
+        <ApiConfigItem
+          titleKey="zalo.api.userSendMessage" code="USER_SEND_MESSAGE"
+          urlField="send_message_url" tokenField="send_message_token"
+          enabledField="send_message_enabled" required={false}
+        />
+        <ApiConfigItem
+          titleKey="zalo.api.userReplyMessage" code="USER_REPLY_MESSAGE"
+          urlField="reply_message_url" tokenField="reply_message_token"
+          enabledField="reply_message_enabled" required={false}
+        />
+        <ApiConfigItem
+          titleKey="zalo.api.userSendTyping" code="USER_SEND_TYPING"
+          urlField="send_typing_url" tokenField="send_typing_token"
+          enabledField="send_typing_enabled" required={false}
+        />
+        <ApiConfigItem
+          titleKey="zalo.api.userSendImages" code="USER_SEND_IMAGES"
+          urlField="send_images_url" tokenField="send_images_token"
+          enabledField="send_images_enabled" required={false}
+        />
 
-        <Card
-          size="small"
-          title={<span style={{ color: '#1677ff', fontWeight: 600 }}>USER_REPLY_MESSAGE</span>}
-          style={{ ...cardStyle, marginBottom: 12 }}
-        >
-          <Form.Item name="reply_message_url" label={t('zalo.replyMessageUrl')} style={{ marginBottom: 8 }}>
-            <Input placeholder="https://public-api.func.vn/functions/xxxxxx" style={{ borderRadius: 8 }} />
-          </Form.Item>
-          <Form.Item name="reply_message_token" label={t('zalo.replyMessageToken')} style={{ marginBottom: 0 }}>
-            <Input.Password placeholder="eyJhbGci..." style={{ borderRadius: 8 }} />
-          </Form.Item>
-        </Card>
+        <Divider />
 
-        <Card
-          size="small"
-          title={<span style={{ color: '#1677ff', fontWeight: 600 }}>USER_SEND_TYPING</span>}
-          style={{ ...cardStyle, marginBottom: 12 }}
-        >
-          <Form.Item name="send_typing_url" label={t('zalo.sendTypingUrl')} style={{ marginBottom: 8 }}>
-            <Input placeholder="https://public-api.func.vn/functions/xxxxxx" style={{ borderRadius: 8 }} />
-          </Form.Item>
-          <Form.Item name="send_typing_token" label={t('zalo.sendTypingToken')} style={{ marginBottom: 0 }}>
-            <Input.Password placeholder="eyJhbGci..." style={{ borderRadius: 8 }} />
-          </Form.Item>
-        </Card>
+        {/* Group APIs */}
+        <Typography.Title level={5} style={{ marginBottom: 12 }}>{t('zalo.sectionGroup')}</Typography.Title>
+        <ApiConfigItem
+          titleKey="zalo.api.groupSendMessage" code="GROUP_SEND_MESSAGE"
+          urlField="group_send_message_url" tokenField="group_send_message_token"
+          enabledField="group_send_message_enabled" required={false}
+        />
+        <ApiConfigItem
+          titleKey="zalo.api.groupSendImage" code="GROUP_SEND_IMAGE"
+          urlField="group_send_image_url" tokenField="group_send_image_token"
+          enabledField="group_send_image_enabled" required={false}
+        />
+        <ApiConfigItem
+          titleKey="zalo.api.groupReplyMessage" code="GROUP_REPLY_MESSAGE"
+          urlField="group_reply_message_url" tokenField="group_reply_message_token"
+          enabledField="group_reply_message_enabled" required={false}
+        />
 
         <Divider />
 

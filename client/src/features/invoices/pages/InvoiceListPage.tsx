@@ -87,7 +87,7 @@ const InvoiceListPage: React.FC = () => {
       responsive: ['lg'] as any,
     },
     {
-      title: t('invoice.status'), dataIndex: 'status', key: 'status', width: 120,
+      title: t('invoice.status'), dataIndex: 'status', key: 'status', width: 120, responsive: ['lg'] as any,
       render: (s: string) => {
         const cfg = statusConfig[s] || { color: 'default', label: s };
         return <Tag color={cfg.color} style={{ borderRadius: 6 }}>{cfg.label}</Tag>;
@@ -140,14 +140,14 @@ const InvoiceListPage: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             allowClear
-            style={{ width: '100%', maxWidth: 300, borderRadius: 8 }}
+            style={{ maxWidth: 300, flex: '1 1 200px', borderRadius: 8 }}
           />
           <Select
             placeholder={t('invoice.status')}
             value={status}
             onChange={(v) => { setStatus(v); setPage(1); }}
             allowClear
-            style={{ minWidth: 140, borderRadius: 8 }}
+            style={{ maxWidth: 180, flex: '1 1 140px', borderRadius: 8 }}
             options={[
               { label: t('common.all'), value: '' },
               { label: t('invoice.statusDraft'), value: 'DRAFT' },
