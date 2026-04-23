@@ -119,8 +119,41 @@ export class PurchaseOrderService {
       include: { supplier: true, items: true },
     });
 
-    await delCache('cache:/api/purchase-orders*', 'cache:/api/dashboard*');
+    // Seed supplier_prices for any (supplier, product) pairs not yet in the price catalog.
+    // Preserves existing manual prices — only fills gaps so "Sản phẩm cung cấp" matches reality.
+    await this.syncSupplierPricesFromItems(input.supplier_id, items).catch((err) =>
+      logger.warn(`syncSupplierPricesFromItems failed: ${err.message}`),
+    );
+
+    await delCache('cache:/api/purchase-orders*', 'cache:/api/dashboard*', 'cache:/api/suppliers*');
     return order;
+  }
+
+  private static async syncSupplierPricesFromItems(
+    supplierId: string,
+    items: Array<{ product_id: string; unit_price: number; quantity: number }>,
+  ): Promise<void> {
+    if (!items.length) return;
+    const productIds = [...new Set(items.map((i) => i.product_id))];
+    const existing = await prisma.supplierPrice.findMany({
+      where: { supplier_id: supplierId, product_id: { in: productIds } },
+      select: { product_id: true },
+    });
+    const existingSet = new Set(existing.map((e) => e.product_id));
+    const toCreate = items
+      .filter((i) => !existingSet.has(i.product_id))
+      // dedupe if same product appears in multiple items on the same PO
+      .filter((i, idx, arr) => arr.findIndex((x) => x.product_id === i.product_id) === idx)
+      .map((i) => ({
+        supplier_id: supplierId,
+        product_id: i.product_id,
+        purchase_price: i.unit_price,
+        moq: i.quantity > 0 ? i.quantity : null,
+        is_preferred: false,
+      }));
+    if (toCreate.length > 0) {
+      await prisma.supplierPrice.createMany({ data: toCreate, skipDuplicates: true });
+    }
   }
 
   static async update(id: string, data: { notes?: string; expected_delivery?: string }) {

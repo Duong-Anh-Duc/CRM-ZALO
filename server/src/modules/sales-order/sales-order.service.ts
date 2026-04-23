@@ -203,8 +203,36 @@ export class SalesOrderService {
       }
     }
 
-    await delCache('cache:/api/sales-orders*', 'cache:/api/dashboard*');
+    // Seed customer_product_prices for any (customer, product) pairs not yet in the price catalog.
+    // Preserves existing manual prices — only fills gaps so per-customer catalog reflects reality.
+    await this.syncCustomerPricesFromItems(input.customer_id, enrichedItems).catch(() => {});
+
+    await delCache('cache:/api/sales-orders*', 'cache:/api/dashboard*', 'cache:/api/customers*');
     return order;
+  }
+
+  private static async syncCustomerPricesFromItems(
+    customerId: string,
+    items: Array<{ product_id?: string | null; unit_price: number }>,
+  ): Promise<void> {
+    const withProduct = items.filter(
+      (i): i is { product_id: string; unit_price: number } =>
+        Boolean(i.product_id) && i.unit_price > 0,
+    );
+    if (!withProduct.length) return;
+    const productIds = [...new Set(withProduct.map((i) => i.product_id))];
+    const existing = await prisma.customerProductPrice.findMany({
+      where: { customer_id: customerId, product_id: { in: productIds } },
+      select: { product_id: true },
+    });
+    const existingSet = new Set(existing.map((e) => e.product_id));
+    const toCreate = withProduct
+      .filter((i) => !existingSet.has(i.product_id))
+      .filter((i, idx, arr) => arr.findIndex((x) => x.product_id === i.product_id) === idx)
+      .map((i) => ({ customer_id: customerId, product_id: i.product_id, price: i.unit_price }));
+    if (toCreate.length > 0) {
+      await prisma.customerProductPrice.createMany({ data: toCreate, skipDuplicates: true });
+    }
   }
 
   // Auto-create POs grouped by supplier when SO is confirmed
