@@ -35,6 +35,64 @@ Script `deploy.sh` sẽ tự động:
 
 Thời gian: ~40-60s cho mỗi lần deploy.
 
+## 2.1 Việc cần làm thủ công sau deploy (chỉ khi commit có thay đổi)
+
+`deploy.sh` CHỈ làm schema sync + build + restart. Nếu commit có thêm **Zalo API mới**, **backfill data**, hoặc **seed ZaloConfig fields mới**, phải chạy thêm các bước dưới.
+
+### 2.1.1 Seed ZaloConfig — URL + Token các API Func.vn mới
+
+Mỗi khi thêm API Zalo mới vào `ZaloConfig` (VD: `GROUP_SEND_MESSAGE`, `GROUP_SEND_IMAGE`, `GROUP_REPLY_MESSAGE`), cần chạy SQL sau với URL+token thực:
+
+```bash
+sshpass -p 'PASSWORD' ssh techla@192.168.1.229 \
+  "PGPASSWORD='zE3rD1F1mizPtsXwgHTtnt9h' psql -h localhost -U packflow -d packflow_crm" <<'SQL'
+UPDATE zalo_configs SET
+  group_send_message_url   = 'https://public-api.func.vn/functions/<ID>',
+  group_send_message_token = 'eyJhbGci...',
+  group_send_image_url     = '...',
+  group_send_image_token   = '...',
+  group_reply_message_url   = '...',
+  group_reply_message_token = '...',
+  updated_at = NOW()
+WHERE is_active = true;
+SQL
+```
+
+Hoặc vào UI **Cài đặt → Tích hợp Zalo** điền các trường rồi bấm "Lưu" (cách dễ hơn).
+
+### 2.1.2 Chạy backfill scripts (khi commit có thay đổi business logic)
+
+Hiện có 2 script backfill đồng bộ bảng catalog với transaction data:
+
+```bash
+# Backfill supplier_prices từ purchase_order_items
+sshpass -p 'PASSWORD' ssh techla@192.168.1.229 \
+  'cd ~/packflow-crm/server && yarn tsx scripts/backfill-supplier-prices.ts'
+
+# Backfill customer_product_prices từ sales_order_items
+sshpass -p 'PASSWORD' ssh techla@192.168.1.229 \
+  'cd ~/packflow-crm/server && yarn tsx scripts/backfill-customer-prices.ts'
+```
+
+**Khi nào cần chạy**: chỉ lần ĐẦU sau commit thêm auto-upsert, hoặc khi phát hiện data drift. Các PO/SO TẠO MỚI sau đó sẽ tự sync (không cần chạy lại).
+
+### 2.1.3 Embed products cho semantic search (khi thêm nhiều SP mới)
+
+```bash
+sshpass -p 'PASSWORD' ssh techla@192.168.1.229 \
+  'cd ~/packflow-crm/server && yarn tsx scripts/embed-products.ts'
+```
+
+Script này chỉ re-embed những SP có hash thay đổi, nên an toàn chạy bất cứ lúc nào.
+
+### 2.1.4 Checklist sau deploy
+
+- [ ] `pm2 list` thấy `packflow-crm` **online**
+- [ ] `pm2 logs packflow-crm --lines 30 --nostream` không có `[error]`
+- [ ] Mở https://`<domain>`/ đăng nhập được
+- [ ] Nếu thay đổi ZaloConfig → test gửi 1 tin nhắn qua UI Zalo hoặc Aura
+- [ ] Nếu backfill → vào trang chi tiết 1 supplier/customer xem số sản phẩm có khớp đơn không
+
 ## 3. Setup lần đầu / khi đổi VPS
 
 ### 3.1 Clone repo + .env

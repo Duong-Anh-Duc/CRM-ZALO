@@ -1017,6 +1017,130 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
       parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
     },
   },
+  // ─── Zalo (messages + threads + send) ───
+  {
+    type: 'function',
+    function: {
+      name: 'get_zalo_messages',
+      description: 'Đọc tin nhắn Zalo đã sync (incoming + outgoing) từ DB. Lọc theo thời gian (hôm nay/tuần này/khoảng ngày), theo tên, sender_id hoặc group_id. Dùng khi user hỏi "tin nhắn zalo hôm nay", "tôi có nhắn với {tên} không", "tóm tắt hội thoại với {tên}".',
+      parameters: {
+        type: 'object',
+        properties: {
+          range: { type: 'string', enum: ['today', 'yesterday', 'week', 'month', 'all', 'custom'], description: 'Khoảng thời gian — mặc định "all" nếu hỏi "tôi có nhắn với ai không"' },
+          from_date: { type: 'string', description: 'YYYY-MM-DD (dùng khi range=custom)' },
+          to_date: { type: 'string', description: 'YYYY-MM-DD (dùng khi range=custom)' },
+          search: { type: 'string', description: 'Tìm theo TÊN người gửi (sender_name) hoặc NỘI DUNG tin nhắn — case-insensitive. Ưu tiên khi user hỏi theo tên như "Trần Trung Kiên"' },
+          sender_id: { type: 'string', description: 'Lọc theo 1 user_id cụ thể (nếu biết chính xác)' },
+          group_id: { type: 'string', description: 'Lọc theo 1 group_id cụ thể' },
+          direction: { type: 'string', enum: ['INCOMING', 'OUTGOING', 'ALL'], description: 'Mặc định ALL' },
+          limit: { type: 'number', description: 'Số tin tối đa (mặc định 100, max 300)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_zalo_threads',
+      description: 'Liệt kê các hội thoại Zalo (distinct sender_id/group_id) kèm last message + số tin. Có thể tìm theo tên người chat. Dùng khi user hỏi "tôi có nhắn với {tên} không", "có ai nhắn chưa rep", "danh sách khách đang chat".',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: ['user', 'group', 'all'], description: 'Mặc định all' },
+          search: { type: 'string', description: 'Tìm theo TÊN người/nhóm (sender_name) — case-insensitive. VD "Trần Trung Kiên"' },
+          limit: { type: 'number', description: 'Mặc định 20' },
+          since_days: { type: 'number', description: 'Chỉ lấy thread có hoạt động trong N ngày (mặc định 30, dùng 365 nếu muốn tìm toàn bộ)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'send_zalo_message',
+      description: 'Gửi tin nhắn tới 1 user Zalo (DM). Cần user_id (sender_id của Zalo). Nếu user nói theo TÊN ("nhắn cho Trần Trung Kiên là X"), TRƯỚC KHI GỬI phải:\n1. Gọi list_zalo_threads(search:"tên") để tìm sender_id, HOẶC search_customer/search_supplier(query:"tên") để lấy zalo_user_id.\n2. CÓ user_id → gọi tool NGAY, không hỏi lại. Nếu user đã nói đủ nội dung (VD "nhắn là chào em") thì GỬI LUÔN.\n3. Chỉ hỏi lại khi: tìm thấy >1 người cùng tên (ambiguous), hoặc user_id KHÔNG tìm được.\n4. Sau khi tool trả về thành công, báo lại ngắn gọn. KHÔNG hỏi "anh cần thêm gì không" — dư thừa.',
+      parameters: {
+        type: 'object',
+        properties: {
+          user_id: { type: 'string', description: 'sender_id/user_id Zalo' },
+          content: { type: 'string', description: 'Nội dung tin nhắn' },
+        },
+        required: ['user_id', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'send_zalo_group_message',
+      description: 'Gửi tin nhắn vào group Zalo. Dùng khi user ra lệnh "nhắn vào nhóm {group} là ...". HỎI USER XÁC NHẬN trước khi gửi.',
+      parameters: {
+        type: 'object',
+        properties: {
+          group_id: { type: 'string', description: 'Zalo group_id' },
+          content: { type: 'string', description: 'Nội dung tin nhắn' },
+        },
+        required: ['group_id', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_zalo_auto_reply',
+      description: 'Bật/tắt auto-reply AI cho 1 thread Zalo cụ thể (thread_key = sender_id với DM, group_id với group). Dùng khi user ra lệnh "tắt bot cho {khách/group}", "bật auto-reply cho ...".',
+      parameters: {
+        type: 'object',
+        properties: {
+          thread_key: { type: 'string', description: 'sender_id (DM) hoặc group_id' },
+          enabled: { type: 'boolean', description: 'true để bật, false để tắt' },
+        },
+        required: ['thread_key', 'enabled'],
+      },
+    },
+  },
+  // ─── AI Training (huấn luyện AI) ───
+  {
+    type: 'function',
+    function: {
+      name: 'list_ai_training',
+      description: 'Liệt kê tất cả kiến thức đã huấn luyện cho Aura (business rules, product aliases, order examples, customer info). Dùng khi user hỏi "em đã được dạy những gì", "xem kiến thức đã học".',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', description: 'Lọc theo category: PRODUCT_ALIAS, ORDER_EXAMPLE, CORRECTION, BUSINESS_RULE, CUSTOMER_INFO' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_ai_training',
+      description: 'Thêm 1 kiến thức mới vào cơ sở huấn luyện Aura. Dùng khi user nói "nhớ cho anh là...", "từ giờ nếu KH nói X thì Y", "sản phẩm ABC còn được gọi là XYZ".',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', enum: ['PRODUCT_ALIAS', 'ORDER_EXAMPLE', 'CORRECTION', 'BUSINESS_RULE', 'CUSTOMER_INFO'], description: 'Loại kiến thức' },
+          title: { type: 'string', description: 'Tiêu đề ngắn' },
+          content: { type: 'string', description: 'Nội dung chi tiết' },
+        },
+        required: ['category', 'title', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_ai_training',
+      description: 'Xoá 1 kiến thức khỏi huấn luyện. Dùng khi user nói "quên cái X đi", "xoá rule về Y".',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+    },
+  },
   // ─── Help ───
   {
     type: 'function',
@@ -1139,7 +1263,8 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       if (customers.length === 0) return 'Không tìm thấy khách hàng nào.';
       return customers.map((c, i) => {
         const debt = c.receivables.reduce((s, r) => s + Number(r.remaining), 0);
-        return `${i + 1}. ${c.company_name || c.contact_name} [id:${c.id}] | SĐT: ${c.phone || '-'} | ${c._count.sales_orders} đơn | Nợ: ${debt.toLocaleString()} VND`;
+        const zalo = c.zalo_user_id ? ` | Zalo ID: ${c.zalo_user_id}` : '';
+        return `${i + 1}. ${c.company_name || c.contact_name} [id:${c.id}] | SĐT: ${c.phone || '-'}${zalo} | ${c._count.sales_orders} đơn | Nợ: ${debt.toLocaleString()} VND`;
       }).join('\n');
     }
     case 'get_order_detail': {
@@ -1163,7 +1288,10 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
         take: 10,
       });
       if (suppliers.length === 0) return 'Không tìm thấy NCC.';
-      return suppliers.map((s, i) => `${i + 1}. ${s.company_name} [id:${s.id}] | SĐT: ${s.phone || '-'}`).join('\n');
+      return suppliers.map((s, i) => {
+        const zalo = s.zalo_user_id ? ` | Zalo ID: ${s.zalo_user_id}` : '';
+        return `${i + 1}. ${s.company_name} [id:${s.id}] | SĐT: ${s.phone || '-'}${zalo}`;
+      }).join('\n');
     }
     case 'search_product': {
       const q = args.query || '';
@@ -1649,6 +1777,149 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       });
       return `✅ Đã xoá danh mục chi phí VH "${c.name}" [id:${c.id}]`;
     }
+    // ─── Zalo tools ───
+    case 'get_zalo_messages': {
+      const now = dayjs();
+      let start: dayjs.Dayjs | null = null;
+      let end: dayjs.Dayjs | null = null;
+      switch (args.range || 'today') {
+        case 'today':     start = now.startOf('day');       end = now.endOf('day'); break;
+        case 'yesterday': start = now.subtract(1, 'day').startOf('day'); end = now.subtract(1, 'day').endOf('day'); break;
+        case 'week':      start = now.startOf('week');      end = now.endOf('week'); break;
+        case 'month':     start = now.startOf('month');     end = now.endOf('month'); break;
+        case 'all':       break;
+        case 'custom':
+          if (args.from_date) start = dayjs(args.from_date).startOf('day');
+          if (args.to_date)   end = dayjs(args.to_date).endOf('day');
+          break;
+      }
+      const where: any = {};
+      if (start) where.created_at = { gte: start.toDate() };
+      if (end)   where.created_at = { ...(where.created_at || {}), lte: end.toDate() };
+      if (args.sender_id) where.sender_id = args.sender_id;
+      if (args.group_id)  where.group_id = args.group_id;
+      if (args.direction && args.direction !== 'ALL') where.direction = args.direction;
+      if (args.search) {
+        where.OR = [
+          { sender_name: { contains: args.search, mode: 'insensitive' } },
+          { content: { contains: args.search, mode: 'insensitive' } },
+        ];
+      }
+      const limit = Math.min(args.limit ?? 100, 300);
+      const msgs = await prisma.zaloMessage.findMany({
+        where, orderBy: { created_at: 'desc' }, take: limit,
+        select: { id: true, direction: true, sender_id: true, sender_name: true, group_id: true, content: true, msg_type: true, created_at: true },
+      });
+      if (msgs.length === 0) {
+        return args.search
+          ? `Không tìm thấy tin nhắn nào khớp "${args.search}".`
+          : 'Không có tin nhắn Zalo nào trong khoảng này.';
+      }
+      return msgs.reverse().map((m) => {
+        const t = dayjs(m.created_at).format('DD/MM HH:mm');
+        const who = m.direction === 'OUTGOING' ? '→ shop' : `← ${m.sender_name || m.sender_id?.slice(0, 8) || '?'}`;
+        const loc = m.group_id ? ` [group:${m.group_id.slice(0, 8)}]` : '';
+        const content = (m.content || '').replace(/\n/g, ' ').slice(0, 280);
+        return `${t} ${who}${loc}: ${content}`;
+      }).join('\n');
+    }
+    case 'list_zalo_threads': {
+      const sinceDays = args.since_days ?? 30;
+      const since = dayjs().subtract(sinceDays, 'day').toDate();
+      const where: any = { created_at: { gte: since } };
+      if (args.type === 'user')  where.group_id = null;
+      if (args.type === 'group') where.group_id = { not: null };
+      if (args.search) {
+        where.sender_name = { contains: args.search, mode: 'insensitive' };
+      }
+      const msgs = await prisma.zaloMessage.findMany({
+        where, orderBy: { created_at: 'desc' },
+        select: { sender_id: true, sender_name: true, group_id: true, direction: true, content: true, created_at: true },
+      });
+      const threads = new Map<string, { key: string; name: string; is_group: boolean; last_at: Date; last_content: string; last_direction: string; incoming: number; total: number }>();
+      for (const m of msgs) {
+        const key = m.group_id || m.sender_id || '';
+        if (!key) continue;
+        if (!threads.has(key)) {
+          threads.set(key, {
+            key,
+            name: m.sender_name || (m.group_id ? `Group ${key.slice(0, 8)}` : `User ${key.slice(0, 8)}`),
+            is_group: Boolean(m.group_id),
+            last_at: m.created_at,
+            last_content: m.content || '',
+            last_direction: m.direction,
+            incoming: 0,
+            total: 0,
+          });
+        }
+        const t = threads.get(key)!;
+        t.total++;
+        if (m.direction === 'INCOMING') t.incoming++;
+      }
+      const limit = args.limit ?? 20;
+      const list = [...threads.values()].sort((a, b) => b.last_at.getTime() - a.last_at.getTime()).slice(0, limit);
+      if (list.length === 0) {
+        return args.search
+          ? `Không tìm thấy thread Zalo nào có tên chứa "${args.search}" trong ${sinceDays} ngày qua.`
+          : `Không có thread Zalo hoạt động trong ${sinceDays} ngày qua.`;
+      }
+      return list.map((t, i) => {
+        const dir = t.last_direction === 'OUTGOING' ? '→' : '←';
+        const time = dayjs(t.last_at).format('DD/MM HH:mm');
+        const tag = t.is_group ? '[GROUP]' : '[DM]';
+        return `${i + 1}. ${tag} ${t.name} [key:${t.key}] | ${t.total} tin (${t.incoming} đến) | ${time} ${dir} ${(t.last_content || '').slice(0, 80)}`;
+      }).join('\n');
+    }
+    case 'send_zalo_message': {
+      if (!args.user_id || !args.content) return '❌ Thiếu user_id hoặc content';
+      const recent = await prisma.zaloMessage.findFirst({
+        where: { sender_id: args.user_id },
+        orderBy: { created_at: 'desc' },
+        select: { sender_name: true },
+      });
+      const name = recent?.sender_name || args.user_id;
+      const { ZaloService } = await import('../zalo/zalo.service');
+      const result = await ZaloService.sendMessage(args.user_id, args.content);
+      const msgId = result?.data?.msg_id || result?.msg_id || 'n/a';
+      return `✅ Đã gửi thành công đến "${name}" (user_id=${args.user_id}, msg_id=${msgId}). Nội dung: "${args.content}"`;
+    }
+    case 'send_zalo_group_message': {
+      if (!args.group_id || !args.content) return '❌ Thiếu group_id hoặc content';
+      const { ZaloService } = await import('../zalo/zalo.service');
+      const result = await ZaloService.groupSendMessage(args.group_id, args.content);
+      const msgId = result?.data?.msg_id || result?.msg_id || 'n/a';
+      return `✅ Đã gửi vào group (group_id=${args.group_id}, msg_id=${msgId}). Nội dung: "${args.content}"`;
+    }
+    case 'set_zalo_auto_reply': {
+      if (!args.thread_key || typeof args.enabled !== 'boolean') return '❌ Thiếu thread_key hoặc enabled';
+      const thread = await prisma.zaloThread.upsert({
+        where: { thread_key: args.thread_key },
+        update: { auto_reply_enabled: args.enabled },
+        create: { thread_key: args.thread_key, auto_reply_enabled: args.enabled },
+      });
+      return `✅ Đã ${args.enabled ? 'BẬT' : 'TẮT'} auto-reply cho thread ${thread.thread_key}`;
+    }
+    // ─── AI Training handlers ───
+    case 'list_ai_training': {
+      const { AiTrainingService } = await import('./ai-training.service');
+      const list = await AiTrainingService.list(args.category);
+      if (list.length === 0) return 'Chưa có kiến thức nào được huấn luyện.';
+      return list.map((e, i) => `${i + 1}. [${e.category}] ${e.title} [id:${e.id}]\n   ${e.content.slice(0, 200)}`).join('\n');
+    }
+    case 'add_ai_training': {
+      if (!args.category || !args.title || !args.content) return '❌ Thiếu category/title/content';
+      const { AiTrainingService } = await import('./ai-training.service');
+      const e = await AiTrainingService.create({ category: args.category, title: args.title, content: args.content });
+      cachedContext = null; // invalidate system context so new training takes effect immediately
+      return `✅ Đã thêm kiến thức "${e.title}" vào [${e.category}] [id:${e.id}]`;
+    }
+    case 'delete_ai_training': {
+      if (!args.id) return '❌ Thiếu id';
+      const { AiTrainingService } = await import('./ai-training.service');
+      await AiTrainingService.remove(args.id);
+      cachedContext = null;
+      return `✅ Đã xoá kiến thức [id:${args.id}]`;
+    }
     // ─── Help ───
     case 'help': {
       return tools.map((t) => {
@@ -1658,6 +1929,32 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
     }
     default: return 'Không hỗ trợ công cụ này.';
   }
+}
+
+/**
+ * Strip markdown bold/italic/heading markers from a complete string.
+ * Used for non-streaming responses and final flush.
+ */
+function stripMarkdown(s: string): string {
+  return s
+    .replace(/\*\*/g, '')
+    .replace(/__/g, '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^>\s*/gm, '')
+    .replace(/^[-*]\s/gm, '• ');
+}
+
+/**
+ * Streaming-safe markdown stripper. Buffers trailing chars that could be
+ * the start of a multi-char marker (**, __) and returns safe output + remainder.
+ */
+function stripMarkdownStream(buf: string): { safe: string; remainder: string } {
+  // Keep last 1 char pending in case it starts a "**" or "__" marker
+  const lastChar = buf.slice(-1);
+  const pending = lastChar === '*' || lastChar === '_' ? 1 : 0;
+  const safe = stripMarkdown(buf.slice(0, buf.length - pending));
+  const remainder = buf.slice(buf.length - pending);
+  return { safe, remainder };
 }
 
 export class ChatbotService {
@@ -1682,6 +1979,9 @@ export class ChatbotService {
       prisma.payable.count({ where: { status: 'OVERDUE' } }),
     ]);
 
+    const { AiTrainingService } = await import('./ai-training.service');
+    const trainingContext = await AiTrainingService.buildTrainingContext().catch(() => '');
+
     cachedContext = `
 === DỮ LIỆU PACKFLOW CRM (${now.format('DD/MM/YYYY HH:mm')}) ===
 Sản phẩm: ${productCount} | Khách hàng: ${customerCount} | NCC: ${supplierCount}
@@ -1689,7 +1989,7 @@ Sản phẩm: ${productCount} | Khách hàng: ${customerCount} | NCC: ${supplier
 Đơn mua: ${poStats.map(s => `${s.status}: ${s._count}`).join(', ')}
 Phải thu: ${recSummary._count} HĐ, gốc ${Number(recSummary._sum.original_amount || 0).toLocaleString()}, còn ${Number(recSummary._sum.remaining || 0).toLocaleString()} VND (${overdueRec} quá hạn)
 Phải trả: ${paySummary._count} HĐ, gốc ${Number(paySummary._sum.original_amount || 0).toLocaleString()}, còn ${Number(paySummary._sum.remaining || 0).toLocaleString()} VND (${overduePay} quá hạn)
-Sổ quỹ: Thu ${Number(cashIncome._sum.amount || 0).toLocaleString()}, Chi ${Number(cashExpense._sum.amount || 0).toLocaleString()}, Dư ${(Number(cashIncome._sum.amount || 0) - Number(cashExpense._sum.amount || 0)).toLocaleString()} VND
+Sổ quỹ: Thu ${Number(cashIncome._sum.amount || 0).toLocaleString()}, Chi ${Number(cashExpense._sum.amount || 0).toLocaleString()}, Dư ${(Number(cashIncome._sum.amount || 0) - Number(cashExpense._sum.amount || 0)).toLocaleString()} VND${trainingContext ? `\n\n${trainingContext}` : ''}
 `.trim();
     cacheTime = Date.now();
     return cachedContext;
@@ -1725,8 +2025,19 @@ Sổ quỹ: Thu ${Number(cashIncome._sum.amount || 0).toLocaleString()}, Chi ${N
           content: `Bạn tên là Aura — trợ lý AI của PackFlow CRM (quản lý kinh doanh bao bì nhựa).
 Xưng "em", gọi user "anh". Lịch sự, chuyên nghiệp.
 
-Format: KHÔNG markdown (**, ##, -). Dùng "•" liệt kê. Số tiền: xxx.xxx VND.
-Mở đầu bằng "Dạ,...", kết thúc hỏi thêm.
+FORMAT — CỰC KỲ QUAN TRỌNG:
+- TUYỆT ĐỐI KHÔNG dùng dấu ** để bold. VD SAI: "**Trần Trung Kiên**", "**Tổng số tin:** 50". VD ĐÚNG: "Trần Trung Kiên", "Tổng số tin: 50".
+- KHÔNG dùng ##, ###, __, \`code\`, ---, > blockquote, bảng markdown.
+- Liệt kê dùng "•" đầu dòng, KHÔNG dùng "-" hoặc "*".
+- Số tiền: "123.456 VND" (dấu chấm ngăn cách).
+- Nếu muốn nhấn mạnh, viết hoa "QUÁ HẠN" hoặc ngoặc đơn, KHÔNG dùng **.
+- Trả lời GỌN. Thông tin đơn giản → 1-2 câu. Không cần "Dạ,..." mỗi câu.
+
+HÀNH ĐỘNG — CỰC KỲ QUAN TRỌNG:
+- Khi user ra LỆNH TRỰC TIẾP (VD "nhắn cho X là Y", "tạo đơn cho KH Z", "xoá SP A"), THỰC HIỆN NGAY qua tool. KHÔNG hỏi xác nhận nếu đã đủ thông tin.
+- KHÔNG hỏi dư thừa kiểu "anh có muốn thêm gì không", "anh cần em làm gì nữa". Nếu user đã nói đủ, làm ngay.
+- TUYỆT ĐỐI KHÔNG nói "em đã làm xong" / "đã gửi" / "đã tạo" NẾU CHƯA gọi tool và nhận được kết quả thành công. Nếu không gọi được tool (thiếu info, ambiguous) thì nói thẳng "em cần thêm thông tin X" — KHÔNG BỊA ra kết quả.
+- Sau khi tool trả về thành công, báo lại NGẮN, có thể kèm tên đối tượng + ID để user verify, KHÔNG hỏi lại.
 
 BẠN CÓ QUYỀN THỰC HIỆN HÀNH ĐỘNG (không chỉ đọc):
 - Tạo/sửa/XÓA KH: create_customer, update_customer, delete_customer
@@ -1801,10 +2112,16 @@ ${systemContext}`,
             model: modelName,
             messages, temperature: 0.3, max_tokens: 1500, stream: true,
           });
+          let buf = '';
           for await (const chunk of stream) {
             const delta = chunk.choices[0]?.delta?.content;
-            if (delta) yield delta;
+            if (!delta) continue;
+            buf += delta;
+            const { safe, remainder } = stripMarkdownStream(buf);
+            if (safe) yield safe;
+            buf = remainder;
           }
+          if (buf) yield stripMarkdown(buf);
           return;
         }
 
@@ -1827,10 +2144,16 @@ ${systemContext}`,
         model: modelName,
         messages, temperature: 0.3, max_tokens: 1500, stream: true,
       });
+      let buf2 = '';
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content;
-        if (delta) yield delta;
+        if (!delta) continue;
+        buf2 += delta;
+        const { safe, remainder } = stripMarkdownStream(buf2);
+        if (safe) yield safe;
+        buf2 = remainder;
       }
+      if (buf2) yield stripMarkdown(buf2);
     } catch (err) {
       logger.error('Chatbot error:', err);
       yield 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.';

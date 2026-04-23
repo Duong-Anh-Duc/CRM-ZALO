@@ -18,7 +18,6 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  MessageOutlined,
   CloseOutlined,
   RollbackOutlined,
   WalletOutlined,
@@ -140,7 +139,6 @@ const AppLayout: React.FC = () => {
   const menuItems: MenuProps['items'] = (() => {
     const base = buildMenuItems(t, hasPermission);
     const toolsAndAdmin: MenuItem[] = [
-      hasPermission('zalo.view') && { key: '/zalo', icon: <MessageOutlined />, label: t('menu.zalo') },
       hasPermission('user.view') && { key: '/users', icon: <UserOutlined />, label: t('menu.users') },
       hasPermission('audit_log.view') && { key: '/audit-logs', icon: <FileSearchOutlined />, label: t('auditLog.menuTitle') },
       hasPermission('role.manage') && { key: '/admin/roles', icon: <SafetyOutlined />, label: t('menu.roles') },
