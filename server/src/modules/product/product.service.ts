@@ -162,7 +162,35 @@ export class ProductService {
     });
 
     await delCache('cache:/api/products*');
+    // Fire-and-forget embedding generation (don't block create response)
+    this.updateProductEmbedding(product.id).catch(() => { /* silent — embed is optional */ });
     return product;
+  }
+
+  /** Generate + save embedding for a product (used on create/update). */
+  private static async updateProductEmbedding(id: string) {
+    const p = await prisma.product.findUnique({
+      where: { id },
+      select: {
+        id: true, name: true, description: true,
+        material: true, capacity_ml: true, shape: true, color: true, custom_color: true,
+        neck_type: true, neck_spec: true, industries: true,
+      },
+    });
+    if (!p) return;
+    const { embedText, hashText, buildProductEmbeddingText } = await import('../../lib/embedding');
+    const text = buildProductEmbeddingText(p as never);
+    const hash = hashText(text);
+    const existing = await prisma.$queryRaw<{ embedding_hash: string | null }[]>`
+      SELECT embedding_hash FROM products WHERE id = ${p.id}
+    `;
+    if (existing[0]?.embedding_hash === hash) return;
+    const vector = await embedText(text);
+    if (!vector) return;
+    const vectorStr = `[${vector.join(',')}]`;
+    await prisma.$executeRaw(Prisma.sql`
+      UPDATE products SET embedding = ${vectorStr}::vector, embedding_hash = ${hash} WHERE id = ${p.id}
+    `);
   }
 
   static async update(id: string, data: Record<string, unknown>) {
@@ -190,6 +218,7 @@ export class ProductService {
     });
 
     await delCache('cache:/api/products*');
+    this.updateProductEmbedding(id).catch(() => { /* silent */ });
     return updated;
   }
 
@@ -374,7 +403,32 @@ export class ProductService {
       .replace(/[ìíỉĩị]/g, 'i').replace(/[òóỏõọôốồổỗộơớờởỡợ]/g, 'o')
       .replace(/[ùúủũụưứừửữự]/g, 'u').replace(/[ỳýỷỹỵ]/g, 'y').replace(/đ/g, 'd');
 
-    // Score + rank candidates by how close they match input attributes
+    // Semantic similarity via pgvector (optional — gracefully skip if embedding unavailable)
+    const semanticScores = new Map<string, number>();
+    try {
+      const { embedText, buildQueryEmbeddingText } = await import('../../lib/embedding');
+      const queryText = buildQueryEmbeddingText(attrs);
+      if (queryText.length > 0) {
+        const queryVector = await embedText(queryText);
+        if (queryVector) {
+          const candidateIds = candidates.map((c) => c.id);
+          const vectorStr = `[${queryVector.join(',')}]`;
+          // Cosine distance (<=>), convert to similarity (1 - distance)
+          const uuidArr = `{${candidateIds.join(',')}}`;
+          const results = await prisma.$queryRaw<{ id: string; similarity: number }[]>(Prisma.sql`
+            SELECT id::text AS id, 1 - (embedding <=> ${vectorStr}::vector) AS similarity
+            FROM products
+            WHERE id::text = ANY(${uuidArr}::text[])
+              AND embedding IS NOT NULL
+          `);
+          for (const r of results) semanticScores.set(r.id, Number(r.similarity));
+        }
+      }
+    } catch {
+      // Semantic search is a nice-to-have; fall through to attribute-only scoring.
+    }
+
+    // Score + rank candidates by attribute match + semantic similarity
     const scored = candidates.map((p) => {
       let score = 0;
       // Material match: +3
@@ -384,12 +438,15 @@ export class ProductService {
       // Capacity closeness: up to +3 (closer = higher)
       if (attrs.dung_tich_ml && attrs.dung_tich_ml > 0 && p.capacity_ml) {
         const ratio = Math.min(p.capacity_ml, attrs.dung_tich_ml) / Math.max(p.capacity_ml, attrs.dung_tich_ml);
-        score += ratio * 3; // ratio ∈ [0,1] → up to +3
+        score += ratio * 3;
       }
       // Color match: +1
       if (attrs.mau && p.color === attrs.mau.toUpperCase()) score += 1;
       // Shape match: +1
       if (attrs.hinh_dang && p.shape === attrs.hinh_dang.toUpperCase()) score += 1;
+      // Semantic similarity: up to +4 (cosine similarity scaled)
+      const sim = semanticScores.get(p.id);
+      if (sim !== undefined) score += sim * 4;
       return { product: p, score };
     });
 

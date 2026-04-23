@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, Input, Spin, Typography, Tooltip, theme } from 'antd';
-import { SendOutlined, CloseOutlined, MinusOutlined, DeleteOutlined, ArrowRightOutlined, PaperClipOutlined } from '@ant-design/icons';
+import { Button, Input, Spin, Typography, Tooltip, Popover, theme } from 'antd';
+import { SendOutlined, CloseOutlined, MinusOutlined, DeleteOutlined, ArrowRightOutlined, PaperClipOutlined, AudioOutlined, SmileOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import chatbotIcon from '/chatbot.png';
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useDragDrop } from '../hooks/useDragDrop';
+import { useSpeechToText } from '../hooks/useSpeechToText';
+import EmojiPicker, { EmojiStyle, Theme as EmojiTheme } from 'emoji-picker-react';
 import type { Message } from '../types/chat';
+import ProductCardList, { type ProductCard } from './ProductCard';
 
 const { Text } = Typography;
 
@@ -24,18 +27,35 @@ function isValidActionPath(path: string): boolean {
   return UUID_RE.test(tail);
 }
 
-function parseActions(text: string): { cleanText: string; actions: { path: string; label: string }[] } {
+function parseActions(text: string): { cleanText: string; actions: { path: string; label: string }[]; productCards: ProductCard[] } {
   const actions: { path: string; label: string }[] = [];
-  const cleanText = text.replace(/\[action:([^\]|]+)\|([^\]]+)\]/g, (_, path, label) => {
+  const productCards: ProductCard[] = [];
+
+  // Extract <product-cards>[...]</product-cards> block (optional, non-breaking if absent)
+  const cardsStripped = text.replace(/<product-cards>([\s\S]*?)<\/product-cards>/g, (_, json: string) => {
+    try {
+      const parsed = JSON.parse(json.trim());
+      if (Array.isArray(parsed)) {
+        for (const c of parsed) {
+          if (c && typeof c === 'object' && typeof c.id === 'string' && typeof c.sku === 'string' && typeof c.name === 'string') {
+            productCards.push(c as ProductCard);
+          }
+        }
+      }
+    } catch { /* malformed block — ignore, keep text fallback */ }
+    return '';
+  });
+
+  const cleanText = cardsStripped.replace(/\[action:([^\]|]+)\|([^\]]+)\]/g, (_, path, label) => {
     const p = path.trim();
     if (isValidActionPath(p)) actions.push({ path: p, label: label.trim() });
     return '';
   }).replace(/\s*\[id:[^\]]+\]/g, '').trim();
-  return { cleanText, actions };
+  return { cleanText, actions, productCards };
 }
 
 const Chatbot: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { token } = theme.useToken();
 
@@ -55,6 +75,7 @@ const Chatbot: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>(loadHistory);
   const [input, setInput] = useState('');
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [hintIndex, setHintIndex] = useState(0);
@@ -63,6 +84,14 @@ const Chatbot: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attach = useChatAttachments();
   const dnd = useDragDrop((files) => { attach.addFiles(files); });
+  const stt = useSpeechToText(i18n.language === 'en' ? 'en-US' : 'vi-VN');
+
+  const handleMicClick = () => {
+    if (stt.listening) { stt.stop(); return; }
+    stt.start((finalText) => {
+      setInput((prev) => (prev ? `${prev} ${finalText}` : finalText));
+    });
+  };
 
   // Paste image from clipboard (Cmd/Ctrl+V) anywhere in the chatbot while open
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
@@ -218,7 +247,9 @@ const Chatbot: React.FC = () => {
 
   const renderMessage = (msg: Message, i: number) => {
     const isUser = msg.role === 'user';
-    const { cleanText, actions } = isUser ? { cleanText: msg.content, actions: [] } : parseActions(msg.content);
+    const { cleanText, actions, productCards } = isUser
+      ? { cleanText: msg.content, actions: [] as { path: string; label: string }[], productCards: [] as ProductCard[] }
+      : parseActions(msg.content);
     const hasAttach = msg.attachments && msg.attachments.length > 0;
 
     return (
@@ -247,6 +278,12 @@ const Chatbot: React.FC = () => {
             {hasAttach && renderAttachments(msg.attachments!)}
           </div>
         </div>
+        {productCards.length > 0 && (
+          <ProductCardList
+            cards={productCards}
+            onSelect={(id) => { navigate(`/products/${id}`); setOpen(false); }}
+          />
+        )}
         {actions.length > 0 && (
           <div style={{ display: 'flex', gap: 6, marginTop: 6, marginLeft: 28, flexWrap: 'wrap' }}>
             {actions.map((a, j) => (
@@ -283,31 +320,59 @@ const Chatbot: React.FC = () => {
 
   return (
     <div {...dnd.handlers} onPaste={handlePaste}
-      style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000, width: 400, height: 560, borderRadius: 20, boxShadow: '0 12px 40px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}` }}>
+      style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000, width: 400, height: 580, borderRadius: 16, boxShadow: '0 20px 48px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: token.colorBgContainer, border: `1px solid ${token.colorBorderSecondary}` }}>
       {dnd.isDragging && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(22,119,255,0.12)', border: `2px dashed ${token.colorPrimary}`, borderRadius: 20, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(22,119,255,0.08)', border: `2px dashed ${token.colorPrimary}`, borderRadius: 16, pointerEvents: 'none' }}>
           <div style={{ padding: '12px 20px', background: token.colorBgContainer, borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <PaperClipOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
             <Text style={{ color: token.colorPrimary, fontWeight: 500 }}>{t('chatbot.dropHere')}</Text>
           </div>
         </div>
       )}
-      {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #1677ff 0%, #4096ff 100%)', padding: '18px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 72, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
-          <img src={chatbotIcon} alt="Aura" style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0 }} />
-          <div>
-            <Text strong style={{ color: '#fff', fontSize: 14, display: 'block', lineHeight: 1.2 }}>{t('chatbot.name')}</Text>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#52c41a', flexShrink: 0 }} />
-              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, lineHeight: 1.2, whiteSpace: 'nowrap' }}>{t('chatbot.subtitle')}</Text>
-            </div>
+      {/* Header — clean modern style */}
+      <div style={{
+        padding: '12px 14px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: token.colorBgContainer,
+        borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden', minWidth: 0 }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <img src={chatbotIcon} alt="Aura" style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: 'linear-gradient(135deg, #e6f4ff 0%, #f5f0ff 100%)',
+              padding: 4, objectFit: 'contain',
+            }} />
+            <div style={{
+              position: 'absolute', bottom: -1, right: -1,
+              width: 10, height: 10, borderRadius: '50%',
+              background: '#52c41a',
+              border: `2px solid ${token.colorBgContainer}`,
+            }} />
+          </div>
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+            <Text strong style={{ fontSize: 14, display: 'block', lineHeight: 1.2, color: token.colorText }}>
+              {t('chatbot.name')}
+            </Text>
+            <Text style={{ fontSize: 11, lineHeight: 1.3, color: token.colorTextTertiary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {t('chatbot.subtitle')}
+            </Text>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 2 }}>
-          <Tooltip title={t('chatbot.clearHistory')}><Button type="text" size="small" icon={<DeleteOutlined />} style={{ color: 'rgba(255,255,255,0.7)' }} onClick={clearHistory} /></Tooltip>
-          <Button type="text" size="small" icon={<MinusOutlined />} style={{ color: '#fff' }} onClick={() => setOpen(false)} />
-          <Button type="text" size="small" icon={<CloseOutlined />} style={{ color: '#fff' }} onClick={() => setOpen(false)} />
+        <div style={{ display: 'flex', gap: 0, flexShrink: 0 }}>
+          <Tooltip title={t('chatbot.clearHistory')}>
+            <Button type="text" size="small" icon={<DeleteOutlined />} onClick={clearHistory}
+              style={{ color: token.colorTextTertiary }} />
+          </Tooltip>
+          <Tooltip title={t('common.close') || 'Thu gọn'}>
+            <Button type="text" size="small" icon={<MinusOutlined />} onClick={() => setOpen(false)}
+              style={{ color: token.colorTextTertiary }} />
+          </Tooltip>
+          <Tooltip title={t('common.close') || 'Đóng'}>
+            <Button type="text" size="small" icon={<CloseOutlined />} onClick={() => setOpen(false)}
+              style={{ color: token.colorTextTertiary }} />
+          </Tooltip>
         </div>
       </div>
 
@@ -338,9 +403,15 @@ const Chatbot: React.FC = () => {
         )}
 
         {showSuggestions && !loading && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
             {suggestions.map((s, i) => (
-              <Button key={i} size="small" style={{ borderRadius: 16, fontSize: 12, color: token.colorPrimary, borderColor: token.colorPrimary, background: token.colorBgContainer }} onClick={() => handleSend(s)}>{s}</Button>
+              <Button key={i} size="small" style={{
+                borderRadius: 20, fontSize: 12, height: 30,
+                color: token.colorText,
+                borderColor: token.colorBorderSecondary,
+                background: token.colorBgContainer,
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              }} onClick={() => handleSend(s)}>{s}</Button>
             ))}
           </div>
         )}
@@ -364,16 +435,113 @@ const Chatbot: React.FC = () => {
         </div>
       )}
 
-      {/* Input */}
-      <div style={{ padding: '10px 14px', display: 'flex', gap: 6, background: token.colorBgContainer, borderTop: `1px solid ${token.colorBorderSecondary}`, alignItems: 'center' }}>
+      {/* Live STT transcript banner */}
+      {stt.listening && (
+        <div style={{
+          padding: '8px 14px',
+          background: 'linear-gradient(90deg, #fff1f0 0%, #fff7e6 100%)',
+          borderTop: `1px solid ${token.colorBorderSecondary}`,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <div style={{
+            width: 8, height: 8, borderRadius: '50%', background: '#ff4d4f',
+            animation: 'micDot 1s ease infinite', flexShrink: 0,
+          }} />
+          <Text style={{ fontSize: 12, color: '#ad6800', flexShrink: 0 }}>
+            {t('chatbot.listening')}
+          </Text>
+          <Text style={{ fontSize: 13, fontStyle: 'italic', color: token.colorText, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {stt.interim || '…'}
+          </Text>
+        </div>
+      )}
+      {stt.error && (
+        <div style={{ padding: '6px 14px', background: '#fff1f0', borderTop: `1px solid ${token.colorBorderSecondary}` }}>
+          <Text type="danger" style={{ fontSize: 12 }}>🎤 {stt.error}</Text>
+        </div>
+      )}
+
+      {/* Input — Claude-style pill with inline buttons */}
+      <div style={{ padding: '10px 12px 14px', background: token.colorBgContainer, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
         <input ref={fileInputRef} type="file" accept={attach.accept} multiple hidden
           onChange={(e) => { if (e.target.files) attach.addFiles(e.target.files); e.target.value = ''; }} />
-        <Tooltip title={t('chatbot.attach')}>
-          <Button type="text" shape="circle" icon={<PaperClipOutlined />} disabled={loading || attach.uploading}
-            onClick={() => fileInputRef.current?.click()} />
-        </Tooltip>
-        <Input value={input} onChange={(e) => setInput(e.target.value)} onPressEnter={() => handleSend()} placeholder={t('chatbot.placeholder')} style={{ borderRadius: 20, fontSize: 13, padding: '6px 16px' }} disabled={loading} />
-        <Button type="primary" shape="circle" icon={<SendOutlined />} onClick={() => handleSend()} loading={loading} style={{ flexShrink: 0, boxShadow: '0 2px 8px rgba(22,119,255,0.3)' }} />
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          background: token.colorBgLayout,
+          border: `1px solid ${token.colorBorderSecondary}`,
+          borderRadius: 22, padding: '4px 4px 4px 10px',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
+        }}
+        onFocus={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = token.colorPrimary; }}
+        onBlur={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = token.colorBorderSecondary; }}
+        >
+          <Tooltip title={t('chatbot.attach')}>
+            <Button type="text" shape="circle" size="small" icon={<PaperClipOutlined />}
+              disabled={loading || attach.uploading}
+              onClick={() => fileInputRef.current?.click()}
+              style={{ color: token.colorTextSecondary, flexShrink: 0 }} />
+          </Tooltip>
+          {stt.supported && (
+            <Tooltip title={stt.listening ? t('chatbot.stopRecording') : t('chatbot.startRecording')}>
+              <Button
+                type="text" shape="circle" size="small"
+                icon={<AudioOutlined />}
+                onClick={handleMicClick}
+                disabled={loading}
+                style={{
+                  color: stt.listening ? '#ff4d4f' : token.colorTextSecondary,
+                  flexShrink: 0,
+                  animation: stt.listening ? 'micPulse 1.4s ease infinite' : undefined,
+                }}
+              />
+            </Tooltip>
+          )}
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onPressEnter={() => handleSend()}
+            placeholder={stt.listening ? t('chatbot.listening') : t('chatbot.placeholder')}
+            variant="borderless"
+            style={{ fontSize: 14, padding: '4px 6px', background: 'transparent' }}
+            disabled={loading}
+          />
+          <Popover
+            open={emojiOpen}
+            onOpenChange={setEmojiOpen}
+            trigger="click"
+            placement="topRight"
+            arrow={false}
+            overlayInnerStyle={{ padding: 0, background: 'transparent', boxShadow: 'none' }}
+            content={
+              <EmojiPicker
+                onEmojiClick={(emojiData) => {
+                  setInput((prev) => prev + emojiData.emoji);
+                }}
+                autoFocusSearch={false}
+                emojiStyle={EmojiStyle.NATIVE}
+                theme={token.colorBgContainer === '#ffffff' ? EmojiTheme.LIGHT : EmojiTheme.DARK}
+                width={320}
+                height={400}
+                previewConfig={{ showPreview: false }}
+                searchPlaceHolder={i18n.language === 'en' ? 'Search' : 'Tìm emoji'}
+                lazyLoadEmojis
+                skinTonesDisabled
+              />
+            }
+          >
+            <Button type="text" shape="circle" size="small" icon={<SmileOutlined />}
+              disabled={loading}
+              style={{ color: token.colorTextSecondary, flexShrink: 0 }} />
+          </Popover>
+          <Button
+            type="primary" shape="circle" size="small"
+            icon={<SendOutlined />}
+            onClick={() => handleSend()}
+            loading={loading}
+            disabled={!input.trim() && attach.pending.length === 0}
+            style={{ flexShrink: 0, width: 32, height: 32 }}
+          />
+        </div>
       </div>
 
       <style>{`
@@ -385,6 +553,14 @@ const Chatbot: React.FC = () => {
         .dot-typing {
           width: 6px; height: 6px; border-radius: 50%;
           display: inline-block; animation: dotTyping 1.4s infinite;
+        }
+        @keyframes micPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.5); }
+          50% { box-shadow: 0 0 0 8px rgba(255, 77, 79, 0); }
+        }
+        @keyframes micDot {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
         }
       `}</style>
     </div>

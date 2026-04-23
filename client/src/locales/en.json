@@ -1127,7 +1127,14 @@
     "suggestion4": "Overdue orders?",
     "suggestion5": "Cash book status?",
     "attach": "Attach image",
-    "dropHere": "Drop images here"
+    "dropHere": "Drop images here",
+    "startRecording": "Tap to speak",
+    "stopRecording": "Stop recording",
+    "listening": "Listening...",
+    "productCard": {
+      "viewDetail": "View details",
+      "moq": "MOQ {{n}}"
+    }
   },
   "payroll": {
     "title": "Payroll Management",

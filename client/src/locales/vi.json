@@ -1127,7 +1127,14 @@
     "suggestion4": "Đơn hàng quá hạn?",
     "suggestion5": "Tình hình sổ quỹ?",
     "attach": "Đính kèm ảnh",
-    "dropHere": "Thả ảnh vào đây"
+    "dropHere": "Thả ảnh vào đây",
+    "startRecording": "Nhấn để nói",
+    "stopRecording": "Dừng ghi âm",
+    "listening": "Đang nghe...",
+    "productCard": {
+      "viewDetail": "Xem chi tiết",
+      "moq": "MOQ {{n}}"
+    }
   },
   "payroll": {
     "title": "Quản lý bảng lương",

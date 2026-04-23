@@ -79,6 +79,11 @@ export const config = {
     maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS || '2048', 10),
   },
 
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY || '',
+    embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-004',
+  },
+
   zalo: {
     getThreadsUrl: process.env.ZALO_FUNC_GET_THREADS_URL || '',
     getThreadsToken: process.env.ZALO_FUNC_GET_THREADS_TOKEN || '',

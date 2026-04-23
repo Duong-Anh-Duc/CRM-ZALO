@@ -126,13 +126,18 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'find_product_by_image',
-      description: 'Tìm sản phẩm trong DB từ ảnh khách gửi. Dùng khi user upload ảnh + hỏi "sản phẩm này có không". Trích xuất thuộc tính (loại, chất liệu, dung tích, màu) rồi fuzzy-match catalog. LUÔN dùng tool này thay vì đoán keyword cho search_product.',
+      description: 'Tìm SP từ ảnh. Có thể truyền nhiều ảnh cùng 1 SP để tổng hợp chính xác hơn. Trích xuất thuộc tính (loại, chất liệu, dung tích, màu, SKU/brand trên nhãn) rồi fuzzy-match catalog. LUÔN dùng tool này thay vì đoán keyword cho search_product.',
       parameters: {
         type: 'object',
         properties: {
-          image_url: { type: 'string', description: 'URL ảnh khách gửi (từ attachment)' },
+          image_urls: {
+            type: 'array',
+            items: { type: 'string' },
+            minItems: 1,
+            description: 'Mảng URL ảnh (1 hoặc nhiều ảnh của CÙNG 1 sản phẩm).',
+          },
         },
-        required: ['image_url'],
+        required: ['image_urls'],
       },
     },
   },
@@ -1170,13 +1175,56 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       return products.map((p, i) => `${i + 1}. ${p.name} (${p.sku}) [id:${p.id}] | Giá tham khảo: ${p.retail_price ? Number(p.retail_price).toLocaleString() : '-'}`).join('\n');
     }
     case 'find_product_by_image': {
-      const imageUrl = args.image_url;
-      if (!imageUrl) return '⚠️ Thiếu image_url.';
-      const attrs = await ChatbotService.identifyProductFromImage(imageUrl);
+      // Backward compat: accept legacy single image_url or new image_urls array
+      let imageUrls: string[] = [];
+      if (Array.isArray(args.image_urls)) {
+        imageUrls = args.image_urls.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0);
+      } else if (typeof args.image_url === 'string' && args.image_url) {
+        imageUrls = [args.image_url];
+      }
+      if (imageUrls.length === 0) return '⚠️ Thiếu image_urls.';
+      const attrs = await ChatbotService.identifyProductFromImage(imageUrls);
       const { ProductService } = await import('../product/product.service');
+
+      // Helper: build one product-card JSON entry from product record
+      const toCard = (p: any) => ({
+        id: p.id,
+        sku: p.sku,
+        name: p.name,
+        material: p.material ?? undefined,
+        capacity_ml: p.capacity_ml ?? undefined,
+        price: p.retail_price != null ? Number(p.retail_price) : undefined,
+        image: p.images?.[0]?.url ?? undefined,
+        moq: p.moq ?? undefined,
+      });
+
+      // Ưu tiên direct lookup nếu OCR được SKU trên nhãn
+      if (attrs.sku_tu_nhan && attrs.sku_tu_nhan.trim()) {
+        const skuRaw = attrs.sku_tu_nhan.trim();
+        const skuMatch = await prisma.product.findFirst({
+          where: {
+            OR: [
+              { sku: { equals: skuRaw, mode: 'insensitive' } },
+              { sku: { contains: skuRaw, mode: 'insensitive' } },
+            ],
+          },
+          include: { images: { where: { is_primary: true }, take: 1 } },
+        });
+        if (skuMatch) {
+          const specs: string[] = [];
+          if ((skuMatch as any).capacity_ml) specs.push(`${(skuMatch as any).capacity_ml}ml`);
+          if ((skuMatch as any).material) specs.push((skuMatch as any).material);
+          const specStr = specs.length ? ` (${specs.join(', ')})` : '';
+          const price = (skuMatch as any).retail_price ? ` | ~${Number((skuMatch as any).retail_price).toLocaleString()}đ` : '';
+          const header = `Nhận diện ảnh → SKU trên nhãn: ${skuRaw} (match trực tiếp)`;
+          const cardBlock = `<product-cards>\n${JSON.stringify([toCard(skuMatch)])}\n</product-cards>`;
+          return [cardBlock, header, 'Top match:', `1. ${skuMatch.name}${specStr} · SKU ${skuMatch.sku} [id:${skuMatch.id}]${price}`].join('\n');
+        }
+      }
+
       const products = await ProductService.fuzzyMatchByAttributes(attrs);
       if (products.length === 0) return `Nhận diện: ${JSON.stringify(attrs)}\nKhông có sản phẩm match trong DB.`;
-      const header = `Nhận diện ảnh → loại=${attrs.loai ?? '?'} chất_liệu=${attrs.chat_lieu ?? '?'} dung_tích=${attrs.dung_tich_ml ?? '?'}ml (confidence ${attrs.confidence})`;
+      const header = `Nhận diện ảnh → loại=${attrs.loai ?? '?'} chất_liệu=${attrs.chat_lieu ?? '?'} dung_tích=${attrs.dung_tich_ml ?? '?'}ml${attrs.brand ? ` brand=${attrs.brand}` : ''}${attrs.sku_tu_nhan ? ` sku_nhãn=${attrs.sku_tu_nhan}` : ''} (confidence ${attrs.confidence})`;
       const rows = products.map((p: any, i: number) => {
         const specs: string[] = [];
         if (p.capacity_ml) specs.push(`${p.capacity_ml}ml`);
@@ -1185,7 +1233,9 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
         const price = p.retail_price ? ` | ~${Number(p.retail_price).toLocaleString()}đ` : '';
         return `${i + 1}. ${p.name}${specStr} · SKU ${p.sku} [id:${p.id}]${price}`;
       });
-      return [header, 'Top match:', ...rows].join('\n');
+      const cards = products.slice(0, 5).map(toCard);
+      const cardBlock = `<product-cards>\n${JSON.stringify(cards)}\n</product-cards>`;
+      return [cardBlock, header, 'Top match:', ...rows].join('\n');
     }
     case 'create_customer': {
       const c = await prisma.customer.create({
@@ -1702,14 +1752,18 @@ QUY TRÌNH cho hành động có tham chiếu đối tượng:
 3. Sau khi tạo xong, trả lời kèm action link đến bản ghi vừa tạo.
 
 KHI USER GỬI ẢNH + HỎI "SẢN PHẨM NÀY CÓ KHÔNG" / "TÌM SP NÀY":
-- LUÔN gọi find_product_by_image với image_url trước — KHÔNG tự đoán keyword rồi search_product
+- LUÔN gọi find_product_by_image với image_urls (mảng) — có thể truyền 1 hoặc nhiều ảnh. KHÔNG tự đoán keyword rồi search_product
+- Nếu user gửi nhiều ảnh cùng 1 SP (vd "đây là 3 góc của chai này"), truyền all vào image_urls để tổng hợp
 - Nếu find_product_by_image trả về top match → liệt kê cho user chọn
 - Nếu không có match → mới hỏi thêm thông tin (tên, kích thước, chất liệu)
+- ACTION LINK: chỉ tạo action cho SẢN PHẨM ĐẦU TIÊN (top 1), label = TÊN SẢN PHẨM THẬT (vd "Chai PET 500ml"), KHÔNG dùng "match #1" / "mẫu 1" / placeholder
+- Nếu user hỏi "mở sản phẩm thứ 2/3..." → dùng id tương ứng trong kết quả find_product_by_image đã trả trước đó
 
 QUAN TRỌNG: id phải là UUID THẬT (36 ký tự, dạng xxxxxxxx-xxxx-...) lấy từ function response ([id:xxx]). CẤM bịa "123", "abc123". Nếu chưa có id → gọi search tool trước.
 
 Khi trả lời xong, nếu có thể điều hướng, thêm dòng cuối:
 [action:/đường-dẫn|Tên nút]
+LABEL "Tên nút" phải là TÊN THẬT của đối tượng (vd "Chai PET 500ml", "Công ty ABC", "SO-20260422-001"), KHÔNG được dùng placeholder như "match #1", "mẫu 1", "SP số 1", "kết quả 1".
 Đường dẫn:
 - KH: /customers/{id}  |  Công nợ KH: /receivables/customer/{id}
 - NCC: /suppliers/{id}  |  Công nợ NCC: /payables/supplier/{id}
@@ -1802,7 +1856,7 @@ ${systemContext}`,
    * Extract packaging product attributes from a customer image URL.
    * Uses GPT-4o-mini vision with structured JSON output.
    */
-  static async identifyProductFromImage(imageUrl: string): Promise<{
+  static async identifyProductFromImage(imageUrls: string | string[]): Promise<{
     loai: string | null;
     chat_lieu: string | null;
     dung_tich_ml: number | null;
@@ -1810,20 +1864,29 @@ ${systemContext}`,
     hinh_dang: string | null;
     co_chai_mm: number | null;
     ghi_chu: string | null;
+    sku_tu_nhan: string | null;
+    ten_tu_nhan: string | null;
+    brand: string | null;
+    text_khac: string | null;
     confidence: number;
   }> {
+    const urls = Array.isArray(imageUrls) ? imageUrls : [imageUrls];
+    const multi = urls.length > 1;
     try {
       // cx/gpt-5.4 vision + JSON mode is flaky — retry up to 3 times on empty response
       let raw = '';
       for (let attempt = 0; attempt < 3 && !raw; attempt++) {
         if (attempt > 0) await new Promise((r) => setTimeout(r, 2500));
+        const userText = multi
+          ? 'Các ảnh sau là CÙNG 1 sản phẩm. Tổng hợp thuộc tính:'
+          : 'Phân tích ảnh bao bì này:';
         const response = await openai.chat.completions.create({
         model: config.openai.visionModel || config.openai.model || 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: `Phân tích ảnh bao bì nhựa. Trả JSON đúng schema:
-{"loai":"chai|hu|nap|can|thung|tui|mang|hop|null","chat_lieu":"PET|HDPE|LDPE|PP|OPP|PVC|PS|ABS|PE|null","dung_tich_ml":number|null,"kich_thuoc":"string hoặc null","mau":"TRANSPARENT|WHITE|CUSTOM|null","hinh_dang":"ROUND|SQUARE|OVAL|FLAT|null","co_chai_mm":number|null,"ghi_chu":"string","confidence":0-1}
+            content: `Phân tích ảnh bao bì nhựa + đọc text trên nhãn nếu có. Trả JSON đúng schema:
+{"loai":"chai|hu|nap|can|thung|tui|mang|hop|null","chat_lieu":"PET|HDPE|LDPE|PP|OPP|PVC|PS|ABS|PE|null","dung_tich_ml":number|null,"mau":"TRANSPARENT|WHITE|CUSTOM|null","hinh_dang":"ROUND|SQUARE|OVAL|FLAT|null","co_chai_mm":number|null,"ghi_chu":"string","sku_tu_nhan":"string|null","ten_tu_nhan":"string|null","brand":"string|null","text_khac":"string|null","confidence":0-1}
 
 Phân biệt loại:
 - chai: có cổ+nắp vặn, thân cứng
@@ -1835,18 +1898,19 @@ Phân biệt loại:
 - mang: cuộn mỏng quấn hàng
 - hop: hộp rỗng cứng
 
+OCR: sku_tu_nhan = mã SP/SKU đọc trên nhãn; ten_tu_nhan = tên hiển thị; brand = logo/thương hiệu; text_khac = text khác. Null nếu không có.
 Nếu KHÔNG phải bao bì nhựa → null + confidence=0. JSON thuần.`,
           },
           {
             role: 'user',
             content: [
-              { type: 'text', text: 'Phân tích ảnh bao bì này:' },
-              { type: 'image_url', image_url: { url: imageUrl } },
+              { type: 'text', text: userText },
+              ...urls.map((url) => ({ type: 'image_url' as const, image_url: { url } })),
             ],
           },
         ],
         temperature: 0.2,
-        max_tokens: 300,
+        max_tokens: 400,
         response_format: { type: 'json_object' },
       });
         raw = (response.choices[0]?.message?.content || '').trim();
@@ -1861,13 +1925,19 @@ Nếu KHÔNG phải bao bì nhựa → null + confidence=0. JSON thuần.`,
         hinh_dang: parsed.hinh_dang || null,
         co_chai_mm: typeof parsed.co_chai_mm === 'number' ? parsed.co_chai_mm : null,
         ghi_chu: parsed.ghi_chu || null,
+        sku_tu_nhan: parsed.sku_tu_nhan || null,
+        ten_tu_nhan: parsed.ten_tu_nhan || null,
+        brand: parsed.brand || null,
+        text_khac: parsed.text_khac || null,
         confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
       };
     } catch (err) {
       logger.error('identifyProductFromImage error:', err);
       return {
         loai: null, chat_lieu: null, dung_tich_ml: null, mau: null,
-        hinh_dang: null, co_chai_mm: null, ghi_chu: null, confidence: 0,
+        hinh_dang: null, co_chai_mm: null, ghi_chu: null,
+        sku_tu_nhan: null, ten_tu_nhan: null, brand: null, text_khac: null,
+        confidence: 0,
       };
     }
   }
