@@ -1834,11 +1834,18 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       }
       const msgs = await prisma.zaloMessage.findMany({
         where, orderBy: { created_at: 'desc' },
-        select: { sender_id: true, sender_name: true, group_id: true, direction: true, content: true, created_at: true },
+        select: { sender_id: true, sender_name: true, recipient_id: true, group_id: true, direction: true, content: true, created_at: true },
       });
+      // Partner = conversation counterpart (NOT the shop itself).
+      // For group: key = group_id.
+      // For DM INCOMING: partner = sender_id (customer who wrote to us).
+      // For DM OUTGOING: partner = recipient_id (customer we wrote to).
+      // sender_name on both directions tends to be the partner's display name (webhook behavior).
       const threads = new Map<string, { key: string; name: string; is_group: boolean; last_at: Date; last_content: string; last_direction: string; incoming: number; total: number }>();
       for (const m of msgs) {
-        const key = m.group_id || m.sender_id || '';
+        const key = m.group_id
+          ? m.group_id
+          : (m.direction === 'INCOMING' ? m.sender_id : (m.recipient_id || m.sender_id));
         if (!key) continue;
         if (!threads.has(key)) {
           threads.set(key, {
@@ -1872,16 +1879,35 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
     }
     case 'send_zalo_message': {
       if (!args.user_id || !args.content) return '❌ Thiếu user_id hoặc content';
-      const recent = await prisma.zaloMessage.findFirst({
-        where: { sender_id: args.user_id },
+      // Sanity check: user_id must be the PARTNER's id, not the shop's own id.
+      // Shop's id appears as sender_id on OUTGOING webhook echoes. If the provided
+      // user_id only appears as sender on OUTGOING (never on INCOMING), it's the shop.
+      const asIncomingSender = await prisma.zaloMessage.count({
+        where: { sender_id: args.user_id, direction: 'INCOMING', group_id: null },
+      });
+      const asRecipient = await prisma.zaloMessage.count({
+        where: { recipient_id: args.user_id, direction: 'OUTGOING' },
+      });
+      if (asIncomingSender === 0 && asRecipient === 0) {
+        return `❌ user_id=${args.user_id} không tìm thấy trong lịch sử chat (không phải INCOMING sender, không phải OUTGOING recipient). Có thể đây là user_id của SHOP. Vui lòng dùng list_zalo_threads(search:"tên") để lấy partner user_id đúng.`;
+      }
+      // Find the partner's display name: prefer from incoming msgs, else from outgoing echo
+      const nameRow = await prisma.zaloMessage.findFirst({
+        where: {
+          OR: [
+            { sender_id: args.user_id, direction: 'INCOMING' },
+            { recipient_id: args.user_id, direction: 'OUTGOING' },
+          ],
+          sender_name: { not: null },
+        },
         orderBy: { created_at: 'desc' },
         select: { sender_name: true },
       });
-      const name = recent?.sender_name || args.user_id;
+      const name = nameRow?.sender_name || args.user_id;
       const { ZaloService } = await import('../zalo/zalo.service');
       const result = await ZaloService.sendMessage(args.user_id, args.content);
       const msgId = result?.data?.msg_id || result?.msg_id || 'n/a';
-      return `✅ Đã gửi thành công đến "${name}" (user_id=${args.user_id}, msg_id=${msgId}). Nội dung: "${args.content}"`;
+      return `✅ Đã gửi đến "${name}" (user_id=${args.user_id}, msg_id=${msgId}). Nội dung: "${args.content}"`;
     }
     case 'send_zalo_group_message': {
       if (!args.group_id || !args.content) return '❌ Thiếu group_id hoặc content';

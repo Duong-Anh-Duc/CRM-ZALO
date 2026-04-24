@@ -56,6 +56,15 @@ export class ZaloService {
 
   private static delay(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
+  /**
+   * Func.vn send APIs expect numeric Zalo user_id/group_id WITHOUT the "zu" prefix.
+   * Webhook-synced IDs sometimes include the prefix — strip it before calling.
+   */
+  private static cleanZaloId(id: string | undefined | null): string {
+    if (!id) return '';
+    return id.startsWith('zu') ? id.slice(2) : id;
+  }
+
   // ──── Send / Reply / Typing (Func.vn USER_SEND_* APIs) ────
 
   static async sendTyping(userId: string): Promise<void> {
@@ -63,7 +72,7 @@ export class ZaloService {
     if (!cfg?.send_typing_enabled) return;
     if (!cfg?.send_typing_url || !cfg?.send_typing_token) return; // optional
     try {
-      await this.callFunc(cfg.send_typing_url, cfg.send_typing_token, { user_id: userId });
+      await this.callFunc(cfg.send_typing_url, cfg.send_typing_token, { user_id: this.cleanZaloId(userId) });
     } catch (err) {
       logger.warn('sendTyping failed', err);
     }
@@ -77,7 +86,7 @@ export class ZaloService {
     if (!cfg?.send_message_url || !cfg?.send_message_token) {
       throw new AppError('Zalo send_message_url chưa cấu hình', 400);
     }
-    const result = await this.callFunc(cfg.send_message_url, cfg.send_message_token, { user_id: userId, message: content });
+    const result = await this.callFunc(cfg.send_message_url, cfg.send_message_token, { user_id: this.cleanZaloId(userId), message: content });
     await prisma.zaloMessage.create({
       data: {
         direction: 'OUTGOING', platform: 'ZALO_USER',
@@ -101,7 +110,7 @@ export class ZaloService {
       return null;
     }
     const result = await this.callFunc(cfg.send_images_url, cfg.send_images_token, {
-      user_id: userId,
+      user_id: this.cleanZaloId(userId),
       urls: imageUrls,
     });
     await prisma.zaloMessage.create({
@@ -126,7 +135,7 @@ export class ZaloService {
       return this.sendMessage(userId, content);
     }
     const result = await this.callFunc(cfg.reply_message_url, cfg.reply_message_token, {
-      user_id: userId,
+      user_id: this.cleanZaloId(userId),
       message: content,
       reply_message: originalPayload,
     });
@@ -156,7 +165,7 @@ export class ZaloService {
       throw new AppError('Zalo group_send_message_url chưa cấu hình', 400);
     }
     const result = await this.callFunc(cfg.group_send_message_url, cfg.group_send_message_token, {
-      group_id: groupId,
+      group_id: this.cleanZaloId(groupId),
       message: content,
       mentions: extras?.mentions ?? [],
       styles: extras?.styles ?? [],
@@ -184,7 +193,7 @@ export class ZaloService {
       return null;
     }
     const result = await this.callFunc(cfg.group_send_image_url, cfg.group_send_image_token, {
-      group_id: groupId,
+      group_id: this.cleanZaloId(groupId),
       url,
       desc: desc ?? '',
     });
@@ -213,7 +222,7 @@ export class ZaloService {
       return this.groupSendMessage(groupId, content);
     }
     const result = await this.callFunc(cfg.group_reply_message_url, cfg.group_reply_message_token, {
-      group_id: groupId,
+      group_id: this.cleanZaloId(groupId),
       message: content,
       reply_message: originalPayload,
       styles: extras?.styles ?? [],
