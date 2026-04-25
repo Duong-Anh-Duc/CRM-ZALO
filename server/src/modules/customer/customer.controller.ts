@@ -2,7 +2,8 @@ import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../types';
 import { CustomerService } from './customer.service';
 import { t } from '../../locales';
-import { sendSuccess, sendCreated, sendPaginated, sendMessage } from '../../utils/response';
+import dayjs from 'dayjs';
+import { sendSuccess, sendCreated, sendPaginated, sendMessage, buildContentDisposition } from '../../utils/response';
 
 export class CustomerController {
   static async list(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -52,6 +53,32 @@ export class CustomerController {
     try {
       await CustomerService.softDelete(req.params.id as string);
       sendMessage(res, t('customer.deleted'));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async exportExcel(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { search, customer_type, city, has_debt } = req.query as {
+        search?: string;
+        customer_type?: 'BUSINESS' | 'INDIVIDUAL';
+        city?: string;
+        has_debt?: string;
+      };
+      const buf = await CustomerService.exportExcel({
+        search,
+        customer_type,
+        city,
+        has_debt: has_debt === 'true' || has_debt === '1',
+      });
+      const filename = `danh-sach-khach-hang-${dayjs().format('YYYYMMDD')}.xlsx`;
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': buildContentDisposition('attachment', filename),
+        'Content-Length': buf.length.toString(),
+      });
+      res.send(buf);
     } catch (err) {
       next(err);
     }

@@ -9,6 +9,7 @@ const router = Router();
 
 router.use(authenticate);
 router.get('/', requireAbility('read', 'Customer'), CustomerController.list);
+router.get('/export-excel', requireAbility('read', 'Customer'), CustomerController.exportExcel);
 router.get('/:id', validateIdParam, requireAbility('read', 'Customer'), CustomerController.getById);
 router.post('/', requireAbility('create', 'Customer'), validate(createCustomerSchema), CustomerController.create);
 router.put('/:id', validateIdParam, requireAbility('update', 'Customer'), validate(updateCustomerSchema), CustomerController.update);

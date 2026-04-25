@@ -4,6 +4,7 @@ import { PlasticMaterial, Prisma } from '@prisma/client';
 import { t } from '../../locales';
 import { delCache } from '../../lib/redis';
 import { uploadImage, deleteImage, deleteImages } from '../../lib/cloudinary';
+import XLSX from 'xlsx-js-style';
 
 interface ProductFilters {
   page?: number;
@@ -86,6 +87,124 @@ export class ProductService {
     ]);
 
     return { products, total, page, limit, total_pages: Math.ceil(total / limit) };
+  }
+
+  static async exportExcel(filters: {
+    search?: string;
+    category_id?: string;
+    material?: string;
+    is_active?: boolean;
+  }): Promise<Buffer> {
+    const { search, category_id, material, is_active } = filters;
+    const where: Prisma.ProductWhereInput = {
+      ...(is_active !== undefined && { is_active }),
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' as const } },
+          { sku: { contains: search, mode: 'insensitive' as const } },
+          { aliases: { some: { alias: { contains: search, mode: 'insensitive' as const } } } },
+        ],
+      }),
+      ...(category_id && { category_id }),
+      ...(material && { material: material as PlasticMaterial }),
+    };
+
+    const products = await prisma.product.findMany({
+      where,
+      include: { category: { select: { name: true } } },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const HEADERS = [
+      'STT', 'SKU', 'Tên SP', 'Danh mục', 'Chất liệu', 'Dung tích (ml)',
+      'Cao (mm)', 'ĐK thân (mm)', 'ĐK cổ (mm)', 'Trọng lượng (g)',
+      'Màu', 'Hình dạng', 'Loại cổ', 'Đơn vị bán', 'MOQ',
+      'Số cái/thùng', 'Giá tham khảo (VND)', 'Trạng thái',
+    ];
+
+    const THIN = { style: 'thin' as const, color: { rgb: '000000' } };
+    const BORDERS = { top: THIN, bottom: THIN, left: THIN, right: THIN };
+    const headerStyle = {
+      font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+      alignment: { horizontal: 'center' as const, vertical: 'center' as const, wrapText: true },
+      fill: { patternType: 'solid' as const, fgColor: { rgb: '52C41A' } },
+      border: BORDERS,
+    };
+    const textStyle = {
+      font: { sz: 11 },
+      alignment: { vertical: 'center' as const, wrapText: true },
+      border: BORDERS,
+    };
+    const centerStyle = {
+      font: { sz: 11 },
+      alignment: { horizontal: 'center' as const, vertical: 'center' as const },
+      border: BORDERS,
+    };
+    const numStyle = {
+      font: { sz: 11 },
+      alignment: { horizontal: 'right' as const, vertical: 'center' as const },
+      border: BORDERS,
+      numFmt: '#,##0',
+    };
+
+    const ws: XLSX.WorkSheet = {};
+    const mkCell = (v: unknown, s: Record<string, unknown>, t: 's' | 'n' = 's') => {
+      if (v === null || v === undefined || v === '') return { v: '', t: 's', s };
+      return { v, t, s };
+    };
+    const setRow = (r: number, cells: Array<{ v: unknown; t: string; s: Record<string, unknown> }>) => {
+      cells.forEach((c, ci) => {
+        ws[XLSX.utils.encode_cell({ r, c: ci })] = c;
+      });
+    };
+
+    // Header row
+    setRow(0, HEADERS.map((h) => mkCell(h, headerStyle)));
+
+    products.forEach((p, idx) => {
+      const colorLabel = p.color ? (p.custom_color ? `${p.color} (${p.custom_color})` : p.color) : '';
+      setRow(idx + 1, [
+        mkCell(idx + 1, centerStyle, 'n'),
+        mkCell(p.sku, centerStyle),
+        mkCell(p.name, textStyle),
+        mkCell(p.category?.name || '', textStyle),
+        mkCell(p.material || '', centerStyle),
+        mkCell(p.capacity_ml ?? '', numStyle, 'n'),
+        mkCell(p.height_mm ?? '', numStyle, 'n'),
+        mkCell(p.body_dia_mm ?? '', numStyle, 'n'),
+        mkCell(p.neck_dia_mm ?? '', numStyle, 'n'),
+        mkCell(p.weight_g ?? '', numStyle, 'n'),
+        mkCell(colorLabel, centerStyle),
+        mkCell(p.shape || '', centerStyle),
+        mkCell(p.neck_type || '', centerStyle),
+        mkCell(p.unit_of_sale || '', centerStyle),
+        mkCell(p.moq ?? '', numStyle, 'n'),
+        mkCell(p.pcs_per_carton ?? '', numStyle, 'n'),
+        mkCell(p.retail_price ?? '', numStyle, 'n'),
+        mkCell(p.is_active ? 'Hoạt động' : 'Ngừng', centerStyle),
+      ]);
+    });
+
+    const lastRow = products.length; // header at row 0, data 1..n
+    ws['!ref'] = XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: lastRow, c: HEADERS.length - 1 },
+    });
+    ws['!cols'] = [
+      { wch: 5 }, { wch: 18 }, { wch: 32 }, { wch: 16 }, { wch: 10 },
+      { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 },
+      { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 },
+      { wch: 12 }, { wch: 16 }, { wch: 12 },
+    ];
+    ws['!rows'] = [{ hpt: 32 }];
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+    // xlsx-js-style uses worksheet-level freeze via !views
+    (ws as Record<string, unknown>)['!views'] = [{ state: 'frozen', ySplit: 1 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sản phẩm');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    return Buffer.from(buf);
   }
 
   static async getById(id: string) {

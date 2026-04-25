@@ -1,3 +1,5 @@
+import XLSX from 'xlsx-js-style';
+import dayjs from 'dayjs';
 import prisma from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
 import { t } from '../../locales';
@@ -12,6 +14,13 @@ interface CustomerFilters {
   is_active?: boolean;
   from_date?: string;
   to_date?: string;
+}
+
+interface CustomerExportFilters {
+  search?: string;
+  customer_type?: 'BUSINESS' | 'INDIVIDUAL';
+  city?: string;
+  has_debt?: boolean;
 }
 
 export class CustomerService {
@@ -109,6 +118,124 @@ export class CustomerService {
     const result = await prisma.customer.update({ where: { id }, data: { is_active: false } });
     await delCache('cache:/api/customers*');
     return result;
+  }
+
+  static async exportExcel(filters: CustomerExportFilters): Promise<Buffer> {
+    const { search, customer_type, city, has_debt } = filters;
+
+    const where = {
+      is_active: true,
+      ...(search && {
+        OR: [
+          { company_name: { contains: search, mode: 'insensitive' as const } },
+          { contact_name: { contains: search, mode: 'insensitive' as const } },
+          { phone: { contains: search } },
+        ],
+      }),
+      ...(customer_type && { customer_type: customer_type as never }),
+      ...(city && { address: { contains: city, mode: 'insensitive' as const } }),
+    };
+
+    const customers = await prisma.customer.findMany({
+      where,
+      include: {
+        receivables: {
+          where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
+          select: { remaining: true },
+        },
+        _count: { select: { sales_orders: true } },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const rows = customers
+      .map((c) => ({
+        company_name: c.company_name,
+        contact_name: c.contact_name || '',
+        phone: c.phone || '',
+        email: c.email || '',
+        address: c.address || '',
+        address_city: '',
+        customer_type: c.customer_type,
+        tax_code: c.tax_code || '',
+        order_count: c._count.sales_orders,
+        debt: c.receivables.reduce((s, r) => s + r.remaining, 0),
+        created_at: c.created_at,
+      }))
+      .filter((r) => (has_debt ? r.debt > 0 : true));
+
+    const HEADERS = [
+      'STT', 'Tên công ty', 'Người liên hệ', 'SĐT', 'Email',
+      'Địa chỉ', 'Thành phố', 'Loại', 'Mã số thuế',
+      'Số đơn', 'Công nợ còn (VND)', 'Ngày tạo',
+    ];
+
+    const headerStyle = {
+      font: { name: 'Calibri', bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+      alignment: { horizontal: 'center' as const, vertical: 'center' as const, wrapText: true },
+      fill: { patternType: 'solid' as const, fgColor: { rgb: '1677FF' } },
+      border: {
+        top: { style: 'thin' as const, color: { rgb: '000000' } },
+        bottom: { style: 'thin' as const, color: { rgb: '000000' } },
+        left: { style: 'thin' as const, color: { rgb: '000000' } },
+        right: { style: 'thin' as const, color: { rgb: '000000' } },
+      },
+    };
+    const bodyBase = {
+      font: { name: 'Calibri', sz: 11 },
+      alignment: { vertical: 'center' as const, wrapText: true },
+      border: {
+        top: { style: 'thin' as const, color: { rgb: 'D9D9D9' } },
+        bottom: { style: 'thin' as const, color: { rgb: 'D9D9D9' } },
+        left: { style: 'thin' as const, color: { rgb: 'D9D9D9' } },
+        right: { style: 'thin' as const, color: { rgb: 'D9D9D9' } },
+      },
+    };
+    const bodyCenter = { ...bodyBase, alignment: { ...bodyBase.alignment, horizontal: 'center' as const } };
+    const bodyNum = { ...bodyBase, alignment: { ...bodyBase.alignment, horizontal: 'right' as const }, numFmt: '#,##0' };
+
+    const ws: XLSX.WorkSheet = {};
+    HEADERS.forEach((h, c) => {
+      ws[XLSX.utils.encode_cell({ r: 0, c })] = { v: h, t: 's', s: headerStyle };
+    });
+
+    rows.forEach((r, i) => {
+      const rowIdx = i + 1;
+      const typeLabel = r.customer_type === 'BUSINESS' ? 'Doanh nghiệp' : 'Cá nhân';
+      const cells: Array<{ v: string | number; t: 's' | 'n'; s: Record<string, unknown> }> = [
+        { v: i + 1, t: 'n', s: bodyCenter },
+        { v: r.company_name, t: 's', s: bodyBase },
+        { v: r.contact_name, t: 's', s: bodyBase },
+        { v: r.phone, t: 's', s: bodyCenter },
+        { v: r.email, t: 's', s: bodyBase },
+        { v: r.address, t: 's', s: bodyBase },
+        { v: r.address_city, t: 's', s: bodyBase },
+        { v: typeLabel, t: 's', s: bodyCenter },
+        { v: r.tax_code, t: 's', s: bodyCenter },
+        { v: r.order_count, t: 'n', s: bodyNum },
+        { v: r.debt, t: 'n', s: bodyNum },
+        { v: dayjs(r.created_at).format('DD/MM/YYYY'), t: 's', s: bodyCenter },
+      ];
+      cells.forEach((cell, c) => {
+        ws[XLSX.utils.encode_cell({ r: rowIdx, c })] = cell;
+      });
+    });
+
+    const lastRow = rows.length;
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: lastRow, c: HEADERS.length - 1 } });
+    ws['!cols'] = [
+      { wch: 5 }, { wch: 32 }, { wch: 22 }, { wch: 14 }, { wch: 26 },
+      { wch: 38 }, { wch: 16 }, { wch: 14 }, { wch: 16 },
+      { wch: 8 }, { wch: 18 }, { wch: 12 },
+    ];
+    ws['!rows'] = [{ hpt: 28 }];
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: HEADERS.length - 1 } }) };
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Khách hàng');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    return Buffer.from(buf);
   }
 
   static async checkDebtLimit(customerId: string, newOrderTotal: number) {

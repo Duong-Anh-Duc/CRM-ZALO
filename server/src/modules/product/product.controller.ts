@@ -1,8 +1,9 @@
 import { Response, NextFunction } from 'express';
+import dayjs from 'dayjs';
 import { AuthenticatedRequest } from '../../types';
 import { ProductService } from './product.service';
 import { t } from '../../locales';
-import { sendSuccess, sendCreated, sendPaginated, sendMessage } from '../../utils/response';
+import { sendSuccess, sendCreated, sendPaginated, sendMessage, buildContentDisposition } from '../../utils/response';
 
 export class ProductController {
   static async list(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -84,6 +85,39 @@ export class ProductController {
     try {
       const image = await ProductService.setPrimaryImage(req.params.id as string, req.params.imageId as string);
       sendSuccess(res, image);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async exportExcel(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const q = req.query as {
+        search?: string;
+        category_id?: string;
+        material?: string;
+        is_active?: string | boolean;
+      };
+      const is_active = q.is_active === undefined
+        ? undefined
+        : q.is_active === 'true' || q.is_active === true
+          ? true
+          : q.is_active === 'false' || q.is_active === false
+            ? false
+            : undefined;
+      const buf = await ProductService.exportExcel({
+        search: q.search,
+        category_id: q.category_id,
+        material: q.material,
+        is_active,
+      });
+      const filename = `danh-sach-san-pham-${dayjs().format('YYYYMMDD')}.xlsx`;
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': buildContentDisposition('attachment', filename),
+        'Content-Length': buf.length.toString(),
+      });
+      res.send(buf);
     } catch (err) {
       next(err);
     }

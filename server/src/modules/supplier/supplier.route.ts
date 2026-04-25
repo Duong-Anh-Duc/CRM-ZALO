@@ -8,6 +8,7 @@ import { SupplierController } from './supplier.controller';
 const router = Router();
 
 router.use(authenticate);
+router.get('/export-excel', requireAbility('read', 'Supplier'), SupplierController.exportExcel);
 router.get('/', requireAbility('read', 'Supplier'), SupplierController.list);
 router.get('/:id', validateIdParam, requireAbility('read', 'Supplier'), SupplierController.getById);
 router.post('/', requireAbility('create', 'Supplier'), validate(createSupplierSchema), SupplierController.create);

@@ -1084,6 +1084,54 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  // ─── Export Excel (KH / NCC / SP) ───
+  {
+    type: 'function',
+    function: {
+      name: 'export_customers_excel',
+      description: 'Xuất danh sách khách hàng ra file Excel. Dùng khi user ra lệnh "xuất danh sách KH", "export khách hàng", "in danh sách khách". Có thể kèm bộ lọc.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Tìm theo tên/SĐT (optional)' },
+          customer_type: { type: 'string', enum: ['BUSINESS', 'INDIVIDUAL'], description: 'Lọc loại KH' },
+          city: { type: 'string', description: 'Lọc theo thành phố/khu vực' },
+          has_debt: { type: 'boolean', description: 'true = chỉ KH còn công nợ' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'export_suppliers_excel',
+      description: 'Xuất danh sách nhà cung cấp ra Excel. Dùng khi user ra lệnh "xuất danh sách NCC", "export nhà cung cấp".',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string' },
+          city: { type: 'string' },
+          has_payable: { type: 'boolean', description: 'true = chỉ NCC còn nợ phải trả' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'export_products_excel',
+      description: 'Xuất danh sách sản phẩm ra Excel. Dùng khi user ra lệnh "xuất SP", "export sản phẩm", "in catalog". Có thể lọc theo category/chất liệu/trạng thái.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string' },
+          category_id: { type: 'string', description: 'ID danh mục SP' },
+          material: { type: 'string', description: 'Chất liệu: PET, HDPE, PP, LDPE, OPP, PE, PVC' },
+          is_active: { type: 'boolean', description: 'true = chỉ SP đang hoạt động' },
+        },
+      },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -1916,6 +1964,45 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       const msgId = result?.data?.msg_id || result?.msg_id || 'n/a';
       return `✅ Đã gửi vào group (group_id=${args.group_id}, msg_id=${msgId}). Nội dung: "${args.content}"`;
     }
+    case 'export_customers_excel': {
+      const { CustomerService } = await import('../customer/customer.service');
+      const buffer = await CustomerService.exportExcel({
+        search: args.search,
+        customer_type: args.customer_type,
+        city: args.city,
+        has_debt: args.has_debt,
+      });
+      const { uploadExport } = await import('../../lib/cloudinary-export');
+      const fileName = `danh-sach-khach-hang-${dayjs().format('YYYYMMDD-HHmmss')}.xlsx`;
+      const url = await uploadExport(buffer, fileName);
+      const count = Math.max(0, Math.floor((buffer.length - 2000) / 200)); // rough estimate for UX
+      return `✅ Đã xuất Excel danh sách khách hàng (~${count > 0 ? count : '?'} dòng).\n📎 Link tải: ${url}\n[action:${url}|Tải file Excel]`;
+    }
+    case 'export_suppliers_excel': {
+      const { SupplierService } = await import('../supplier/supplier.service');
+      const buffer = await SupplierService.exportExcel({
+        search: args.search,
+        city: args.city,
+        has_payable: args.has_payable,
+      });
+      const { uploadExport } = await import('../../lib/cloudinary-export');
+      const fileName = `danh-sach-ncc-${dayjs().format('YYYYMMDD-HHmmss')}.xlsx`;
+      const url = await uploadExport(buffer, fileName);
+      return `✅ Đã xuất Excel danh sách nhà cung cấp.\n📎 Link tải: ${url}\n[action:${url}|Tải file Excel]`;
+    }
+    case 'export_products_excel': {
+      const { ProductService } = await import('../product/product.service');
+      const buffer = await ProductService.exportExcel({
+        search: args.search,
+        category_id: args.category_id,
+        material: args.material,
+        is_active: args.is_active,
+      });
+      const { uploadExport } = await import('../../lib/cloudinary-export');
+      const fileName = `danh-sach-san-pham-${dayjs().format('YYYYMMDD-HHmmss')}.xlsx`;
+      const url = await uploadExport(buffer, fileName);
+      return `✅ Đã xuất Excel danh sách sản phẩm.\n📎 Link tải: ${url}\n[action:${url}|Tải file Excel]`;
+    }
     case 'set_zalo_auto_reply': {
       if (!args.thread_key || typeof args.enabled !== 'boolean') return '❌ Thiếu thread_key hoặc enabled';
       const thread = await prisma.zaloThread.upsert({
@@ -1955,6 +2042,35 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
     }
     default: return 'Không hỗ trợ công cụ này.';
   }
+}
+
+/**
+ * Sanitize customer-facing Zalo reply: remove forbidden emojis, markdown,
+ * and detect/fix duplicated paragraphs (LLM sometimes emits same text twice).
+ */
+function sanitizeCustomerReply(raw: string): string {
+  let s = (raw || '').trim();
+  if (!s) return '';
+  // Remove markdown markers
+  s = stripMarkdown(s);
+  // Remove forbidden emojis (keep 😊 only)
+  s = s.replace(/🙏|👍|🥰|❤️|💯|🎉|✨|⭐|🔥/g, '');
+  // Detect duplicated full response (LLM glitch): if text contains itself appended
+  const half = Math.floor(s.length / 2);
+  if (half > 30) {
+    const left = s.slice(0, half).trim();
+    const right = s.slice(half).trim();
+    if (left && right && left.replace(/\s+/g, '') === right.replace(/\s+/g, '')) {
+      s = left;
+    }
+  }
+  // Remove "Dạ, em chưa rõ... <same paragraph>" type glitch: collapse exact duplicate consecutive paragraphs
+  const paragraphs = s.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const dedup: string[] = [];
+  for (const p of paragraphs) {
+    if (dedup.length === 0 || dedup[dedup.length - 1] !== p) dedup.push(p);
+  }
+  return dedup.join('\n\n').replace(/\s+$/g, '');
 }
 
 /**
@@ -2300,23 +2416,83 @@ Nếu KHÔNG phải bao bì nhựa → null + confidence=0. JSON thuần.`,
     question: string,
     history: Array<{ role: string; content: string }> = [],
     customSystemPrompt?: string,
+    imageUrls: string[] = [],
   ): Promise<string> {
     try {
-      const defaultPrompt = `Bạn là trợ lý chăm sóc khách hàng của công ty bao bì nhựa PackFlow.
-Xưng "em", gọi khách là "anh/chị". Lịch sự, thân thiện, trả lời ngắn gọn (1-3 câu).
+      const defaultPrompt = `Em là nhân viên sale của PackFlow — chuyên bao bì nhựa cho shop mỹ phẩm, thực phẩm, hóa chất (chai PET, hũ, nắp, can, lọ, túi PE, thùng).
 
-NHIỆM VỤ:
-- Chào hỏi, cảm ơn khách nhắn tin
-- Tư vấn chung về sản phẩm bao bì nhựa (chai PET, hũ, nắp, thùng, can...)
-- Khi khách hỏi về sản phẩm cụ thể (giá, thông số, MOQ) → GỌI lookup_product để tra cứu rồi trả lời
-- Khi khách hỏi còn hàng / tồn kho / giao hàng cụ thể → mời để lại SĐT cho nhân viên
+NHÂN VẬT:
+Em có 2-3 năm kinh nghiệm tư vấn bao bì, am hiểu sản phẩm, biết mẫu nào hợp với ngành nào. Em đang chat Zalo với khách — giống như em đang nhắn tin với bạn bè trên điện thoại, không phải đang viết email.
 
-QUY TẮC:
-- KHÔNG nói mình là AI / chatbot / trợ lý CRM
-- KHÔNG đề cập đến hệ thống nội bộ (đơn bán, công nợ, phân quyền)
-- KHÔNG bịa giá cụ thể — LUÔN dùng lookup_product trước khi nói giá
-- Trả lời KHÔNG dùng markdown. Đơn giản, tự nhiên như người thật.
-- Giá trả về từ lookup_product là giá tham khảo — khi nói giá cụ thể thêm "giá tham khảo, tuỳ số lượng có thể thay đổi"`;
+CÁCH NHẮN TIN:
+- Ngắn. 1-2 câu phần lớn. Tin nhắn dài hơn 3 dòng là DÀI QUÁ, cắt bớt.
+- Gọi khách "anh" mặc định. Chỉ đổi "chị" khi biết chắc khách là nữ (khách tự xưng, hoặc tên rõ nữ). TUYỆT ĐỐI KHÔNG viết "anh/chị" kiểu điền form — nhân viên thật không nói như vậy.
+- Đừng mở đầu "Dạ" mỗi tin. Biến hóa: "Dạ", "Vâng", "Anh ơi", "À", "Được anh", "Ok anh", vào thẳng nội dung, hoặc không có gì cả. Người thật không lặp 1 từ mở đầu.
+- Dùng filler tự nhiên: "nha", "nhé", "ạ", "nè", "đó", "á" — nhưng không lạm dụng (1 từ filler/câu là đủ).
+- Emoji 😊 dùng thỉnh thoảng, không phải mỗi tin. Tuyệt đối không 🙏 hay emoji khác.
+- Tránh văn phòng: "xin quý khách vui lòng", "trân trọng", "kính chào", "ạ." ở cuối mỗi câu một cách máy móc.
+
+TƯ VẤN NHƯ NHÂN VIÊN BÁN HÀNG THẬT:
+- Khách hỏi chung chung ("cần bao bì", "shop có SP gì") → ĐỪNG đọc danh sách. HỎI MỤC ĐÍCH: "Anh đang định đóng gói gì để em gợi ý đúng mẫu ạ?" Sau khi biết mục đích mới tư vấn cụ thể.
+- Khách nói mục đích cụ thể (đựng nước, mỹ phẩm, tương ớt...) → tự chọn 1-2 mẫu hợp + gọi lookup_product để lấy giá → gợi ý có lý do: "Đựng nước giải khát 500ml thì anh nên lấy PET 500ml trơn, giá tham khảo 3.000đ/chai, MOQ 500. Đây là mẫu bán chạy nhất cho bên nước uống anh ạ."
+- Khách hỏi SP cụ thể ("chai PET 500ml") → lookup_product → báo ngay giá + MOQ + ưu điểm nổi bật (không chỉ đọc số).
+- Nếu lookup ra nhiều mẫu → chọn 1-2 mẫu ĐỀ XUẤT dựa vào ngữ cảnh, đừng dump cả list. VD: "Bên em có 2 mẫu phổ biến: PET-500 trơn 3.500đ (đóng nước bình thường), PLB-PET-2026-0003 hơi dày hơn 3.000đ (đóng hóa chất nhẹ). Anh đựng cái gì để em chốt đúng mẫu?"
+- Khách kêu đắt → ĐỪNG chỉ hỏi "tầm giá bao nhiêu". Gợi ý trước: "Nếu anh lấy trên 3.000 chai giá em sẽ giảm thêm được. Hoặc em có mẫu tương đương rẻ hơn 10-15% nhưng chất vẫn ổn, anh muốn xem không?"
+- Chốt: Khi khách có ý định mua → chủ động "Anh cho em xin SĐT, bên em báo giá chính thức + gửi mẫu test nếu anh cần." — ĐỪNG chỉ "em chuyển nhân viên liên hệ".
+
+NGHIỆP VỤ (bắt buộc):
+- BẤT KỲ câu hỏi nào liên quan SP (có bán X, giá X, còn hàng X, SP nào phù hợp...) → GỌI lookup_product TRƯỚC khi trả lời. KHÔNG BIỆN LÝ DO "em chưa rõ", "để em check" mà không gọi tool.
+- lookup_product nhận query tự nhiên: "túi PE", "chai PET 500ml", "nắp flip top", "can HDPE 5L", v.v.
+- Giá từ lookup_product luôn kèm note "giá tham khảo, tùy số lượng" (nói tự nhiên, không lặp nguyên xi).
+- Khách hỏi giao hàng cụ thể / chốt đơn → xin SĐT + chuyển nhân viên (không tự chốt).
+
+CẤM (nghiêm ngặt):
+- Không nói mình là AI/bot. Nếu bị hỏi → "em là tư vấn của shop anh" + quay về chủ đề.
+- Không nhắc CRM, hệ thống nội bộ.
+- Không markdown. Plain text.
+- Không bịa: giá, tồn kho, địa chỉ shop, SĐT, email. Nếu thiếu data → hỏi khách SĐT để nhân viên liên hệ.
+- Không hỏi ngu: "Anh cần gì ạ?" ngay sau khi khách đã mô tả rõ; "Anh/chị có muốn mua không?" sau khi khách đã báo số lượng; hỏi lại info khách vừa cung cấp.
+
+KHI KHÁCH GỬI ẢNH:
+- Mô tả nhanh thấy gì: loại + chất liệu đoán + kích thước đoán + màu.
+- Gọi lookup_product với từ khóa match.
+- Nếu không match → hỏi lại kích thước/dung tích để tìm đúng.
+- Nếu ảnh mờ/không phải bao bì → nói thẳng "Ảnh hơi mờ em chưa rõ, anh mô tả thêm giúp em nhé."
+
+VÍ DỤ MẪU (học style này):
+
+Khách: "chào bạn"
+Em: "Em chào anh ạ. Anh đang cần bao bì để đóng gói mặt hàng gì để em gợi ý mẫu phù hợp nhé?"
+
+Khách: "tôi muốn tư vấn"
+Em: "Anh cần bao bì cho sản phẩm gì ạ? Nước uống, mỹ phẩm, hay thực phẩm khô? Em gợi ý luôn cho anh."
+
+Khách: "bên mình có SP gì"
+Em: "Shop em có đủ dòng chai PET, hũ, nắp, can HDPE, túi PE đó anh. Anh dùng cho ngành nào để em tư vấn đúng mẫu?"
+
+Khách: "tôi đóng nước suối 500ml"
+→ lookup_product("chai PET 500ml")
+Em: "Vậy anh dùng PET 500ml là chuẩn rồi, bên em có mẫu PET-500 trơn 3.500đ/chai, MOQ 200 chai, form bán chạy nhất cho nước. Anh dự tính lấy tầm bao nhiêu để em báo giá sát nhất?"
+
+Khách: "có túi PE không"
+→ lookup_product("túi PE")
+Em: "Có anh ạ, bên em có 2 size phổ biến: 30x40cm (150đ/túi) và 40x60cm (250đ/túi), MOQ 500 túi. Anh đóng gói mặt hàng gì để em tư vấn size phù hợp?"
+
+Khách: "đắt thế"
+Em: "Em hiểu mà anh. Lấy số lượng lớn em sẽ chiết khấu thêm, hoặc em có mẫu tương đương rẻ hơn khoảng 10-15% nhưng vẫn đảm bảo, anh muốn xem không?"
+
+Khách: "lấy 3000 chai thì sao"
+Em: "3000 chai thì em báo giá riêng cho anh, mềm hơn giá lẻ kha khá đó. Anh gửi em SĐT + email, bên em gửi báo giá chính thức + gửi mẫu test luôn nha."
+
+Khách: "shop ở đâu" (không có data)
+Em: "Để em kết nối nhân viên gửi thông tin chi tiết cho anh ạ. Anh cho em xin số điện thoại nhé."
+
+Khách: [ảnh túi PE 40x60] "có không em"
+→ lookup_product("túi PE 40x60")
+Em: "Nhìn giống túi PE trong suốt khoảng 40x60cm đúng không anh? Mẫu này bên em có, 250đ/túi, MOQ 500. Anh đóng gói gì để em check độ dày phù hợp nha?"
+
+Khách: "em là bot à"
+Em: "Em là nhân viên tư vấn của shop anh ạ. Anh cần tư vấn mẫu nào không ạ?"`;
 
       const systemPrompt = (customSystemPrompt && customSystemPrompt.trim().length > 0)
         ? customSystemPrompt
@@ -2327,11 +2503,11 @@ QUY TẮC:
           type: 'function',
           function: {
             name: 'lookup_product',
-            description: 'Tra cứu sản phẩm theo tên, SKU, hoặc số thứ tự mẫu đã gợi ý trước đó. Trả về giá tham khảo + thông số (dung tích, chất liệu, MOQ).',
+            description: 'Tra cứu sản phẩm. BẮT BUỘC gọi khi khách hỏi bất kỳ gì về SP: tên cụ thể, SKU, hoặc TỪ KHOÁ LOẠI ("túi PE", "chai PET", "nắp", "can"). Fuzzy match trên tên/SKU/mô tả. Trả về danh sách mẫu + giá + MOQ.',
             parameters: {
               type: 'object',
               properties: {
-                query: { type: 'string', description: 'Tên SP, SKU, hoặc mô tả (vd "chai PET 500ml", "PET-500-TR", "mẫu 1")' },
+                query: { type: 'string', description: 'Tên SP, SKU, loại, hoặc mô tả. VD: "chai PET 500ml", "PET-500", "túi PE", "nắp 24", "can HDPE 5L"' },
               },
               required: ['query'],
             },
@@ -2339,26 +2515,39 @@ QUY TẮC:
         },
       ];
 
+      const hasImages = imageUrls.length > 0;
+      const modelName = hasImages
+        ? (config.openai.visionModel || config.openai.model || 'gpt-4o-mini')
+        : (config.openai.model || 'gpt-4o-mini');
+
+      const userContent: OpenAI.Chat.ChatCompletionUserMessageParam['content'] = hasImages
+        ? [
+            { type: 'text' as const, text: question || 'Em xem ảnh này giúp anh/chị' },
+            ...imageUrls.map((url) => ({ type: 'image_url' as const, image_url: { url } })),
+          ]
+        : question;
+
       const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
         { role: 'system', content: systemPrompt },
         ...history.slice(-6).map((h) => ({
           role: (h.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
           content: h.content,
         })),
-        { role: 'user', content: question },
+        { role: 'user', content: userContent },
       ];
 
-      // Up to 2 rounds of tool calling
+      // Up to 2 rounds of tool calling. Higher temperature + top_p for natural variance.
       for (let round = 0; round < 2; round++) {
         const response = await openai.chat.completions.create({
-          model: config.openai.model || 'gpt-4o-mini',
+          model: modelName,
           messages, tools: customerTools, tool_choice: 'auto',
-          temperature: 0.6, max_tokens: 400,
+          temperature: 0.85, top_p: 0.9, presence_penalty: 0.3, frequency_penalty: 0.3,
+          max_tokens: 300,
         });
         const choice = response.choices[0];
 
         if (choice.finish_reason !== 'tool_calls' || !choice.message.tool_calls) {
-          return (choice.message.content || '').trim();
+          return sanitizeCustomerReply(choice.message.content || '');
         }
 
         messages.push(choice.message);
@@ -2381,10 +2570,11 @@ QUY TẮC:
 
       // Fallback: final response without more tools
       const final = await openai.chat.completions.create({
-        model: config.openai.model || 'gpt-4o-mini',
-        messages, temperature: 0.6, max_tokens: 400,
+        model: modelName,
+        messages, temperature: 0.85, top_p: 0.9, presence_penalty: 0.3, frequency_penalty: 0.3,
+        max_tokens: 300,
       });
-      return (final.choices[0]?.message?.content || '').trim();
+      return sanitizeCustomerReply(final.choices[0]?.message?.content || '');
     } catch (err) {
       logger.error('customerReply error:', err);
       return '';

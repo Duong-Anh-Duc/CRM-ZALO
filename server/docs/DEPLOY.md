@@ -93,6 +93,15 @@ Script này chỉ re-embed những SP có hash thay đổi, nên an toàn chạy
 - [ ] Nếu thay đổi ZaloConfig → test gửi 1 tin nhắn qua UI Zalo hoặc Aura
 - [ ] Nếu backfill → vào trang chi tiết 1 supplier/customer xem số sản phẩm có khớp đơn không
 
+### 2.1.5 Khi nào cần mirror full DB (Option B)?
+
+Mặc định sau deploy, prod giữ nguyên data của nó + áp schema/logic mới. Chỉ làm full mirror khi:
+- Dev trên local sinh ra data mẫu mà prod cần có (VD seed mới, refactor data)
+- Muốn reset prod về state sạch của local
+- Data prod đã drift nghiêm trọng, không muốn backfill từng chỗ
+
+Làm theo **5.8** — đã cover backup → dump → wipe → restore → verify → rollback.
+
 ## 3. Setup lần đầu / khi đổi VPS
 
 ### 3.1 Clone repo + .env
@@ -242,21 +251,82 @@ psql -U packflow -d packflow_crm -h localhost
 sudo -u postgres psql -d packflow_crm  # nếu có sudo
 ```
 
-### 5.6 Backup DB
+### 5.6 Backup DB production
 
 ```bash
-ssh techla@192.168.1.229 \
-  'pg_dump -U packflow packflow_crm > ~/backup-$(date +%F).sql'
-scp techla@192.168.1.229:~/backup-*.sql ./backups/
+# Backup plain SQL (text, restore bằng psql)
+sshpass -p 'PASSWORD' ssh techla@192.168.1.229 \
+  "mkdir -p ~/db-backups && PGPASSWORD='zE3rD1F1mizPtsXwgHTtnt9h' pg_dump -h localhost -U packflow packflow_crm | gzip > ~/db-backups/packflow_prod_\$(date +%Y%m%d_%H%M%S).sql.gz"
+
+# Kéo về local (optional)
+sshpass -p 'PASSWORD' scp techla@192.168.1.229:~/db-backups/packflow_prod_*.sql.gz ./backups/
 ```
 
-### 5.7 Restore DB
+### 5.7 Restore DB (từ backup plain SQL)
 
 ```bash
-scp ./backups/backup-YYYY-MM-DD.sql techla@192.168.1.229:~/
-ssh techla@192.168.1.229 \
-  'psql -U packflow -d packflow_crm -h localhost < ~/backup-YYYY-MM-DD.sql'
+# Copy backup lên VPS nếu đang ở local
+sshpass -p 'PASSWORD' scp ./backups/packflow_prod_xxx.sql.gz techla@192.168.1.229:/tmp/
+
+# Stop app + restore + restart
+sshpass -p 'PASSWORD' ssh techla@192.168.1.229 '
+  pm2 stop packflow-crm
+  echo "66668888" | sudo -S -u postgres psql -d packflow_crm -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO packflow; GRANT ALL ON SCHEMA public TO public; CREATE EXTENSION IF NOT EXISTS vector;"
+  gunzip -c /tmp/packflow_prod_xxx.sql.gz | PGPASSWORD="zE3rD1F1mizPtsXwgHTtnt9h" psql -h localhost -U packflow -d packflow_crm -v ON_ERROR_STOP=0
+  pm2 restart packflow-crm --update-env
+'
 ```
+
+### 5.8 Mirror full DB từ local lên prod (Option B — overwrite)
+
+**⚠️ DESTRUCTIVE**: wipe toàn bộ data prod rồi copy từ local. Mất hết đơn/thanh toán phát sinh trên prod sau lần sync trước nếu có. CHỈ dùng khi chủ động muốn reset prod về state của local.
+
+```bash
+# 1. Backup prod trước (để rollback nếu hỏng)
+BACKUP_NAME="packflow_prod_backup_$(date +%Y%m%d_%H%M%S).sql.gz"
+sshpass -p 'PASSWORD' ssh techla@192.168.1.229 \
+  "mkdir -p ~/db-backups && PGPASSWORD='zE3rD1F1mizPtsXwgHTtnt9h' pg_dump -h localhost -U packflow packflow_crm | gzip > ~/db-backups/${BACKUP_NAME}"
+
+# 2. Dump local (PLAIN SQL — tránh version mismatch với prod pg_restore)
+LOCAL_DUMP=/tmp/packflow_local_plain.sql
+PGPASSWORD=postgres pg_dump -h localhost -U postgres --no-owner --no-privileges --no-comments packflow_crm > $LOCAL_DUMP
+
+# 3. Upload lên VPS
+sshpass -p 'PASSWORD' scp $LOCAL_DUMP techla@192.168.1.229:/tmp/packflow_local_plain.sql
+
+# 4. Wipe prod schema (cần sudo postgres để tạo lại vector extension) + restore
+sshpass -p 'PASSWORD' ssh techla@192.168.1.229 '
+  set -e
+  pm2 stop packflow-crm
+  PGPASSWORD="zE3rD1F1mizPtsXwgHTtnt9h" psql -h localhost -U packflow -d packflow_crm -c "DROP SCHEMA public CASCADE;"
+  echo "66668888" | sudo -S -u postgres psql -d packflow_crm -c "CREATE SCHEMA IF NOT EXISTS public; GRANT ALL ON SCHEMA public TO packflow; GRANT ALL ON SCHEMA public TO public; CREATE EXTENSION IF NOT EXISTS vector;"
+  PGPASSWORD="zE3rD1F1mizPtsXwgHTtnt9h" psql -h localhost -U packflow -d packflow_crm -v ON_ERROR_STOP=0 -f /tmp/packflow_local_plain.sql
+  pm2 restart packflow-crm --update-env
+'
+
+# 5. Verify counts khớp local
+QUERY="SELECT 'products' tbl, COUNT(*) FROM products UNION ALL SELECT 'customers', COUNT(*) FROM customers UNION ALL SELECT 'sales_orders', COUNT(*) FROM sales_orders UNION ALL SELECT 'zalo_messages', COUNT(*) FROM zalo_messages ORDER BY tbl;"
+echo "=== LOCAL ===" && PGPASSWORD=postgres psql -h localhost -U postgres -d packflow_crm -c "$QUERY"
+echo "=== PROD ===" && sshpass -p 'PASSWORD' ssh techla@192.168.1.229 "PGPASSWORD='zE3rD1F1mizPtsXwgHTtnt9h' psql -h localhost -U packflow -d packflow_crm -c \"$QUERY\""
+```
+
+**Rollback nếu prod bị sai sau sync** (dùng backup bước 1):
+```bash
+sshpass -p 'PASSWORD' ssh techla@192.168.1.229 '
+  pm2 stop packflow-crm
+  PGPASSWORD="zE3rD1F1mizPtsXwgHTtnt9h" psql -h localhost -U packflow -d packflow_crm -c "DROP SCHEMA public CASCADE;"
+  echo "66668888" | sudo -S -u postgres psql -d packflow_crm -c "CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO packflow; GRANT ALL ON SCHEMA public TO public; CREATE EXTENSION IF NOT EXISTS vector;"
+  gunzip -c ~/db-backups/packflow_prod_backup_<TIMESTAMP>.sql.gz | PGPASSWORD="zE3rD1F1mizPtsXwgHTtnt9h" psql -h localhost -U packflow -d packflow_crm -v ON_ERROR_STOP=0
+  pm2 restart packflow-crm
+'
+```
+
+### 5.9 pg_dump version compatibility
+
+- Local macOS thường có `pg_dump 18+` (Homebrew), prod Ubuntu 24.04 có `pg_dump 16.13`.
+- Custom format (`pg_dump -Fc`) **KHÔNG tương thích ngược** → dump từ local 18 không restore được với prod 16.
+- Giải pháp: luôn dùng **plain SQL** (`pg_dump` mặc định, không có `-Fc`) khi đồng bộ cross-version.
+- Hoặc cài pg16 trên mac (`brew install postgresql@16`) để dump với đúng version.
 
 ## 6. Troubleshooting
 
@@ -280,6 +350,15 @@ pm2 restart packflow-crm
 sudo lsof -i :3001
 # kill process cũ, restart PM2
 ```
+
+### pg_restore: "unsupported version (1.16) in file header"
+→ pg_dump local mới hơn prod pg_restore. Dùng **plain SQL** (`pg_dump` không có `-Fc`) thay vì custom format. Xem 5.9.
+
+### Restore DB: "permission denied to create extension vector"
+→ User `packflow` không phải superuser. Phải dùng `sudo -u postgres` để tạo extension trước, rồi mới chạy restore bằng `packflow`. Xem 5.7/5.8.
+
+### Zalo send API trả `error_code:114 "Tham số không hợp lệ"`
+→ Func.vn API cần user_id/group_id KHÔNG có prefix `zu`. Webhook lưu có prefix → phải strip. `ZaloService.cleanZaloId()` đã xử lý — nếu thấy lỗi này tức code chưa deploy hoặc có method chưa gọi cleanZaloId.
 
 ### Gemini "rate limit exceeded"
 → Free tier 100 RPM. Script `embed-products.ts` đã có delay 700ms → không bao giờ hit limit.
@@ -305,7 +384,7 @@ bash deploy.sh
 ### Rollback DB (nếu vừa db push sai)
 - Không có auto-rollback với `db push`
 - Nếu chỉ thêm cột: `ALTER TABLE X DROP COLUMN Y`
-- Nếu phức tạp: restore từ backup gần nhất
+- Nếu phức tạp: restore từ backup gần nhất (xem 5.7 hoặc "Rollback nếu prod bị sai sau sync" ở 5.8)
 
 ## 8. Security checklist (quan trọng)
 

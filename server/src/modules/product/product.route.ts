@@ -13,6 +13,7 @@ router.use(authenticate);
 
 // Product CRUD
 router.get('/', requireAbility('read', 'Product'), cache(60), ProductController.list);
+router.get('/export-excel', requireAbility('read', 'Product'), ProductController.exportExcel);
 router.get('/:id', validateIdParam, requireAbility('read', 'Product'), cache(60), ProductController.getById);
 router.post('/', requireAbility('create', 'Product'), uploadImages, handleMulterError, ProductController.create);
 router.put('/:id', validateIdParam, requireAbility('update', 'Product'), validate(updateProductSchema), ProductController.update);
