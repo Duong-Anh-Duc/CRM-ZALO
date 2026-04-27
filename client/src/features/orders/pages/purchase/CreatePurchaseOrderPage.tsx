@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card, Form, Select, DatePicker, Input, InputNumber, Button, Space, Row, Col, Typography, Drawer, Avatar, Tag, Empty, Divider, message,
 } from 'antd';
@@ -7,7 +7,7 @@ import { PlusOutlined, DeleteOutlined, SearchOutlined, ArrowLeftOutlined, Shoppi
 import { useTranslation } from 'react-i18next';
 import { useCreatePurchaseOrder, useSalesOrders } from '../../hooks';
 import { useSuppliers } from '@/features/suppliers/hooks';
-import { useProducts } from '@/features/products/hooks';
+import { useProduct, useProducts } from '@/features/products/hooks';
 import { formatVND } from '@/utils/format';
 
 const { Text, Title } = Typography;
@@ -23,10 +23,29 @@ interface OrderItem {
 const CreatePurchaseOrderPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const prefillSupplierId = searchParams.get('supplier_id') || undefined;
+  const prefillProductId = searchParams.get('product_id') || undefined;
   const [form] = Form.useForm();
   const createMutation = useCreatePurchaseOrder();
+  const { data: prefillProductData } = useProduct(prefillProductId);
+  const prefilledRef = React.useRef(false);
 
   const [items, setItems] = useState<OrderItem[]>([{ key: Date.now(), quantity: 1, unit_price: 0 }]);
+
+  useEffect(() => {
+    if (prefilledRef.current) return;
+    const product = prefillProductData?.data as any;
+    if (prefillSupplierId) form.setFieldValue('supplier_id', prefillSupplierId);
+    if (product) {
+      const supplierPrice = prefillSupplierId
+        ? (product.supplier_prices || []).find((sp: any) => sp.supplier?.id === prefillSupplierId)
+        : null;
+      const unitPrice = supplierPrice?.purchase_price ?? product.retail_price ?? 0;
+      setItems([{ key: Date.now(), product_id: product.id, product, quantity: supplierPrice?.moq || 1, unit_price: unitPrice }]);
+    }
+    if (prefillSupplierId || product) prefilledRef.current = true;
+  }, [prefillProductData, prefillSupplierId, form]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeItemKey, setActiveItemKey] = useState<number | null>(null);
   const [productSearch, setProductSearch] = useState('');

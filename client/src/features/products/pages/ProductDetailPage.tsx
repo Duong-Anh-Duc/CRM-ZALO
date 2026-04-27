@@ -1,24 +1,34 @@
 import React from 'react';
-import { Card, Table, Tag, Spin, Empty, Space, Row, Col, Typography, Avatar, Tabs, Button, Image, Popconfirm } from 'antd';
-import { StarFilled, ShoppingOutlined, DollarOutlined, ShopOutlined, InfoCircleOutlined, ExperimentOutlined, ColumnHeightOutlined, BgColorsOutlined, BorderOutlined, ToolOutlined, InboxOutlined, NumberOutlined, DashboardOutlined, AppstoreOutlined, TagsOutlined, SafetyCertificateOutlined, FilePdfOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Spin, Empty, Image, Dropdown } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { useProduct } from '../hooks';
-import { SupplierPrice } from '@/types';
-import { formatVND, materialLabels, formatNumber } from '@/utils/format';
-import apiClient from '@/lib/api-client';
 import { toast } from 'react-toastify';
+import { useProduct, useDeleteProduct } from '../hooks';
+import { Product } from '@/types';
+import { formatNumber } from '@/utils/format';
+import apiClient from '@/lib/api-client';
 import { usePermission } from '@/contexts/AbilityContext';
 import SupplierPriceFormModal from '../components/SupplierPriceFormModal';
+import ProductFormModal from '../components/ProductFormModal';
+import PdOverviewTab from '../components/PdOverviewTab';
+import PdSuppliersTab from '../components/PdSuppliersTab';
+import PdHistoryTab from '../components/PdHistoryTab';
+import { aggregateHistory, computeSupplierMetrics, sparklinePath, abbreviateNumber } from '../utils/metrics';
+import '../styles/productDetail.css';
 
-const { Text } = Typography;
-const cardStyle: React.CSSProperties = { borderRadius: 12, marginBottom: 16 };
-const fieldStyle: React.CSSProperties = { background: '#f5f5f5', borderRadius: 8, padding: '12px 16px' };
-const labelStyle: React.CSSProperties = { fontSize: 11, color: '#999', textTransform: 'uppercase' as const, letterSpacing: 0.5, display: 'block', marginBottom: 4 };
-const sectionTitleStyle: React.CSSProperties = { fontSize: 16, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 };
+type TabKey = 'overview' | 'suppliers' | 'sales' | 'purchase';
 
-const PAGE_SIZE = 10;
+const Sparkline: React.FC<{ values: number[]; color: string }> = ({ values, color }) => {
+  const { line, area } = sparklinePath(values);
+  if (!line) return null;
+  return (
+    <svg className="pd-sparkline" viewBox="0 0 100 28" preserveAspectRatio="none">
+      <polyline fill={`${color}14`} stroke="none" points={area} />
+      <polyline fill="none" stroke={color} strokeWidth="1.5" points={line} />
+    </svg>
+  );
+};
 
 const ProductDetailPage: React.FC = () => {
   const { t } = useTranslation();
@@ -26,266 +36,199 @@ const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: productData, isLoading } = useProduct(id);
   const product = productData?.data as any;
-  const [salesPage, setSalesPage] = React.useState(1);
-  const [purchasePage, setPurchasePage] = React.useState(1);
-  const [supplierPage, setSupplierPage] = React.useState(1);
-  const [spModal, setSpModal] = React.useState<{ open: boolean; record: any | null }>({ open: false, record: null });
   const qc = useQueryClient();
-  const canManageSupplierPrice = usePermission('supplier_price.manage');
+  const [tab, setTab] = React.useState<TabKey>('overview');
+  const [activeImageIdx, setActiveImageIdx] = React.useState(0);
+  const [spModal, setSpModal] = React.useState<{ open: boolean; record: any | null }>({ open: false, record: null });
+  const [editOpen, setEditOpen] = React.useState(false);
 
-  const handleDeleteSupplierPrice = async (spId: string) => {
-    try {
-      await apiClient.delete(`/supplier-prices/${spId}`);
-      toast.success(t('common.deleted'));
-      qc.invalidateQueries({ queryKey: ['product', id] });
-    } catch (err: any) { toast.error(err?.response?.data?.message || t('common.error')); }
-  };
+  const canManageSupplierPrice = usePermission('supplier_price.manage');
+  const canUpdate = usePermission('product.update');
+  const canDelete = usePermission('product.delete');
+  const deleteMutation = useDeleteProduct();
 
   if (isLoading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
   if (!product) return <Empty description={t('product.notFound')} style={{ marginTop: 80 }} />;
 
-  const colorLabel = (key: string) => t(`colorLabels.${key}`);
-  const shapeLabel = (key: string) => t(`shapeLabels.${key}`);
-  const neckLabel = (key: string) => t(`neckLabels.${key}`);
-  const unitLabel = (key: string) => t(`unitLabels.${key}`);
-  const industryLabel = (key: string) => t(`industryLabels.${key}`);
-  const safetyLabel = (key: string) => t(`safetyLabels.${key}`);
+  const images: any[] = product.images || [];
+  const currentImage = images[activeImageIdx]?.url;
+  const sales = product.sales_order_items || [];
+  const purchases = product.purchase_order_items || [];
+  const salesStats = aggregateHistory(sales, 'sales_order');
+  const purchaseStats = aggregateHistory(purchases, 'purchase_order');
+  const supplierMetrics = computeSupplierMetrics(product.supplier_prices || [], product.retail_price);
 
-  const Field = ({ label, value }: { label: React.ReactNode; value: React.ReactNode }) => (
-    <div style={fieldStyle}>
-      <Text style={labelStyle}>{label}</Text>
-      <Text strong>{value || value === 0 ? value : '—'}</Text>
-    </div>
-  );
+  const handleDeleteSP = async (spId: string) => {
+    try {
+      await apiClient.delete(`/supplier-prices/${spId}`);
+      toast.success(t('common.deleted'));
+      qc.invalidateQueries({ queryKey: ['products', id] });
+    } catch (err: any) { toast.error(err?.response?.data?.message || t('common.error')); }
+  };
 
-  const salesItems = product.sales_order_items || [];
-  const purchaseItems = product.purchase_order_items || [];
-
-  const generalContent = (
-    <>
-      <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-        <Col xs={24} sm={12}><Field label={t('product.name')} value={product.name} /></Col>
-        <Col xs={24} sm={12}><Field label="SKU" value={product.sku} /></Col>
-        <Col xs={24} sm={12}><Field label={t('product.category')} value={product.category?.name} /></Col>
-        <Col xs={24} sm={12}><Field label={t('common.status')} value={product.is_active ? t('common.activeStatus') : t('common.inactiveStatus')} /></Col>
-        <Col xs={24}><Field label={t('common.description')} value={product.description} /></Col>
-      </Row>
-
-      <div style={sectionTitleStyle}><DollarOutlined style={{ color: '#1890ff' }} /> {t('product.pricing')}</div>
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12}>
-          <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <Text style={labelStyle}><DollarOutlined style={{ marginRight: 4, color: '#1890ff' }} />{t('product.retailPrice')}</Text>
-            <Text strong style={{ fontSize: 20, color: '#1890ff' }}>{product.retail_price ? formatVND(product.retail_price) : '—'}</Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12}>
-          <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <Text style={labelStyle}><DashboardOutlined style={{ marginRight: 4, color: '#fa8c16' }} />{t('product.priceTiers')}</Text>
-            <Text strong style={{ fontSize: 20, color: '#fa8c16' }}>{product.price_tiers?.length || 0} {t('product.tiers')}</Text>
-          </Card>
-        </Col>
-      </Row>
-      {product.price_tiers && product.price_tiers.length > 0 && (
-        <Table dataSource={product.price_tiers} rowKey="id" pagination={false} size="small" style={{ marginBottom: 20 }}
-          columns={[
-            { title: 'STT', key: 'stt', width: 50, render: (_: any, __: any, i: number) => i + 1 },
-            { title: t('product.minQty'), dataIndex: 'min_qty', key: 'min', width: 120, align: 'right' as const, render: (v: number) => formatNumber(v) },
-            { title: t('product.unitPrice'), dataIndex: 'price', key: 'price', width: 150, align: 'right' as const, render: (v: number) => formatVND(v) },
-          ]}
-        />
-      )}
-
-      <div style={sectionTitleStyle}><ExperimentOutlined style={{ color: '#13c2c2' }} /> {t('product.technicalSpecs')}</div>
-      <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-        <Col xs={24} sm={8}><Field label={<><ExperimentOutlined style={{ marginRight: 4 }} />{t('product.material')}</>} value={product.material ? materialLabels[product.material] : null} /></Col>
-        <Col xs={24} sm={8}><Field label={<><DashboardOutlined style={{ marginRight: 4 }} />{t('product.capacity')}</>} value={product.capacity_ml ? `${formatNumber(product.capacity_ml)} ml` : null} /></Col>
-        <Col xs={24} sm={8}><Field label={<><ColumnHeightOutlined style={{ marginRight: 4 }} />{t('product.heightMm')}</>} value={product.height_mm ? `${product.height_mm} mm` : null} /></Col>
-        <Col xs={24} sm={8}><Field label={t('product.bodyDiaMm')} value={product.body_dia_mm ? `${product.body_dia_mm} mm` : null} /></Col>
-        <Col xs={24} sm={8}><Field label={t('product.neckDiaMm')} value={product.neck_dia_mm ? `${product.neck_dia_mm} mm` : null} /></Col>
-        <Col xs={24} sm={8}><Field label={<><DashboardOutlined style={{ marginRight: 4 }} />{t('product.weightG')}</>} value={product.weight_g ? `${product.weight_g} g` : null} /></Col>
-        <Col xs={24} sm={8}><Field label={<><BgColorsOutlined style={{ marginRight: 4 }} />{t('product.color')}</>} value={product.color ? colorLabel(product.color) + (product.custom_color ? ` (${product.custom_color})` : '') : null} /></Col>
-        <Col xs={24} sm={8}><Field label={<><BorderOutlined style={{ marginRight: 4 }} />{t('product.shape')}</>} value={product.shape ? shapeLabel(product.shape) : null} /></Col>
-        <Col xs={24} sm={8}><Field label={<><ToolOutlined style={{ marginRight: 4 }} />{t('product.neckType')}</>} value={product.neck_type ? neckLabel(product.neck_type) + (product.neck_spec ? ` - ${product.neck_spec}` : '') : null} /></Col>
-      </Row>
-
-      <div style={sectionTitleStyle}><InboxOutlined style={{ color: '#eb2f96' }} /> {t('product.packaging')}</div>
-      <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-        <Col xs={24} sm={8}><Field label={<><InboxOutlined style={{ marginRight: 4 }} />{t('product.unitOfSale')}</>} value={unitLabel(product.unit_of_sale)} /></Col>
-        <Col xs={24} sm={8}><Field label={<><NumberOutlined style={{ marginRight: 4 }} />{t('product.moq')}</>} value={product.moq ? formatNumber(product.moq) : null} /></Col>
-        <Col xs={24} sm={8}><Field label={t('product.pcsPerCarton')} value={product.pcs_per_carton ? formatNumber(product.pcs_per_carton) : null} /></Col>
-        <Col xs={24} sm={8}><Field label={t('product.cartonWeight')} value={product.carton_weight ? `${product.carton_weight} kg` : null} /></Col>
-        <Col xs={24} sm={8}><Field label={t('product.cartonLength')} value={product.carton_length ? `${product.carton_length} mm` : null} /></Col>
-        <Col xs={24} sm={8}><Field label={t('product.cartonWidth')} value={product.carton_width ? `${product.carton_width} mm` : null} /></Col>
-        <Col xs={24} sm={8}><Field label={t('product.cartonHeight')} value={product.carton_height ? `${product.carton_height} mm` : null} /></Col>
-      </Row>
-
-      <div style={sectionTitleStyle}><AppstoreOutlined style={{ color: '#faad14' }} /> {t('product.application')}</div>
-      <Row gutter={[12, 12]}>
-        <Col xs={24} sm={12}>
-          <div style={fieldStyle}>
-            <Text style={labelStyle}><TagsOutlined style={{ marginRight: 4 }} />{t('product.industries')}</Text>
-            {product.industries?.length > 0 ? (
-              <Space size={4} wrap>
-                {product.industries.map((ind: string) => (
-                  <Tag key={ind} color="blue" style={{ borderRadius: 6, marginTop: 4 }}>{industryLabel(ind)}</Tag>
-                ))}
-              </Space>
-            ) : <Text strong>—</Text>}
-          </div>
-        </Col>
-        <Col xs={24} sm={12}>
-          <div style={fieldStyle}>
-            <Text style={labelStyle}><SafetyCertificateOutlined style={{ marginRight: 4 }} />{t('product.safetyStandards')}</Text>
-            {product.safety_standards?.length > 0 ? (
-              <Space size={4} wrap>
-                {product.safety_standards.map((std: string) => (
-                  <Tag key={std} color="green" style={{ borderRadius: 6, marginTop: 4 }}>{safetyLabel(std)}</Tag>
-                ))}
-              </Space>
-            ) : <Text strong>—</Text>}
-          </div>
-        </Col>
-        {product.catalog_pdf_url && (
-          <Col xs={24}>
-            <div style={fieldStyle}>
-              <Text style={labelStyle}><FilePdfOutlined style={{ marginRight: 4 }} />Catalog PDF</Text>
-              <Button type="link" icon={<FilePdfOutlined />} style={{ padding: 0 }} onClick={() => window.open(product.catalog_pdf_url, '_blank')}>
-                {t('common.viewDetail')}
-              </Button>
-            </div>
-          </Col>
-        )}
-      </Row>
-    </>
-  );
-
-  const tabItems = [
-    {
-      key: 'general',
-      label: <><InfoCircleOutlined /> {t('product.generalInfo')}</>,
-      children: generalContent,
-    },
-    {
-      key: 'suppliers',
-      label: <><ShopOutlined /> {t('product.supplierPrices')} ({product.supplier_prices?.length || 0})</>,
-      children: (
-        <>
-          {canManageSupplierPrice && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-              <Button type="primary" icon={<PlusOutlined />} size="small" style={{ borderRadius: 8 }} onClick={() => setSpModal({ open: true, record: null })}>
-                {t('product.addSupplierPrice')}
-              </Button>
-            </div>
-          )}
-          <Table<SupplierPrice>
-            dataSource={product.supplier_prices} rowKey="id"
-            size="small" scroll={{ x: 760 }}
-            pagination={(product.supplier_prices?.length || 0) > PAGE_SIZE ? { pageSize: PAGE_SIZE, current: supplierPage, onChange: setSupplierPage } : false}
-            columns={[
-              { title: 'STT', key: 'stt', width: 50, render: (_: any, __: any, i: number) => (supplierPage - 1) * PAGE_SIZE + i + 1 },
-              { title: t('product.supplier'), key: 'supplier', ellipsis: true, render: (_: any, r: any) => r.supplier ? <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/suppliers/${r.supplier.id}`)}>{r.supplier.company_name}</Button> : '-' },
-              { title: t('product.purchasePrice'), dataIndex: 'purchase_price', key: 'pp', width: 130, align: 'right' as const, render: (v: number) => formatVND(v) },
-              { title: 'MOQ', dataIndex: 'moq', key: 'moq', width: 90, align: 'right' as const, render: (v: number) => v ? formatNumber(v) : '-' },
-              { title: t('supplier.leadTime'), dataIndex: 'lead_time_days', key: 'lead', width: 130, render: (v: number) => v ? `${v} ${t('product.days')}` : '-' },
-              { title: t('product.preferred'), dataIndex: 'is_preferred', key: 'pref', width: 70, align: 'center' as const, render: (v: boolean) => v ? <StarFilled style={{ color: '#faad14' }} /> : null },
-              { title: t('common.actions'), key: 'actions', width: 100, fixed: 'right' as const, align: 'center' as const, render: (_: any, r: any) => (
-                <Space size={0}>
-                  {canManageSupplierPrice && (
-                    <Button type="text" size="small" icon={<EditOutlined />} style={{ color: '#faad14' }} onClick={() => setSpModal({ open: true, record: r })} />
-                  )}
-                  {canManageSupplierPrice && (
-                    <Popconfirm title={t('common.deleteConfirm')} onConfirm={() => handleDeleteSupplierPrice(r.id)} okText={t('common.delete')} cancelText={t('common.cancel')} okButtonProps={{ danger: true }}>
-                      <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
-                  )}
-                </Space>
-              )},
-            ]}
-            locale={{ emptyText: <Empty description={t('product.noSupplierPrices')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-          />
-        </>
-      ),
-    },
-    {
-      key: 'sales',
-      label: <><DollarOutlined /> {t('product.salesHistory')} ({salesItems.length})</>,
-      children: (
-        <Table size="small" dataSource={salesItems} rowKey="id" scroll={{ x: 'max-content' }}
-          pagination={salesItems.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, current: salesPage, onChange: setSalesPage } : false}
-          locale={{ emptyText: <Empty description={t('common.noData')} /> }}
-          columns={[
-            { title: 'STT', key: 'stt', width: 50, align: 'center' as const, render: (_: any, __: any, i: number) => (salesPage - 1) * PAGE_SIZE + i + 1 },
-            { title: t('order.orderCode'), key: 'code', width: 170, render: (_: any, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/sales-orders/${r.sales_order?.id}`)}>{r.sales_order?.order_code}</Button> },
-            { title: t('customer.name'), key: 'cust', ellipsis: true, render: (_: any, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/customers/${r.sales_order?.customer?.id}`)}>{r.sales_order?.customer?.company_name || r.sales_order?.customer?.contact_name}</Button> },
-            { title: t('order.orderDate'), key: 'date', width: 110, render: (_: any, r: any) => r.sales_order?.order_date ? new Date(r.sales_order.order_date).toLocaleDateString('vi') : '-' },
-            { title: 'SL', dataIndex: 'quantity', key: 'qty', width: 60, align: 'right' as const },
-            { title: t('order.unitPrice'), dataIndex: 'unit_price', key: 'price', width: 120, align: 'right' as const, render: (v: number) => formatVND(v) },
-            { title: t('order.lineTotal'), dataIndex: 'line_total', key: 'total', width: 130, align: 'right' as const, render: (v: number) => <Text strong>{formatVND(v)}</Text> },
-          ]}
-        />
-      ),
-    },
-    {
-      key: 'purchase',
-      label: <><ShopOutlined /> {t('product.purchaseHistory')} ({purchaseItems.length})</>,
-      children: (
-        <Table size="small" dataSource={purchaseItems} rowKey="id" scroll={{ x: 'max-content' }}
-          pagination={purchaseItems.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, current: purchasePage, onChange: setPurchasePage } : false}
-          locale={{ emptyText: <Empty description={t('common.noData')} /> }}
-          columns={[
-            { title: 'STT', key: 'stt', width: 50, align: 'center' as const, render: (_: any, __: any, i: number) => (purchasePage - 1) * PAGE_SIZE + i + 1 },
-            { title: t('order.orderCode'), key: 'code', width: 170, render: (_: any, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/purchase-orders/${r.purchase_order?.id}`)}>{r.purchase_order?.order_code}</Button> },
-            { title: t('supplier.name'), key: 'supp', ellipsis: true, render: (_: any, r: any) => <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/suppliers/${r.purchase_order?.supplier?.id}`)}>{r.purchase_order?.supplier?.company_name}</Button> },
-            { title: t('order.orderDate'), key: 'date', width: 110, render: (_: any, r: any) => r.purchase_order?.order_date ? new Date(r.purchase_order.order_date).toLocaleDateString('vi') : '-' },
-            { title: 'SL', dataIndex: 'quantity', key: 'qty', width: 60, align: 'right' as const },
-            { title: t('order.unitPrice'), dataIndex: 'unit_price', key: 'price', width: 120, align: 'right' as const, render: (v: number) => formatVND(v) },
-            { title: t('order.lineTotal'), dataIndex: 'line_total', key: 'total', width: 130, align: 'right' as const, render: (v: number) => <Text strong>{formatVND(v)}</Text> },
-          ]}
-        />
-      ),
-    },
+  const tabs: { key: TabKey; label: string; count?: number }[] = [
+    { key: 'overview', label: t('product.overview') },
+    { key: 'suppliers', label: t('product.suppliersTab'), count: product.supplier_prices?.length || 0 },
+    { key: 'sales', label: t('product.salesHistory'), count: sales.length },
+    { key: 'purchase', label: t('product.purchaseHistory'), count: purchases.length },
   ];
 
+  const moreMenuItems = canDelete ? [{
+    key: 'delete', danger: true, label: t('common.delete'),
+    onClick: () => {
+      if (window.confirm(t('common.deleteConfirm'))) {
+        deleteMutation.mutate(id!, { onSuccess: () => navigate('/products') });
+      }
+    },
+  }] : [];
+
+  const qtyAbbrev = abbreviateNumber(salesStats.totalQty);
+  const purchaseAbbrev = abbreviateNumber(purchaseStats.totalQty);
+
   return (
-    <div>
-      <Card style={cardStyle}>
-        <Space size={16} style={{ marginBottom: 20 }} wrap>
-          {product.images?.[0]?.url ? (
-            <Avatar size={56} shape="square" src={product.images[0].url} style={{ borderRadius: 12 }} />
-          ) : (
-            <Avatar size={56} style={{ background: '#1677ff', fontSize: 18 }} icon={<ShoppingOutlined />} />
+    <div className="pd-root">
+      <div className="pd-topbar">
+        <div className="pd-breadcrumb">
+          <a onClick={() => navigate('/products')}>{t('menu.products')}</a>
+          {product.category?.name && <><span className="sep">/</span><span>{product.category.name}</span></>}
+          <span className="sep">/</span>
+          <span className="current">{product.name}</span>
+        </div>
+        <div className="pd-actions">
+          {canUpdate && <button className="pd-btn" onClick={() => setEditOpen(true)}>{t('common.edit')}</button>}
+          {canManageSupplierPrice && <button className="pd-btn pd-btn-primary" onClick={() => setSpModal({ open: true, record: null })}>+ {t('product.addSupplierPrice')}</button>}
+          {moreMenuItems.length > 0 && (
+            <Dropdown menu={{ items: moreMenuItems }} trigger={['click']}>
+              <button className="pd-btn pd-btn-icon">⋯</button>
+            </Dropdown>
           )}
-          <div>
-            <Text strong style={{ fontSize: 20, display: 'block' }}>{product.name}</Text>
-            <Space size={8}>
-              <Text type="secondary">SKU: {product.sku} · {product.category?.name || '-'}</Text>
-              <Tag style={{ borderRadius: 12, fontWeight: 500, color: product.is_active ? '#52c41a' : '#999', background: product.is_active ? '#f6ffed' : '#f5f5f5', border: `1px solid ${product.is_active ? '#b7eb8f' : '#d9d9d9'}` }}>
-                {product.is_active ? t('common.activeStatus') : t('common.inactiveStatus')}
-              </Tag>
-            </Space>
-          </div>
-        </Space>
+        </div>
+      </div>
 
-        {product.images && product.images.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <Image.PreviewGroup>
-              <Space size={12} wrap>
-                {product.images.map((img: any) => (
-                  <Image key={img.id} src={img.url} width={120} height={120}
-                    style={{ objectFit: 'cover', borderRadius: 8, border: '1px solid #f0f0f0' }} />
+      <div className="pd-main">
+        <section className="pd-hero">
+          <div className="pd-gallery">
+            <div className="pd-gallery-main">
+              {images.length > 0 && <span className="pd-gallery-badge">{activeImageIdx + 1} / {images.length}</span>}
+              {currentImage ? (
+                <Image src={currentImage} preview={{ src: currentImage }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <svg className="placeholder" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3-3-9 9" />
+                </svg>
+              )}
+            </div>
+            {images.length > 1 && (
+              <div className="pd-gallery-thumbs">
+                {images.slice(0, 4).map((img: any, i: number) => (
+                  <div key={img.id} className={`pd-thumb${i === activeImageIdx ? ' active' : ''}`} onClick={() => setActiveImageIdx(i)}>
+                    <img src={img.url} alt="" />
+                  </div>
                 ))}
-              </Space>
-            </Image.PreviewGroup>
+                {images.length > 4 && <div className="pd-thumb">+{images.length - 4}</div>}
+              </div>
+            )}
           </div>
-        )}
 
-        <Tabs items={tabItems} />
-      </Card>
+          <div className="pd-info">
+            <div className="pd-meta-row">
+              <span className={`pd-badge ${product.is_active ? 'pd-badge-success' : 'pd-badge-muted'}`}>
+                {product.is_active ? t('common.activeStatus') : t('common.inactiveStatus')}
+              </span>
+              {product.category?.name && <span className="pd-badge pd-badge-neutral">{product.category.name}</span>}
+              <span className="pd-sku">SKU · {product.sku}</span>
+            </div>
+
+            <div className="pd-title-block">
+              <h1 className="pd-title">{product.name}</h1>
+              {product.description && <p className="pd-subtitle">{product.description}</p>}
+            </div>
+
+            <div className="pd-metrics">
+              <div className="pd-metric">
+                <div className="pd-metric-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                  {t('product.retailPrice')}
+                </div>
+                <div className="pd-metric-value">{product.retail_price ? formatNumber(product.retail_price) : '—'}<span className="pd-metric-unit"> VND</span></div>
+                <div className="pd-metric-trend">{product.retail_price ? t('product.referencePrice') : t('product.notSet')}</div>
+              </div>
+              <div className="pd-metric">
+                <div className="pd-metric-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                  {t('product.bestPriceFromSupplier')}
+                </div>
+                <div className="pd-metric-value" style={{ color: supplierMetrics.best ? 'var(--pd-green)' : undefined }}>
+                  {supplierMetrics.best ? formatNumber(supplierMetrics.best.purchase_price!) : '—'}
+                  <span className="pd-metric-unit"> VND</span>
+                </div>
+                <div className={`pd-metric-trend ${supplierMetrics.marginVsRetailPct && supplierMetrics.marginVsRetailPct > 0 ? 'pd-trend-up' : ''}`}>
+                  {supplierMetrics.marginVsRetailPct !== null ? `↓ ${supplierMetrics.marginVsRetailPct}% ${t('product.vsRetail')}` : t('product.notSet')}
+                </div>
+              </div>
+              <div className="pd-metric">
+                <div className="pd-metric-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 17 9 11 13 15 21 7" /><polyline points="14 7 21 7 21 14" /></svg>
+                  {t('product.soldOrders', { count: sales.length })}
+                </div>
+                <div className="pd-metric-value">{qtyAbbrev.value}<span className="pd-metric-unit"> {qtyAbbrev.unit} {t(`unitLabels.PIECE`)}</span></div>
+                <Sparkline values={salesStats.spark} color="#15803D" />
+              </div>
+              <div className="pd-metric">
+                <div className="pd-metric-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 7 9 13 13 9 21 17" /><polyline points="14 17 21 17 21 10" /></svg>
+                  {t('product.boughtOrders', { count: purchases.length })}
+                </div>
+                <div className="pd-metric-value">{purchaseAbbrev.value}<span className="pd-metric-unit"> {purchaseAbbrev.unit} {t(`unitLabels.PIECE`)}</span></div>
+                <Sparkline values={purchaseStats.spark} color="#1F3A8A" />
+              </div>
+            </div>
+
+            {supplierMetrics.marginVsRetailPct !== null && supplierMetrics.marginVsRetailPct > 20 && (
+              <div className="pd-quote">
+                <div className="pd-quote-text">
+                  "{t('product.insightMargin', { pct: supplierMetrics.marginVsRetailPct })}"
+                </div>
+                <button className="pd-btn" onClick={() => setTab('suppliers')}>{t('product.viewAnalysis')} →</button>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <div className="pd-tabs-wrap">
+          <div className="pd-tabs">
+            {tabs.map(tb => (
+              <button key={tb.key} className={`pd-tab${tb.key === tab ? ' active' : ''}`} onClick={() => setTab(tb.key)}>
+                {tb.label}
+                {tb.count !== undefined && <span className="pd-tab-count">{tb.count}</span>}
+              </button>
+            ))}
+          </div>
+          <div className="pd-tab-content">
+            {tab === 'overview' && <PdOverviewTab product={product} />}
+            {tab === 'suppliers' && (
+              <PdSuppliersTab
+                prices={product.supplier_prices || []}
+                retailPrice={product.retail_price}
+                preferredId={supplierMetrics.preferred?.id ?? null}
+                canManage={canManageSupplierPrice}
+                onAdd={() => setSpModal({ open: true, record: null })}
+                onEdit={(r) => setSpModal({ open: true, record: r })}
+                onDelete={handleDeleteSP}
+                onCreatePO={(supplierId) => navigate(`/purchase-orders/create?supplier_id=${supplierId}&product_id=${id}`)}
+              />
+            )}
+            {tab === 'sales' && <PdHistoryTab items={sales} kind="sales" />}
+            {tab === 'purchase' && <PdHistoryTab items={purchases} kind="purchase" />}
+          </div>
+        </div>
+      </div>
 
       <SupplierPriceFormModal open={spModal.open} productId={id!} record={spModal.record}
         onClose={() => setSpModal({ open: false, record: null })}
-        onSaved={() => qc.invalidateQueries({ queryKey: ['product', id] })} />
+        onSaved={() => qc.invalidateQueries({ queryKey: ['products', id] })} />
+      <ProductFormModal open={editOpen} product={product as Product} onClose={() => setEditOpen(false)}
+        onSuccess={() => { setEditOpen(false); qc.invalidateQueries({ queryKey: ['products', id] }); }} />
     </div>
   );
 };

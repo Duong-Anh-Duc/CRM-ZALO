@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Card, Space, Typography, Spin, Empty, Tag, Button, Modal, Tooltip, Row, Col, Statistic, Input, DatePicker, Form, Avatar, Popconfirm, Select, InputNumber, Drawer, Dropdown, Table, Tabs,
+  Card, Space, Typography, Spin, Empty, Tag, Button, Modal, Tooltip, Row, Col, Input, DatePicker, Form, Avatar, Popconfirm, Select, InputNumber, Drawer, Dropdown, Table, Tabs,
 } from 'antd';
-import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, DollarOutlined, ShopOutlined, SaveOutlined, UserOutlined, PhoneOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, SearchOutlined, SwapOutlined, MailOutlined, ExclamationCircleOutlined, LinkOutlined, FileDoneOutlined } from '@ant-design/icons';
+import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, ShopOutlined, SaveOutlined, UserOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, SearchOutlined, SwapOutlined, MailOutlined, ExclamationCircleOutlined, LinkOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
@@ -16,6 +16,8 @@ import { invoiceApi } from '@/features/invoices/api';
 import InvoiceEditModal from '@/features/invoices/components/InvoiceEditModal';
 import apiClient from '@/lib/api-client';
 import { usePermission } from '@/contexts/AbilityContext';
+import { formatVNDShort, getInitials } from '@/features/customers/utils/metrics';
+import '@/features/products/styles/productDetail.css';
 
 const { Text } = Typography;
 const SalesOrderDetailPage: React.FC = () => {
@@ -167,76 +169,149 @@ const SalesOrderDetailPage: React.FC = () => {
   const fieldStyle: React.CSSProperties = { background: '#f5f5f5', borderRadius: 8, padding: '12px 16px' };
   const fLabel: React.CSSProperties = { fontSize: 11, color: '#999', textTransform: 'uppercase' as const, letterSpacing: 0.5, display: 'block', marginBottom: 4 };
 
-  return (
-    <div>
-      <Card style={{ borderRadius: 12 }}>
-        {/* Financial summary */}
-        <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-          <Col xs={24} sm={8}>
-            <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', height: '100%' }}>
-              <Statistic title={<><DollarOutlined style={{ marginRight: 4, color: '#1890ff' }} />{t('order.grandTotal')}</>} value={Number(order.grand_total)} formatter={(v) => formatVND(v as number)} valueStyle={{ color: '#1890ff', fontSize: 18 }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', height: '100%' }}>
-              <Statistic title={<><ShopOutlined style={{ marginRight: 4, color: '#fa541c' }} />{t('order.purchaseTotal')}</>} value={purchaseTotal} formatter={(v) => formatVND(v as number)} valueStyle={{ color: '#fa541c', fontSize: 18 }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', height: '100%' }}>
-              <Statistic title={<><DollarOutlined style={{ marginRight: 4, color: profit >= 0 ? '#52c41a' : '#cf1322' }} />{t('order.profit')}</>} value={profit} formatter={(v) => formatVND(v as number)} valueStyle={{ color: profit >= 0 ? '#52c41a' : '#cf1322', fontSize: 18 }} />
-            </Card>
-          </Col>
-        </Row>
+  const isCancelled = order.status === 'CANCELLED';
+  const grandTotalShort = formatVNDShort(Number(order.grand_total));
+  const purchaseTotalShort = formatVNDShort(purchaseTotal);
+  const profitShort = formatVNDShort(Math.abs(profit));
+  const customerName = order.customer?.company_name || order.customer?.contact_name || '—';
+  const custInitials = getInitials(customerName);
+  const profitPct = order.grand_total > 0 ? Math.round((profit / Number(order.grand_total)) * 1000) / 10 : 0;
 
-        {/* Header */}
-        <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 20 }} align="start" wrap>
-          <Space size={16}>
-            <FileDoneOutlined style={{ fontSize: 36, color: '#1677ff', flexShrink: 0 }} />
-            <div>
-              <Text strong style={{ fontSize: 20, display: 'block' }}>{order.order_code}</Text>
-              <Space size={6}>
-                <StatusTag status={order.status} type="sales" />
-                {canUpdateSO && !editing && (order.status === 'DRAFT' || order.status === 'CONFIRMED') && (
-                  <Tooltip title={t('common.edit')}>
-                    <Button icon={<EditOutlined />} size="small" onClick={() => {
-                      setEditing(true);
-                      form.setFieldsValue({
-                        notes: order.notes,
-                        expected_delivery: order.expected_delivery ? dayjs(order.expected_delivery) : null,
-                        vat_rate: order.vat_rate,
-                        shipping_fee: Number(order.shipping_fee) || 0,
-                        other_fee: Number(order.other_fee) || 0,
-                        other_fee_note: order.other_fee_note || '',
-                      });
-                    }} style={{ borderRadius: 8 }} />
-                  </Tooltip>
-                )}
-                {editing && (
-                  <>
-                    <Button size="small" onClick={() => setEditing(false)} style={{ borderRadius: 8 }}>{t('common.cancel')}</Button>
-                    <Button type="primary" icon={<SaveOutlined />} size="small" loading={saveMutation.isPending}
-                      onClick={() => {
-                        const v = form.getFieldsValue();
-                        const payload: any = {
-                          notes: v.notes,
-                          expected_delivery: v.expected_delivery?.format('YYYY-MM-DD'),
-                          other_fee_note: v.other_fee_note || null,
-                        };
-                        if (order.status === 'DRAFT') {
-                          payload.vat_rate = v.vat_rate;
-                          payload.shipping_fee = Number(v.shipping_fee) || 0;
-                          payload.other_fee = Number(v.other_fee) || 0;
-                        }
-                        saveMutation.mutate(payload);
-                      }}
-                      style={{ borderRadius: 8 }}>{t('common.save')}</Button>
-                  </>
-                )}
-              </Space>
+  return (
+    <div className="pd-root">
+      <div className="pd-topbar">
+        <div className="pd-breadcrumb">
+          <a onClick={() => navigate('/sales-orders')}>{t('order.salesOrders')}</a>
+          <span className="sep">/</span>
+          <span className="current">{order.order_code}</span>
+        </div>
+      </div>
+
+      <div className="pd-main">
+        <section className="pd-hero pd-hero-cust">
+          <div className="pd-cust-card">
+            <div className="pd-cust-cover"><div className="pd-cust-cover-label">{t('order.salesOrderShort')} · {t(`salesStatusLabels.${order.status}`)}</div></div>
+            <div className="pd-cust-avatar-wrap"><div className="pd-cust-avatar">{custInitials}</div></div>
+            <div className="pd-cust-body">
+              <h2 className="pd-cust-name">{customerName}</h2>
+              <div className="pd-cust-id">{order.order_code} · {formatDate(order.order_date)}</div>
+              <div className="pd-cust-badges">
+                <span className={`pd-badge ${isCancelled ? 'pd-badge-red' : order.status === 'COMPLETED' ? 'pd-badge-success' : 'pd-badge-info'}`}>{t(`salesStatusLabels.${order.status}`)}</span>
+                {salesInvoices.length > 0 && <span className="pd-badge pd-badge-purple" style={{ cursor: 'pointer' }} onClick={() => setActiveModal('invoice')}>{salesInvoices.length} {t('debt.invoices')}</span>}
+                {purchaseOrders.length > 0
+                  ? <span className="pd-badge pd-badge-amber">{purchaseOrders.length} PO</span>
+                  : (!isCancelled && order.status !== 'DRAFT' && order.status !== 'PENDING') && (
+                    <span className="pd-badge pd-badge-red" title={t('order.missingPOWarning')}>⚠ {t('order.noPO')}</span>
+                  )}
+              </div>
+              <ul className="pd-cust-meta-list">
+                {order.customer?.phone && <li><span className="lbl">{t('customer.phone')}</span><span className="val mono">{order.customer.phone}</span></li>}
+                {order.customer?.email && <li><span className="lbl">Email</span><span className="val" style={{ fontSize: 12 }}>{order.customer.email}</span></li>}
+                {order.expected_delivery && <li><span className="lbl">{t('order.expectedDelivery')}</span><span className="val mono">{formatDate(order.expected_delivery)}</span></li>}
+              </ul>
+              {order.customer && (
+                <div className="pd-cust-actions">
+                  <button className="pd-btn" onClick={() => navigate(`/customers/${order.customer.id}`)}>{t('common.viewDetail')}</button>
+                </div>
+              )}
             </div>
-          </Space>
-          {/* Status dropdown — 1 nút góc phải */}
+          </div>
+
+          <div className="pd-info">
+            <div className="pd-meta-row">
+              <span className="pd-badge pd-badge-info">{t('order.salesOrderShort')}</span>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--pd-text-3)' }}>{order.order_code}</span>
+            </div>
+            <div className="pd-title-block">
+              <h1 className="pd-title">{t('order.salesOrderShort')} · <span style={{ fontFamily: 'Geist Mono, monospace' }}>{order.order_code}</span></h1>
+              <p className="pd-subtitle">
+                {customerName} · {(order.items || []).length} {t('product.results')} · {t('order.profit')} {profit >= 0 ? '+' : '−'}{profitPct}%
+              </p>
+            </div>
+
+            {/* Pipeline */}
+            {isCancelled ? (
+              <div className="pd-pipeline">
+                <div className="pd-pipeline-step cancelled"><span className="step-num">×</span><span className="step-label">{t('salesStatusLabels.CANCELLED')}</span></div>
+              </div>
+            ) : (
+              <div className="pd-pipeline">
+                {['DRAFT', 'CONFIRMED', 'SHIPPING', 'COMPLETED'].map((s, i) => {
+                  const idx = ['DRAFT', 'CONFIRMED', 'SHIPPING', 'COMPLETED'].indexOf(order.status);
+                  const cls = i < idx ? 'done' : i === idx ? `current ${s.toLowerCase()}` : 'pending';
+                  return (
+                    <div key={s} className={`pd-pipeline-step ${cls}`}>
+                      <span className="step-num">0{i + 1}</span>
+                      <span className="step-label">{i === idx ? '› ' : ''}{t(`salesStatusLabels.${s}`)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Financial metrics */}
+            <div className="pd-metrics">
+              <div className="pd-metric">
+                <div className="pd-metric-label">{t('order.grandTotal')}</div>
+                <div className="pd-metric-value">{grandTotalShort.value}<span className="pd-metric-unit"> {grandTotalShort.unit}</span></div>
+                <div className="pd-metric-trend">{(order.items || []).length} {t('product.results')}</div>
+              </div>
+              <div className="pd-metric">
+                <div className="pd-metric-label">{t('order.purchaseTotal')}</div>
+                <div className="pd-metric-value">{purchaseTotalShort.value}<span className="pd-metric-unit"> {purchaseTotalShort.unit}</span></div>
+                <div className="pd-metric-trend">{purchaseOrders.length} PO</div>
+              </div>
+              <div className="pd-metric">
+                <div className="pd-metric-label">{t('order.profit')}</div>
+                <div className={`pd-metric-value ${profit >= 0 ? 'success' : 'danger'}`}>{profit >= 0 ? '+' : '−'}{profitShort.value}<span className="pd-metric-unit"> {profitShort.unit}</span></div>
+                <div className={`pd-metric-trend ${profit >= 0 ? 'trend-up' : 'trend-down'}`}>{profit >= 0 ? '+' : '−'}{Math.abs(profitPct)}%</div>
+              </div>
+              <div className="pd-metric">
+                <div className="pd-metric-label">{t('order.expectedDelivery')}</div>
+                <div className="pd-metric-value" style={{ fontSize: 18 }}>{order.expected_delivery ? formatDate(order.expected_delivery) : '—'}</div>
+                <div className="pd-metric-trend">{order.order_date ? `${t('order.orderDate')} ${formatDate(order.order_date)}` : ''}</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+        <Space style={{ width: '100%', justifyContent: 'flex-end', marginBottom: 16 }} align="center" wrap>
+          {canUpdateSO && !editing && (order.status === 'DRAFT' || order.status === 'CONFIRMED') && (
+            <Button icon={<EditOutlined />} style={{ borderRadius: 8 }} onClick={() => {
+              setEditing(true);
+              form.setFieldsValue({
+                notes: order.notes,
+                expected_delivery: order.expected_delivery ? dayjs(order.expected_delivery) : null,
+                vat_rate: order.vat_rate,
+                shipping_fee: Number(order.shipping_fee) || 0,
+                other_fee: Number(order.other_fee) || 0,
+                other_fee_note: order.other_fee_note || '',
+              });
+            }}>{t('common.edit')}</Button>
+          )}
+          {editing && (
+            <>
+              <Button onClick={() => setEditing(false)} style={{ borderRadius: 8 }}>{t('common.cancel')}</Button>
+              <Button type="primary" icon={<SaveOutlined />} loading={saveMutation.isPending}
+                onClick={() => {
+                  const v = form.getFieldsValue();
+                  const payload: any = {
+                    notes: v.notes,
+                    expected_delivery: v.expected_delivery?.format('YYYY-MM-DD'),
+                    other_fee_note: v.other_fee_note || null,
+                  };
+                  if (order.status === 'DRAFT') {
+                    payload.vat_rate = v.vat_rate;
+                    payload.shipping_fee = Number(v.shipping_fee) || 0;
+                    payload.other_fee = Number(v.other_fee) || 0;
+                  }
+                  saveMutation.mutate(payload);
+                }}
+                style={{ borderRadius: 8 }}>{t('common.save')}</Button>
+            </>
+          )}
+          {/* Status dropdown */}
           {(() => {
             const NEXT: Record<string, { key: string; label: string; danger?: boolean }[]> = {
               DRAFT: [{ key: 'CONFIRMED', label: t('order.actionConfirm') }, { key: 'CANCELLED', label: t('order.actionCancel'), danger: true }],
@@ -286,17 +361,19 @@ const SalesOrderDetailPage: React.FC = () => {
           })()}
         </Space>
 
-        {/* Thông tin khách hàng */}
-        <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>{t('order.customerInfo')}</Text>
-        <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><UserOutlined style={{ marginRight: 4 }} />{t('order.customer')}</Text><Text strong>{order.customer?.company_name || order.customer?.contact_name}</Text></div></Col>
-          {order.customer?.contact_name && order.customer?.company_name && (
-            <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><UserOutlined style={{ marginRight: 4 }} />{t('customer.contactName')}</Text><Text strong>{order.customer.contact_name}</Text></div></Col>
-          )}
-          <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><PhoneOutlined style={{ marginRight: 4 }} />{t('customer.phone')}</Text><Text strong>{order.customer?.phone || '—'}</Text></div></Col>
-          {order.customer?.email && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><MailOutlined style={{ marginRight: 4 }} />Email</Text><Text strong>{order.customer.email}</Text></div></Col>}
-          {order.customer?.address && <Col xs={24}><div style={fieldStyle}><Text style={fLabel}><EnvironmentOutlined style={{ marginRight: 4 }} />{t('customer.address')}</Text><Text strong>{order.customer.address}</Text></div></Col>}
-        </Row>
+        {/* Thông tin khách hàng — chỉ hiển thị địa chỉ + tên người liên hệ vì các field khác đã có ở hero card */}
+        {(order.customer?.address || (order.customer?.contact_name && order.customer?.company_name)) && (
+          <>
+            <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>{t('order.customerInfo')}</Text>
+            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+              {order.customer?.contact_name && order.customer?.company_name && (
+                <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><UserOutlined style={{ marginRight: 4 }} />{t('customer.contactName')}</Text><Text strong>{order.customer.contact_name}</Text></div></Col>
+              )}
+              {order.customer?.email && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><MailOutlined style={{ marginRight: 4 }} />Email</Text><Text strong>{order.customer.email}</Text></div></Col>}
+              {order.customer?.address && <Col xs={24}><div style={fieldStyle}><Text style={fLabel}><EnvironmentOutlined style={{ marginRight: 4 }} />{t('customer.address')}</Text><Text strong>{order.customer.address}</Text></div></Col>}
+            </Row>
+          </>
+        )}
 
         {/* Thông tin đơn hàng */}
         <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>{t('order.orderInfo')}</Text>
@@ -875,6 +952,7 @@ const SalesOrderDetailPage: React.FC = () => {
           </div>
         )}
       </Modal>
+      </div>
     </div>
   );
 };

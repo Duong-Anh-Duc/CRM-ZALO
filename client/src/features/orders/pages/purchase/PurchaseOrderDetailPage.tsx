@@ -1,32 +1,25 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Card, Table, Space, Typography, Spin, Empty, Tag, Button, Tooltip, Row, Col, Statistic, Modal, Popconfirm, Dropdown, Upload,
-} from 'antd';
-import { FilePdfOutlined, DollarOutlined, ShopOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, DeleteOutlined, DownloadOutlined, CheckCircleOutlined, ShoppingOutlined, SwapOutlined, UserOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, InboxOutlined, ExclamationCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons';
+import { Spin, Empty, Modal, Popconfirm, Dropdown, Upload, Button, Tag, Space, Tooltip } from 'antd';
+import { FilePdfOutlined, DeleteOutlined, DownloadOutlined, CheckCircleOutlined, SwapOutlined, InboxOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import type { ColumnsType } from 'antd/es/table';
 import { usePurchaseOrder } from '../../hooks';
-import { PurchaseOrderItem } from '@/types';
 import { formatVND, formatDate } from '@/utils/format';
-import { StatusTag } from '@/components/common';
 import { invoiceApi } from '@/features/invoices/api';
 import apiClient from '@/lib/api-client';
 import { usePermission } from '@/contexts/AbilityContext';
+import '@/features/products/styles/productDetail.css';
 
-const { Text } = Typography;
-const fieldStyle: React.CSSProperties = { background: '#f5f5f5', borderRadius: 8, padding: '12px 16px' };
-const fLabel: React.CSSProperties = { fontSize: 11, color: '#999', textTransform: 'uppercase' as const, letterSpacing: 0.5, display: 'block', marginBottom: 4 };
+const PURCHASE_FLOW = ['DRAFT', 'CONFIRMED', 'SHIPPING', 'COMPLETED'];
 
 const PurchaseOrderDetailPage: React.FC = () => {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [activeModal, setActiveModal] = useState<'invoice' | 'products' | null>(null);
+  const [activeModal, setActiveModal] = useState<'invoice' | null>(null);
   const canManagePOStatus = usePermission('purchase_order.manage_status');
   const canCreateInv = usePermission('invoice.create');
   const canFinalizeInv = usePermission('invoice.finalize');
@@ -57,131 +50,153 @@ const PurchaseOrderDetailPage: React.FC = () => {
   if (!order) return <Empty description={t('order.notFound')} style={{ marginTop: 80 }} />;
 
   const invoice = (order.invoices || []).find((inv: any) => inv.status !== 'CANCELLED') as any;
+  const isCancelled = order.status === 'CANCELLED';
+  const currentIdx = PURCHASE_FLOW.indexOf(order.status);
 
-  const itemColumns: ColumnsType<PurchaseOrderItem> = [
-    { title: 'STT', key: 'stt', width: 50, render: (_: any, __: any, i: number) => i + 1 },
-    { title: 'SKU', dataIndex: ['product', 'sku'], key: 'sku', width: 100, responsive: ['md'] as any },
-    { title: t('order.productName'), dataIndex: ['product', 'name'], key: 'name', ellipsis: true },
-    { title: t('order.quantity'), dataIndex: 'quantity', key: 'qty', width: 80, align: 'right' as const },
-    { title: t('product.unitPrice'), dataIndex: 'unit_price', key: 'price', width: 130, align: 'right' as const, render: (v: number) => formatVND(v) },
-    { title: t('order.lineTotal'), dataIndex: 'line_total', key: 'total', width: 150, align: 'right' as const, render: (v: number) => formatVND(v) },
-    { title: t('order.salesOrderShort'), key: 'so', width: 160, render: () => order.sales_order ? (
-      <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/sales-orders/${order.sales_order.id}`)}>{order.sales_order.order_code}</Button>
-    ) : '-', responsive: ['lg'] as any },
-  ];
+  const NEXT: Record<string, { key: string; label: string; danger?: boolean }[]> = {
+    DRAFT: [{ key: 'CONFIRMED', label: t('order.actionConfirm') }, { key: 'CANCELLED', label: t('order.actionCancel'), danger: true }],
+    CONFIRMED: [{ key: 'SHIPPING', label: t('order.actionShipping') }, { key: 'CANCELLED', label: t('order.actionCancel'), danger: true }],
+    SHIPPING: [{ key: 'COMPLETED', label: t('order.actionComplete') }],
+  };
+  const options = NEXT[order.status] || [];
+  const showInvoice = order.status !== 'DRAFT';
+  const showStatusButton = canManagePOStatus && options.length > 0;
+
+  const subtotal = (order.items || []).reduce((s: number, it: any) => s + Number(it.line_total || 0), 0);
 
   return (
-    <div>
-      <Card style={{ borderRadius: 12 }}>
-        {/* Total */}
-        <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-          <Col xs={24}>
-            <Card size="small" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <Statistic title={<><DollarOutlined style={{ marginRight: 4, color: '#fa541c' }} />{t('order.total')}</>} value={Number(order.total)} formatter={(v) => formatVND(v as number)} valueStyle={{ color: '#fa541c', fontSize: 20 }} />
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Header */}
-        <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 20 }} align="start" wrap>
-          <Space size={16}>
-            <ShoppingCartOutlined style={{ fontSize: 36, color: '#722ed1', flexShrink: 0 }} />
-            <div>
-              <Text strong style={{ fontSize: 20, display: 'block' }}>{order.order_code}</Text>
-              <StatusTag status={order.status} type="purchase" />
-            </div>
-          </Space>
-          {/* Status dropdown */}
-          {(() => {
-            const NEXT: Record<string, { key: string; label: string; danger?: boolean }[]> = {
-              DRAFT: [{ key: 'CONFIRMED', label: t('order.actionConfirm') }, { key: 'CANCELLED', label: t('order.actionCancel'), danger: true }],
-              CONFIRMED: [{ key: 'SHIPPING', label: t('order.actionShipping') }, { key: 'CANCELLED', label: t('order.actionCancel'), danger: true }],
-              SHIPPING: [{ key: 'COMPLETED', label: t('order.actionComplete') }],
-            };
-            const options = NEXT[order.status] || [];
-            const showInvoice = order.status !== 'DRAFT';
-            const showStatusButton = canManagePOStatus && options.length > 0;
-            if (!showStatusButton && !showInvoice) return null;
-            return (
-              <Space>
-                {showInvoice && (invoice || canCreateInv) && (
-                  <Button icon={<FilePdfOutlined />} style={{ borderRadius: 8 }} onClick={() => setActiveModal('invoice')}>
-                    {invoice ? t('invoice.viewInvoice') : t('invoice.uploadFile')}
-                  </Button>
-                )}
-                {showStatusButton && (
-                  <Dropdown menu={{ items: options.map((o) => ({ key: o.key, label: o.label, danger: o.danger })), onClick: ({ key }) => {
-                    const opt = options.find((o) => o.key === key);
-                    Modal.confirm({
-                      title: t('order.confirmStatusChange'),
-                      icon: <ExclamationCircleOutlined />,
-                      content: `${order.order_code}: ${opt?.label}`,
-                      okText: t('common.confirm'),
-                      cancelText: t('common.cancel'),
-                      okButtonProps: { danger: opt?.danger },
-                      onOk: () => statusMutation.mutate(key),
-                    });
-                  }}} trigger={['click']}>
-                    <Button type="primary" icon={<SwapOutlined />} style={{ borderRadius: 8 }} loading={statusMutation.isPending}>
-                      {t('order.changeStatus')}
-                    </Button>
-                  </Dropdown>
-                )}
-              </Space>
-            );
-          })()}
-        </Space>
-
-        {/* Thông tin nhà cung cấp */}
-        <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>{t('order.supplierInfo')}</Text>
-        <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><ShopOutlined style={{ marginRight: 4 }} />{t('order.supplier')}</Text><Text strong>{order.supplier?.company_name}</Text></div></Col>
-          {order.supplier?.contact_name && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><UserOutlined style={{ marginRight: 4 }} />{t('customer.contactName')}</Text><Text strong>{order.supplier.contact_name}</Text></div></Col>}
-          {order.supplier?.phone && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><PhoneOutlined style={{ marginRight: 4 }} />{t('customer.phone')}</Text><Text strong>{order.supplier.phone}</Text></div></Col>}
-          {order.supplier?.email && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><MailOutlined style={{ marginRight: 4 }} />Email</Text><Text strong>{order.supplier.email}</Text></div></Col>}
-          {order.supplier?.address && <Col xs={24}><div style={fieldStyle}><Text style={fLabel}><EnvironmentOutlined style={{ marginRight: 4 }} />{t('customer.address')}</Text><Text strong>{order.supplier.address}</Text></div></Col>}
-        </Row>
-
-        {/* Thông tin đơn hàng */}
-        <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>{t('order.orderInfo')}</Text>
-        <Row gutter={[12, 12]}>
-          <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><CalendarOutlined style={{ marginRight: 4 }} />{t('order.orderDate')}</Text><Text strong>{formatDate(order.order_date)}</Text></div></Col>
-          <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><FieldTimeOutlined style={{ marginRight: 4 }} />{t('order.expectedDelivery')}</Text><Text strong>{formatDate(order.expected_delivery)}</Text></div></Col>
-          {order.sales_order && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}><ShoppingOutlined style={{ marginRight: 4 }} />{t('order.linkedSO')}</Text><Text strong style={{ color: '#1677ff', cursor: 'pointer' }} onClick={() => navigate(`/sales-orders/${order.sales_order.id}`)}>{order.sales_order.order_code}</Text></div></Col>}
-          {Number(order.shipping_fee) > 0 && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}>{t('order.shippingFee')}</Text><Text strong>{formatVND(order.shipping_fee)}</Text></div></Col>}
-          {Number(order.other_fee) > 0 && <Col xs={24} sm={8}><div style={fieldStyle}><Text style={fLabel}>{t('order.otherFee')}</Text><Text strong>{formatVND(order.other_fee)}{order.other_fee_note ? ` (${order.other_fee_note})` : ''}</Text></div></Col>}
-          <Col xs={24}><div style={fieldStyle}><Text style={fLabel}><FileTextOutlined style={{ marginRight: 4 }} />{t('common.notes')}</Text><Text strong>{order.notes || '—'}</Text></div></Col>
-        </Row>
-
-
-        {/* Chi tiết sản phẩm — hiển thị trực tiếp */}
-        <div style={{ marginTop: 20 }}>
-          <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>
-            {t('order.productDetails')} ({order.items?.length || 0})
-          </Text>
-          <Table columns={itemColumns} dataSource={order.items} pagination={false} size="small" scroll={{ x: 'max-content' }} rowKey="id" />
+    <div className="pd-root">
+      <div className="pd-topbar">
+        <div className="pd-breadcrumb">
+          <a onClick={() => navigate('/purchase-orders')}>{t('order.purchaseOrders')}</a>
+          <span className="sep">/</span>
+          <span className="current">{order.order_code}</span>
         </div>
-      </Card>
+        <div className="pd-actions">
+          {showInvoice && (invoice || canCreateInv) && (
+            <button className="pd-btn" onClick={() => setActiveModal('invoice')}>
+              <FilePdfOutlined /> {invoice ? t('invoice.viewInvoice') : t('invoice.uploadFile')}
+            </button>
+          )}
+          {showStatusButton && (
+            <Dropdown menu={{ items: options.map((o) => ({ key: o.key, label: o.label, danger: o.danger })), onClick: ({ key }) => {
+              const opt = options.find((o) => o.key === key);
+              Modal.confirm({ title: t('order.confirmStatusChange'), icon: <ExclamationCircleOutlined />, content: `${order.order_code}: ${opt?.label}`, okText: t('common.confirm'), cancelText: t('common.cancel'), okButtonProps: { danger: opt?.danger }, onOk: () => statusMutation.mutate(key) });
+            }}} trigger={['click']}>
+              <button className="pd-btn pd-btn-primary"><SwapOutlined /> {t('order.changeStatus')}</button>
+            </Dropdown>
+          )}
+        </div>
+      </div>
 
-      {/* Invoice Modal — upload file for purchase */}
-      <Modal open={activeModal === 'invoice'} onCancel={() => setActiveModal(null)} footer={null}
-        title={t('invoice.purchaseInvoice')} width={Math.min(window.innerWidth * 0.95, 700)}>
+      <div className="pd-main">
+        <section className="pd-hero pd-hero-cust">
+          <div className="pd-cust-card">
+            <div className="pd-cust-cover">
+              <div className="pd-cust-cover-label">{t('order.purchaseOrderShort')} · {t(`purchaseStatusLabels.${order.status}`)}</div>
+            </div>
+            <div className="pd-cust-avatar-wrap"><div className="pd-cust-avatar" style={{ background: 'linear-gradient(135deg, #F3E8FF 0%, #C4B5FD 100%)' }}>PO</div></div>
+            <div className="pd-cust-body">
+              <h2 className="pd-cust-name">{order.order_code}</h2>
+              <div className="pd-cust-id">{t('order.orderDate')} {formatDate(order.order_date)}</div>
+              <div className="pd-cust-badges">
+                <span className={`pd-badge ${isCancelled ? 'pd-badge-red' : order.status === 'COMPLETED' ? 'pd-badge-success' : 'pd-badge-info'}`}>{t(`purchaseStatusLabels.${order.status}`)}</span>
+                {order.sales_order && <span className="pd-badge pd-badge-purple" onClick={() => navigate(`/sales-orders/${order.sales_order.id}`)} style={{ cursor: 'pointer' }}>SO {order.sales_order.order_code}</span>}
+              </div>
+              <ul className="pd-cust-meta-list">
+                {order.supplier && <li><span className="lbl">{t('order.supplier')}</span><span className="val" style={{ cursor: 'pointer', color: 'var(--pd-indigo)' }} onClick={() => navigate(`/suppliers/${order.supplier.id}`)}>{order.supplier.company_name}</span></li>}
+                {order.supplier?.contact_name && <li><span className="lbl">{t('customer.contactName')}</span><span className="val">{order.supplier.contact_name}</span></li>}
+                {order.supplier?.phone && <li><span className="lbl">{t('customer.phone')}</span><span className="val mono">{order.supplier.phone}</span></li>}
+                {order.expected_delivery && <li><span className="lbl">{t('order.expectedDelivery')}</span><span className="val mono">{formatDate(order.expected_delivery)}</span></li>}
+              </ul>
+            </div>
+          </div>
+
+          <div className="pd-info">
+            <div className="pd-meta-row">
+              <span className="pd-badge pd-badge-info">{t('order.purchaseOrderShort')}</span>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--pd-text-3)' }}>{order.order_code}</span>
+            </div>
+            <div className="pd-title-block">
+              <h1 className="pd-title">{t('order.purchaseOrderShort')} · <span style={{ fontFamily: 'Geist Mono, monospace' }}>{order.order_code}</span></h1>
+              <p className="pd-subtitle">{t('order.supplier')}: {order.supplier?.company_name || '—'} · {order.items?.length || 0} {t('product.results')}</p>
+            </div>
+
+            {/* Pipeline */}
+            {isCancelled ? (
+              <div className="pd-pipeline">
+                <div className="pd-pipeline-step cancelled"><span className="step-num">×</span><span className="step-label">{t('purchaseStatusLabels.CANCELLED')}</span></div>
+              </div>
+            ) : (
+              <div className="pd-pipeline">
+                {PURCHASE_FLOW.map((s, i) => {
+                  const cls = i < currentIdx ? 'done' : i === currentIdx ? `current ${s.toLowerCase()}` : 'pending';
+                  return (
+                    <div key={s} className={`pd-pipeline-step ${cls}`}>
+                      <span className="step-num">0{i + 1}</span>
+                      <span className="step-label">{i === currentIdx ? '› ' : ''}{t(`purchaseStatusLabels.${s}`)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Money summary */}
+            <div className="pd-money-summary">
+              <div className="pd-money-row"><span className="label">{t('order.subtotal')}</span><span className="value">{formatVND(subtotal)}</span></div>
+              {Number(order.shipping_fee) > 0 && <div className="pd-money-row"><span className="label">{t('order.shippingFee')}</span><span className="value">{formatVND(order.shipping_fee)}</span></div>}
+              {Number(order.other_fee) > 0 && <div className="pd-money-row"><span className="label">{t('order.otherFee')}{order.other_fee_note ? ` (${order.other_fee_note})` : ''}</span><span className="value">{formatVND(order.other_fee)}</span></div>}
+              <div className="pd-money-row grand"><span className="label">{t('order.grandTotal')}</span><span className="value">{formatVND(order.total)}</span></div>
+            </div>
+          </div>
+        </section>
+
+        {/* Items table */}
+        <div className="pd-tabs-wrap" style={{ padding: 24 }}>
+          <div className="pd-section-header" style={{ marginBottom: 16 }}>
+            <h2 className="pd-section-title"><span className="num">·</span> {t('order.productDetails')} <span className="pd-tab-count">{order.items?.length || 0}</span></h2>
+            {order.notes && <span className="pd-section-meta">{t('common.notes')}: {order.notes}</span>}
+          </div>
+          <div className="pd-table-wrap">
+            <table className="pd-items-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 50 }}>STT</th>
+                  <th>{t('order.productName')}</th>
+                  <th className="right" style={{ width: 90 }}>{t('order.quantity')}</th>
+                  <th className="right" style={{ width: 140 }}>{t('product.unitPrice')}</th>
+                  <th className="right" style={{ width: 160 }}>{t('order.lineTotal')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(order.items || []).map((it: any, i: number) => (
+                  <tr key={it.id}>
+                    <td className="mono">{String(i + 1).padStart(2, '0')}</td>
+                    <td>
+                      <div className="product-name" style={{ cursor: it.product?.id ? 'pointer' : 'default', color: it.product?.id ? 'var(--pd-indigo)' : undefined }}
+                        onClick={() => it.product?.id && navigate(`/products/${it.product.id}`)}>{it.product?.name}</div>
+                      <span className="product-sku">{it.product?.sku}</span>
+                    </td>
+                    <td className="right mono">{Number(it.quantity).toLocaleString('vi')}</td>
+                    <td className="right mono">{formatVND(it.unit_price)}</td>
+                    <td className="right amount" style={{ fontWeight: 600 }}>{formatVND(it.line_total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Invoice Modal */}
+      <Modal open={activeModal === 'invoice'} onCancel={() => setActiveModal(null)} footer={null} title={t('invoice.purchaseInvoice')} width={Math.min(window.innerWidth * 0.95, 700)}>
         {!invoice ? (
           <div style={{ padding: 16, textAlign: 'center' }}>
-            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>{t('invoice.uploadDescription')}</Text>
-            <Upload.Dragger
-              accept="image/*,.pdf"
-              showUploadList={false}
-              beforeUpload={async (file) => {
-                try {
-                  const { uploadFile } = await import('@/utils/upload');
-                  const url = await uploadFile(file, 'invoices');
-                  createInvMutation.mutate(url);
-                } catch { /* fallback handled in uploadFile */ }
-                return false;
-              }}
-              style={{ borderRadius: 8 }}
-            >
+            <p style={{ marginBottom: 16, color: '#888' }}>{t('invoice.uploadDescription')}</p>
+            <Upload.Dragger accept="image/*,.pdf" showUploadList={false} beforeUpload={async (file) => {
+              try { const { uploadFile } = await import('@/utils/upload'); const url = await uploadFile(file, 'invoices'); createInvMutation.mutate(url); } catch { /**/ }
+              return false;
+            }} style={{ borderRadius: 8 }}>
               <p className="ant-upload-drag-icon"><InboxOutlined style={{ fontSize: 40, color: '#1677ff' }} /></p>
               <p className="ant-upload-text">{t('invoice.uploadDragText')}</p>
               <p className="ant-upload-hint" style={{ fontSize: 12 }}>{t('invoice.uploadAccept')}</p>
@@ -189,34 +204,24 @@ const PurchaseOrderDetailPage: React.FC = () => {
           </div>
         ) : (
           <div>
-            {/* Show uploaded file or PDF preview */}
             {invoice.file_url ? (
               invoice.file_url.endsWith('.pdf') || invoice.file_url.includes('application/pdf') ? (
-                <iframe src={invoice.file_url.startsWith('data:') ? invoice.file_url : `${invoice.file_url}?token=${localStorage.getItem('token')}`}
-                  style={{ width: '100%', height: '50vh', border: 'none', borderRadius: 8 }} title="Invoice" />
+                <iframe src={invoice.file_url.startsWith('data:') ? invoice.file_url : `${invoice.file_url}?token=${localStorage.getItem('token')}`} style={{ width: '100%', height: '50vh', border: 'none', borderRadius: 8 }} title="Invoice" />
               ) : (
-                <div style={{ textAlign: 'center', padding: 16 }}>
-                  <img src={invoice.file_url} alt="Invoice" style={{ maxWidth: '100%', maxHeight: '50vh', borderRadius: 8 }} />
-                </div>
+                <div style={{ textAlign: 'center', padding: 16 }}><img src={invoice.file_url} alt="Invoice" style={{ maxWidth: '100%', maxHeight: '50vh', borderRadius: 8 }} /></div>
               )
             ) : (
-              <iframe src={`${invoiceApi.getPdfUrl(invoice.id)}?token=${localStorage.getItem('token')}`}
-                style={{ width: '100%', height: '50vh', border: 'none' }} title="Invoice" />
+              <iframe src={`${invoiceApi.getPdfUrl(invoice.id)}?token=${localStorage.getItem('token')}`} style={{ width: '100%', height: '50vh', border: 'none' }} title="Invoice" />
             )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid #f0f0f0', flexWrap: 'wrap', gap: 8 }}>
               <Space size={8}>
-                <Text strong>{t('invoice.invoiceNumber')}: {invoice.invoice_number}</Text>
-                <Tag color={invoice.status === 'APPROVED' ? 'green' : 'orange'} style={{ borderRadius: 6 }}>
-                  {invoice.status === 'APPROVED' ? t('invoice.statusApproved') : t('invoice.statusDraft')}
-                </Tag>
+                <strong>{t('invoice.invoiceNumber')}: {invoice.invoice_number}</strong>
+                <Tag color={invoice.status === 'APPROVED' ? 'green' : 'orange'}>{invoice.status === 'APPROVED' ? t('invoice.statusApproved') : t('invoice.statusDraft')}</Tag>
               </Space>
               <Space size={4}>
-                {invoice.file_url && (
-                  <Tooltip title={t('invoice.downloadPdf')}><Button type="text" size="small" icon={<DownloadOutlined />} onClick={() => window.open(invoice.file_url, '_blank')} /></Tooltip>
-                )}
+                {invoice.file_url && <Tooltip title={t('invoice.downloadPdf')}><Button type="text" size="small" icon={<DownloadOutlined />} onClick={() => window.open(invoice.file_url, '_blank')} /></Tooltip>}
                 {canFinalizeInv && invoice.status === 'DRAFT' && (
-                  <Tooltip title={t('invoice.finalize')}><Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                    onClick={() => Modal.confirm({ title: t('invoice.finalize'), content: invoice.invoice_number, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => approveInvMutation.mutate(invoice.id) })} /></Tooltip>
+                  <Tooltip title={t('invoice.finalize')}><Button type="text" size="small" icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />} onClick={() => Modal.confirm({ title: t('invoice.finalize'), content: invoice.invoice_number, okText: t('common.confirm'), cancelText: t('common.cancel'), onOk: () => approveInvMutation.mutate(invoice.id) })} /></Tooltip>
                 )}
                 {canCancelInv && invoice.status === 'DRAFT' && (
                   <Popconfirm title={t('invoice.confirmDelete')} onConfirm={() => cancelInvMutation.mutate(invoice.id)} okText={t('common.confirm')} cancelText={t('common.cancel')}>
@@ -228,19 +233,6 @@ const PurchaseOrderDetailPage: React.FC = () => {
           </div>
         )}
       </Modal>
-
-      {/* Products Modal */}
-      <Modal open={activeModal === 'products'} onCancel={() => setActiveModal(null)} footer={null}
-        title={t('order.productDetails') + ` (${order.items?.length || 0})`} width={Math.min(window.innerWidth * 0.95, 850)}>
-        <Table columns={itemColumns} dataSource={order.items} pagination={false} size="small" scroll={{ x: 600 }} rowKey="id" />
-      </Modal>
-
-      {/* PDF Preview Modal */}
-      <Modal open={!!previewUrl} onCancel={() => setPreviewUrl(null)} footer={null} width={Math.min(window.innerWidth * 0.95, 900)}
-        title={t('invoice.preview')} styles={{ body: { padding: 0, height: '80vh' } }}>
-        {previewUrl && <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Invoice" />}
-      </Modal>
-
     </div>
   );
 };
