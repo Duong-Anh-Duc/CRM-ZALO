@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.middleware';
 import { requireAbility } from '../../middleware/ability.middleware';
-import { validate } from '../../middleware/validate.middleware';
+import { validate, validateIdParam } from '../../middleware/validate.middleware';
 import { recordPaymentSchema } from './payable.validation';
 import { PayableController } from './payable.controller';
 
@@ -17,5 +17,7 @@ router.get('/supplier/:supplierId/export-pdf', requireAbility('export', 'Payable
 router.get('/supplier/:supplierId/export-excel', requireAbility('export', 'Payable'), PayableController.exportSupplierExcel);
 router.post('/payments', requireAbility('create', 'PayablePayment'), validate(recordPaymentSchema), PayableController.recordPayment);
 router.patch('/payments/:paymentId/evidence', requireAbility('update', 'PayablePayment'), PayableController.updatePaymentEvidence);
+router.delete('/payments/:paymentId', requireAbility('delete', 'PayablePayment'), PayableController.deletePayment);
+router.delete('/:id', requireAbility('delete', 'Payable'), validateIdParam, PayableController.delete);
 
 export default router;

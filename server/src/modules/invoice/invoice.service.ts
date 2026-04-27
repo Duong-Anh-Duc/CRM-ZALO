@@ -8,6 +8,8 @@ import dayjs from 'dayjs';
 import logger from '../../utils/logger';
 import { delCache } from '../../lib/redis';
 import { AlertService } from '../alert/alert.service';
+import { ReceivableService } from '../receivable/receivable.service';
+import { PayableService } from '../payable/payable.service';
 
 const DEFAULT_SELLER = {
   name: 'CÔNG TY TNHH TECHLA AI',
@@ -338,12 +340,37 @@ export class InvoiceService {
     return updated;
   }
 
-  // ──── Cancel invoice ────
+  // ──── Cancel invoice (also remove receivable/payable created at finalize) ────
   static async cancel(id: string) {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
     if (!invoice) throw new AppError(t('invoice.notFound'), 404);
+    if (invoice.status === 'CANCELLED') throw new AppError(t('invoice.alreadyCancelled'), 400);
 
-    return prisma.invoice.update({ where: { id }, data: { status: 'CANCELLED' } });
+    // If invoice has been APPROVED, a receivable/payable exists — must remove first.
+    // ReceivableService.deleteByInvoice / PayableService.deleteByInvoice will throw
+    // (e.g. "invoice.cancelBlockedHasPayment") if a payment already exists; let it bubble up.
+    const updated = await prisma.$transaction(async (tx) => {
+      if (invoice.status === 'APPROVED') {
+        if (invoice.type === 'SALES') {
+          await ReceivableService.deleteByInvoice(id);
+        } else if (invoice.type === 'PURCHASE') {
+          await PayableService.deleteByInvoice(id);
+        }
+      }
+
+      return tx.invoice.update({ where: { id }, data: { status: 'CANCELLED' } });
+    });
+
+    await delCache(
+      'cache:/api/invoices*',
+      'cache:/api/receivables*',
+      'cache:/api/payables*',
+      'cache:/api/dashboard*',
+      'cache:/api/sales-orders*',
+      'cache:/api/purchase-orders*',
+    );
+    logger.info(`Invoice #${invoice.invoice_number} cancelled (${invoice.type})`);
+    return updated;
   }
 
   // ──── Generate PDF preview ────

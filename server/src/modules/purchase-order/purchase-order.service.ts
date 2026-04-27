@@ -192,4 +192,61 @@ export class PurchaseOrderService {
     await delCache('cache:/api/purchase-orders*', 'cache:/api/dashboard*', 'cache:/api/payables*');
     return updated;
   }
+
+  static async delete(id: string) {
+    const order = await prisma.purchaseOrder.findUnique({
+      where: { id },
+      include: {
+        items: { select: { id: true } },
+        invoices: { where: { status: { not: 'CANCELLED' } } },
+        payables: { include: { payments: true } },
+        purchase_returns: true,
+      },
+    });
+    if (!order) throw new AppError(t('order.purchaseNotFound'), 404);
+
+    // Block guards
+    if (order.invoices.some((inv) => inv.status === 'APPROVED')) {
+      throw new AppError(t('order.deleteBlockedInvoiceApproved'), 400);
+    }
+    if (order.payables.some((p) => Number(p.paid_amount) > 0)) {
+      throw new AppError(t('order.deleteBlockedHasPayment'), 400);
+    }
+    if (order.purchase_returns.some((pr) => pr.status === 'COMPLETED')) {
+      throw new AppError(t('order.deleteBlockedReturnCompleted'), 400);
+    }
+
+    const payableIds = order.payables.map((p) => p.id);
+    const invoiceIdsToCancel = order.invoices
+      .filter((inv) => inv.status !== 'CANCELLED')
+      .map((inv) => inv.id);
+    const returnIdsToDelete = order.purchase_returns
+      .filter((pr) => pr.status !== 'COMPLETED')
+      .map((pr) => pr.id);
+
+    await prisma.$transaction(async (tx) => {
+      if (payableIds.length > 0) {
+        await tx.payable.deleteMany({ where: { id: { in: payableIds } } });
+      }
+      if (invoiceIdsToCancel.length > 0) {
+        await tx.invoice.updateMany({
+          where: { id: { in: invoiceIdsToCancel } },
+          data: { status: 'CANCELLED' },
+        });
+      }
+      if (returnIdsToDelete.length > 0) {
+        await tx.purchaseReturn.deleteMany({ where: { id: { in: returnIdsToDelete } } });
+      }
+      await tx.purchaseOrderItem.deleteMany({ where: { purchase_order_id: id } });
+      await tx.purchaseOrder.delete({ where: { id } });
+    });
+
+    await delCache(
+      'cache:/api/purchase-orders*',
+      'cache:/api/dashboard*',
+      'cache:/api/payables*',
+      'cache:/api/invoices*',
+    );
+    return { deleted: true };
+  }
 }

@@ -17,5 +17,7 @@ router.get('/customer/:customerId/export-pdf', requireAbility('export', 'Receiva
 router.get('/customer/:customerId/export-excel', requireAbility('export', 'Receivable'), ReceivableController.exportCustomerExcel);
 router.post('/payments', requireAbility('create', 'ReceivablePayment'), validate(recordPaymentSchema), ReceivableController.recordPayment);
 router.patch('/payments/:paymentId/evidence', requireAbility('update', 'ReceivablePayment'), ReceivableController.updatePaymentEvidence);
+router.delete('/payments/:paymentId', requireAbility('delete', 'ReceivablePayment'), ReceivableController.deletePayment);
+router.delete('/:id', requireAbility('delete', 'Receivable'), validateIdParam, ReceivableController.delete);
 
 export default router;

@@ -16,5 +16,6 @@ router.patch('/:id/status', validateIdParam, requireAbility('manage_status', 'Sa
 router.post('/:id/items', validateIdParam, requireAbility('manage_items', 'SalesOrder'), SalesOrderController.addItem);
 router.patch('/:id/items/:itemId', validateIdParam, requireAbility('manage_items', 'SalesOrder'), SalesOrderController.updateItem);
 router.delete('/:id/items/:itemId', validateIdParam, requireAbility('manage_items', 'SalesOrder'), SalesOrderController.removeItem);
+router.delete('/:id', validateIdParam, requireAbility('delete', 'SalesOrder'), SalesOrderController.delete);
 
 export default router;

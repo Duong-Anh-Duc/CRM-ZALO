@@ -13,6 +13,7 @@
     "error": "Có lỗi xảy ra",
     "confirm": "Xác nhận",
     "cancel": "Hủy",
+    "close": "Đóng",
     "delete": "Xóa",
     "deleted": "Đã xóa",
     "saved": "Đã lưu",
@@ -825,9 +826,20 @@
     "uploadAccept": "Hỗ trợ PDF, JPG, PNG. Tối đa 10MB"
   },
   "alert": {
-    "title": "Thông báo & Nhắc nhở",
+    "title": "Thông báo",
     "actionSuccess": "Xử lý cảnh báo thành công",
     "noAlerts": "Không có thông báo",
+    "noUnread": "Bạn đã đọc tất cả",
+    "tabAll": "Tất cả",
+    "tabUnread": "Chưa đọc",
+    "today": "Hôm nay",
+    "earlier": "Trước đó",
+    "viewAll": "Xem tất cả thông báo",
+    "markAllRead": "Đánh dấu đã đọc tất cả",
+    "markedAllRead": "Đã đánh dấu tất cả là đã đọc",
+    "menuMarkRead": "Đánh dấu là đã đọc",
+    "menuMarkAllRead": "Đánh dấu tất cả là đã đọc",
+    "menuDelete": "Xóa thông báo này",
     "filterType": "Loại thông báo",
     "filterStatus": "Trạng thái",
     "unread": "Chưa đọc",
@@ -846,8 +858,7 @@
     "typeCritical": "Nghiêm trọng",
     "typeEscalation": "Leo thang",
     "messageTemplateWarning": "Kính gửi Quý đối tác,\n\nChúng tôi nhận thấy đơn hàng liên quan đến \"{{title}}\" đang có vấn đề cần xử lý.\n\n{{message}}\n\nVui lòng xác nhận và phản hồi sớm nhất có thể.\n\nTrân trọng,\nCÔNG TY TNHH TECHLA AI",
-    "messageTemplateDefault": "Kính gửi Quý đối tác,\n\nĐây là thông báo liên quan đến: {{title}}.\n\n{{message}}\n\nVui lòng liên hệ nếu cần hỗ trợ thêm.\n\nTrân trọng,\nCÔNG TY TNHH TECHLA AI",
-    "viewAll": "Xem tất cả thông báo"
+    "messageTemplateDefault": "Kính gửi Quý đối tác,\n\nĐây là thông báo liên quan đến: {{title}}.\n\n{{message}}\n\nVui lòng liên hệ nếu cần hỗ trợ thêm.\n\nTrân trọng,\nCÔNG TY TNHH TECHLA AI"
   },
   "validation": {
     "emailRequired": "Vui lòng nhập email",

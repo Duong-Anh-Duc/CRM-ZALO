@@ -57,13 +57,22 @@
     "allItemsMustHaveSupplier": "{{count}} items have no supplier assigned. Please assign suppliers to all items before confirming.",
     "onlyEditDraft": "Can only edit draft orders",
     "itemNotFound": "Item not found in order",
-    "minOneItem": "Order must have at least 1 item"
+    "minOneItem": "Order must have at least 1 item",
+    "deleteBlockedInvoiceApproved": "Cannot delete: order has an approved invoice",
+    "deleteBlockedHasPayment": "Cannot delete: customer payment already recorded",
+    "deleteBlockedReturnCompleted": "Cannot delete: a completed return already exists"
   },
   "debt": {
     "notFound": "Debt record not found",
     "amountPositive": "Amount must be greater than 0",
     "amountExceedsRemaining": "Amount exceeds remaining debt",
     "noOutstandingDebt": "No outstanding debt to pay"
+  },
+  "receivable": {
+    "deleteBlockedHasPayments": "Cannot delete: payments already recorded. Delete each payment first."
+  },
+  "payable": {
+    "deleteBlockedHasPayments": "Cannot delete: payments already recorded. Delete each payment first."
   },
   "cost": {
     "categoryNotFound": "Cost category not found",
@@ -147,8 +156,16 @@
     "onlyEditDraft": "Can only edit draft invoices",
     "onlyFinalizeDraft": "Can only approve draft invoices",
     "cannotEditCancelled": "Cannot edit cancelled invoice",
+    "alreadyCancelled": "Invoice is already cancelled",
+    "cancelBlockedHasPayment": "Cannot cancel: payment already received from customer",
     "orderLocked": "Order is completed/cancelled, cannot edit invoice",
     "defaultProduct": "Product"
+  },
+  "salesReturn": {
+    "reversedOnDelete": "Receivable restored on deletion of sales return {{code}}"
+  },
+  "purchaseReturn": {
+    "reversedOnDelete": "Payable restored on deletion of purchase return {{code}}"
   },
   "zalo": {
     "configSaved": "Zalo configuration saved",

@@ -1,7 +1,8 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../types';
 import { SalesOrderService } from './sales-order.service';
-import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response';
+import { sendSuccess, sendCreated, sendPaginated, sendMessage } from '../../utils/response';
+import { t } from '../../locales';
 
 export class SalesOrderController {
   static async list(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -65,6 +66,13 @@ export class SalesOrderController {
     try {
       const item = await SalesOrderService.updateItem(req.params.id as string, req.params.itemId as string, req.body);
       sendSuccess(res, item);
+    } catch (err) { next(err); }
+  }
+
+  static async delete(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      await SalesOrderService.delete(req.params.id as string);
+      sendMessage(res, t('common.deleted'));
     } catch (err) { next(err); }
   }
 }

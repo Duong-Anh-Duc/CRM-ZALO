@@ -10,6 +10,12 @@ export const alertApi = {
   markAsRead: (id: string) =>
     apiClient.patch(`/alerts/${id}/read`),
 
+  markAllAsRead: () =>
+    apiClient.patch('/alerts/mark-all-read'),
+
+  delete: (id: string) =>
+    apiClient.delete(`/alerts/${id}`),
+
   takeAction: (id: string, action: string, new_expected_date?: string) =>
     apiClient.patch(`/alerts/${id}/action`, { action, new_expected_date }),
 };

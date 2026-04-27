@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Table, Space, Typography, Spin, Empty, Tag, Button, Tooltip, Row, Col, Avatar, Statistic, Modal, Popconfirm, Dropdown, Upload,
+  Card, Table, Space, Typography, Spin, Empty, Tag, Button, Tooltip, Row, Col, Statistic, Modal, Popconfirm, Dropdown, Upload,
 } from 'antd';
-import { FilePdfOutlined, DollarOutlined, ShopOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, DeleteOutlined, DownloadOutlined, CheckCircleOutlined, ShoppingOutlined, SwapOutlined, UserOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, InboxOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { FilePdfOutlined, DollarOutlined, ShopOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, DeleteOutlined, DownloadOutlined, CheckCircleOutlined, ShoppingOutlined, SwapOutlined, UserOutlined, PhoneOutlined, MailOutlined, EnvironmentOutlined, InboxOutlined, ExclamationCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
@@ -85,7 +85,7 @@ const PurchaseOrderDetailPage: React.FC = () => {
         {/* Header */}
         <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 20 }} align="start" wrap>
           <Space size={16}>
-            <Avatar size={48} style={{ background: '#722ed1', fontSize: 20 }} icon={<ShopOutlined />} />
+            <ShoppingCartOutlined style={{ fontSize: 36, color: '#722ed1', flexShrink: 0 }} />
             <div>
               <Text strong style={{ fontSize: 20, display: 'block' }}>{order.order_code}</Text>
               <StatusTag status={order.status} type="purchase" />

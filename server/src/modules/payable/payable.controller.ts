@@ -86,6 +86,24 @@ export class PayableController {
     }
   }
 
+  static async delete(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await PayableService.delete(req.params.id as string);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async deletePayment(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await PayableService.deletePayment(req.params.paymentId as string);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async exportSupplierExcel(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { from_date, to_date } = req.query as { from_date?: string; to_date?: string };

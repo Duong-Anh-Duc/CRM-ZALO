@@ -31,6 +31,31 @@ export function useMarkAlertRead() {
   });
 }
 
+export function useMarkAllAlertsRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => alertApi.markAllAsRead().then(r => r.data),
+    onSuccess: () => {
+      toast.success(i18n.t('alert.markedAllRead'));
+      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['alert-count'] });
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err)),
+  });
+}
+
+export function useDeleteAlert() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => alertApi.delete(id).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['alert-count'] });
+    },
+    onError: (err: unknown) => toast.error(getErrorMessage(err)),
+  });
+}
+
 export function useAlertAction() {
   const queryClient = useQueryClient();
   return useMutation({

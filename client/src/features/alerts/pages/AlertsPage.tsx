@@ -41,7 +41,7 @@ const AlertsPage: React.FC = () => {
     WARNING: { color: 'gold', label: t('alert.typeWarning'), icon: <WarningOutlined /> },
     URGENT: { color: 'orange', label: t('alert.typeUrgent'), icon: <ExclamationCircleOutlined /> },
     CRITICAL: { color: 'red', label: t('alert.typeCritical'), icon: <ExclamationCircleOutlined /> },
-    ESCALATION: { color: 'purple', label: t('alert.typeEscalation'), icon: <ClockCircleOutlined /> },
+    ESCALATION: { color: 'red', label: t('alert.typeEscalation'), icon: <ClockCircleOutlined /> },
   };
 
   const { data: alertsData, isLoading } = useAlerts({
@@ -125,8 +125,9 @@ const AlertsPage: React.FC = () => {
                 style={{
                   ...cardStyle,
                   marginBottom: 12,
-                  border: `1px solid ${cfg.color === 'gold' ? '#faad14' : cfg.color === 'orange' ? '#fa8c16' : cfg.color === 'red' ? '#f5222d' : '#722ed1'}`,
-                  opacity: alert.is_read ? 0.7 : 1,
+                  border: '1px solid #f0f0f0',
+                  background: alert.is_read ? '#fff' : '#f6faff',
+                  opacity: alert.is_read ? 0.85 : 1,
                 }}
                 size="small"
               >

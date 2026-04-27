@@ -238,26 +238,30 @@ export class PayableService {
       remaining -= allocate;
     }
 
-    await prisma.$transaction([...paymentCreates, ...payableUpdates]);
+    const createdPayments = await prisma.$transaction([...paymentCreates, ...payableUpdates]);
+    // First N items in result correspond to created payment records
+    const createdPaymentRows = createdPayments.slice(0, paymentCreates.length) as Array<{ id: string; amount: number }>;
 
-    // Auto-sync: create cash book expense record
+    // Auto-sync: create ONE cash_transaction per payment record so rollback is 1:1.
     try {
       const supplier = await prisma.supplier.findUnique({ where: { id: input.supplier_id }, select: { company_name: true } });
       const suppName = supplier?.company_name || '';
       const expenseCat = await prisma.cashCategory.findFirst({ where: { type: 'EXPENSE', name: { contains: 'NCC' } } });
       if (expenseCat) {
-        await prisma.cashTransaction.create({
+        await Promise.all(createdPaymentRows.map((p) => prisma.cashTransaction.create({
           data: {
             type: 'EXPENSE',
             category_id: expenseCat.id,
             date: input.payment_date ? new Date(input.payment_date) : new Date(),
-            amount: input.amount,
+            amount: Number(p.amount),
             description: `TT NCC ${suppName}`,
             reference: input.reference,
             payment_method: input.method,
             is_auto: true,
+            reference_id: p.id,
+            reference_type: 'PAYABLE_PAYMENT',
           },
-        });
+        })));
       }
     } catch (err) { logger.warn(`Cash book sync failed: ${(err as Error).message}`); }
 
@@ -320,5 +324,78 @@ export class PayableService {
   // ── Export supplier ledger (detailed) as Excel ──
   static async exportSupplierExcel(supplierId: string, fromDate?: string, toDate?: string, lang = 'vi'): Promise<Buffer> {
     return PayableLedgerService.exportLedgerExcel(supplierId, fromDate, toDate, lang);
+  }
+
+  // ── Rollback a single payment + recompute payable ──
+  static async deletePayment(paymentId: string) {
+    const payment = await prisma.payablePayment.findUnique({
+      where: { id: paymentId },
+      include: { payable: { include: { payments: true } } },
+    });
+    if (!payment) throw new AppError(t('debt.notFound'), 404);
+
+    const payable = payment.payable;
+    const remainingPayments = payable.payments.filter((p) => p.id !== paymentId);
+    const newPaid = remainingPayments.reduce((sum, p) => sum + p.amount, 0);
+    const newRemaining = payable.original_amount - newPaid;
+    const wasOverdue = payable.status === 'OVERDUE';
+    const isOverdueByDate = payable.due_date.getTime() < Date.now();
+    let newStatus: DebtStatus;
+    if (newPaid <= 0) {
+      newStatus = wasOverdue || isOverdueByDate ? 'OVERDUE' : 'UNPAID';
+    } else if (newPaid >= payable.original_amount) {
+      newStatus = 'PAID';
+    } else {
+      newStatus = wasOverdue || isOverdueByDate ? 'OVERDUE' : 'PARTIAL';
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Delete the 1:1 auto-created CashTransaction matching this payment via reference_id
+      await tx.cashTransaction.deleteMany({
+        where: { reference_type: 'PAYABLE_PAYMENT', reference_id: paymentId },
+      });
+      await tx.payablePayment.delete({ where: { id: paymentId } });
+      await tx.payable.update({
+        where: { id: payable.id },
+        data: { paid_amount: newPaid, remaining: newRemaining, status: newStatus },
+      });
+    });
+
+    await delCache('cache:/api/payables*', 'cache:/api/dashboard*', 'cache:/api/cash-book*');
+    return { id: paymentId, payable_id: payable.id, new_paid: newPaid, new_remaining: newRemaining, new_status: newStatus };
+  }
+
+  // ── Delete a payable (only if no payments) ──
+  static async delete(id: string) {
+    const payable = await prisma.payable.findUnique({
+      where: { id },
+      include: { payments: true },
+    });
+    if (!payable) throw new AppError(t('debt.notFound'), 404);
+    if (payable.payments.length > 0) {
+      throw new AppError(t('payable.deleteBlockedHasPayments'), 400);
+    }
+
+    await prisma.payable.delete({ where: { id } });
+    await delCache('cache:/api/payables*', 'cache:/api/dashboard*');
+    return { id };
+  }
+
+  // ── Delete payable for an invoice (used by invoice cancel flow) ──
+  // Payable schema has no `invoice_id`; match by `invoice_number`
+  static async deleteByInvoice(invoiceId: string) {
+    const payable = await prisma.payable.findFirst({
+      where: { invoice_number: invoiceId },
+      include: { payments: true },
+    });
+    if (!payable) return { deleted: 0 };
+
+    if (payable.payments.length > 0) {
+      throw new AppError(t('payable.deleteBlockedHasPayments'), 400);
+    }
+
+    await prisma.payable.delete({ where: { id: payable.id } });
+    await delCache('cache:/api/payables*', 'cache:/api/dashboard*');
+    return { deleted: 1, id: payable.id };
   }
 }

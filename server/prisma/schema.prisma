@@ -1075,11 +1075,14 @@ model CashTransaction {
   payment_method PaymentMethod      @default(CASH)
   notes         String?
   is_auto       Boolean             @default(false) // true = tự tạo từ thanh toán công nợ
+  reference_id   String?            // ID nguồn (VD payment id) để rollback chính xác
+  reference_type String?            // Loại nguồn: RECEIVABLE_PAYMENT | PAYABLE_PAYMENT
   created_at    DateTime            @default(now())
   updated_at    DateTime            @updatedAt
 
   category CashCategory @relation(fields: [category_id], references: [id])
 
   @@index([type, date])
+  @@index([reference_type, reference_id])
   @@map("cash_transactions")
 }

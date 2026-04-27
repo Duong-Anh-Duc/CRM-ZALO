@@ -31,6 +31,16 @@ export class AlertService {
     return prisma.alert.update({ where: { id }, data: { is_read: true } });
   }
 
+  static async markAllAsRead() {
+    const result = await prisma.alert.updateMany({ where: { is_read: false }, data: { is_read: true } });
+    return { count: result.count };
+  }
+
+  static async delete(id: string) {
+    await prisma.alert.delete({ where: { id } });
+    return { id };
+  }
+
   static async takeAction(id: string, action: string, newExpectedDate?: string) {
     const data: Record<string, unknown> = { action_taken: action, is_read: true };
     if (newExpectedDate) data.new_expected_date = new Date(newExpectedDate);

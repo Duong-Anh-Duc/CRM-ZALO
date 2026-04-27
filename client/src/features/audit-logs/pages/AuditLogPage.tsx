@@ -8,6 +8,7 @@ import { auditLogApi } from '../api';
 import type { AuditLog, AuditLogFilters } from '../types';
 import AuditLogDetailModal from '../components/AuditLogDetailModal';
 import { formatDate } from '@/utils/format';
+import { PageHeader } from '@/components/common';
 
 const { Text } = Typography;
 
@@ -126,6 +127,7 @@ const AuditLogPage: React.FC = () => {
   return (
     <div>
       <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+        <PageHeader title={t('auditLog.menuTitle')} />
         <Space size={8} wrap style={{ width: '100%' }}>
           <Input
             placeholder={t('auditLog.searchPlaceholder')}

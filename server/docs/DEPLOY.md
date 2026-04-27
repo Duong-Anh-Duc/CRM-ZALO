@@ -294,12 +294,12 @@ PGPASSWORD=postgres pg_dump -h localhost -U postgres --no-owner --no-privileges 
 # 3. Upload lên VPS
 sshpass -p 'PASSWORD' scp $LOCAL_DUMP techla@192.168.1.229:/tmp/packflow_local_plain.sql
 
-# 4. Wipe prod schema (cần sudo postgres để tạo lại vector extension) + restore
+# 4. Wipe prod schema (LUÔN dùng postgres superuser cho cả DROP và CREATE,
+#    vì sau lần restore đầu tiên schema owner có thể đã đổi sang postgres).
 sshpass -p 'PASSWORD' ssh techla@192.168.1.229 '
   set -e
   pm2 stop packflow-crm
-  PGPASSWORD="zE3rD1F1mizPtsXwgHTtnt9h" psql -h localhost -U packflow -d packflow_crm -c "DROP SCHEMA public CASCADE;"
-  echo "66668888" | sudo -S -u postgres psql -d packflow_crm -c "CREATE SCHEMA IF NOT EXISTS public; GRANT ALL ON SCHEMA public TO packflow; GRANT ALL ON SCHEMA public TO public; CREATE EXTENSION IF NOT EXISTS vector;"
+  echo "66668888" | sudo -S -u postgres psql -d packflow_crm -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO packflow; GRANT ALL ON SCHEMA public TO public; CREATE EXTENSION IF NOT EXISTS vector;"
   PGPASSWORD="zE3rD1F1mizPtsXwgHTtnt9h" psql -h localhost -U packflow -d packflow_crm -v ON_ERROR_STOP=0 -f /tmp/packflow_local_plain.sql
   pm2 restart packflow-crm --update-env
 '

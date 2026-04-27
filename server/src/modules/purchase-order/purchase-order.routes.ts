@@ -13,5 +13,6 @@ router.get('/:id', validateIdParam, requireAbility('read', 'PurchaseOrder'), Pur
 router.post('/', requireAbility('create', 'PurchaseOrder'), validate(createPurchaseOrderSchema), PurchaseOrderController.create);
 router.patch('/:id', validateIdParam, requireAbility('update', 'PurchaseOrder'), PurchaseOrderController.update);
 router.patch('/:id/status', validateIdParam, requireAbility('manage_status', 'PurchaseOrder'), validate(updateStatusSchema), PurchaseOrderController.updateStatus);
+router.delete('/:id', validateIdParam, requireAbility('delete', 'PurchaseOrder'), PurchaseOrderController.delete);
 
 export default router;

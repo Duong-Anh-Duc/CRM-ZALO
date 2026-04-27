@@ -32,6 +32,24 @@ export class AlertController {
     }
   }
 
+  static async markAllAsRead(_req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await AlertService.markAllAsRead();
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async delete(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      await AlertService.delete(req.params.id as string);
+      sendMessage(res, t('common.deleted'));
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async takeAction(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { action, new_expected_date } = req.body;

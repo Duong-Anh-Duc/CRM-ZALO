@@ -1,7 +1,8 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../../types';
 import { PurchaseOrderService } from './purchase-order.service';
-import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response';
+import { sendSuccess, sendCreated, sendPaginated, sendMessage } from '../../utils/response';
+import { t } from '../../locales';
 
 export class PurchaseOrderController {
   static async list(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -45,5 +46,12 @@ export class PurchaseOrderController {
     } catch (err) {
       next(err);
     }
+  }
+
+  static async delete(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      await PurchaseOrderService.delete(req.params.id as string);
+      sendMessage(res, t('common.deleted'));
+    } catch (err) { next(err); }
   }
 }

@@ -112,10 +112,58 @@ export class PurchaseReturnService {
   static async delete(id: string) {
     const record = await prisma.purchaseReturn.findUnique({ where: { id } });
     if (!record) throw new AppError(t('return.notFound'), 404);
-    if (record.status === 'COMPLETED' || record.status === 'APPROVED' || record.status === 'SHIPPING') {
+
+    // Block in-flight statuses where reversal is ambiguous
+    if (record.status === 'APPROVED' || record.status === 'SHIPPING') {
       throw new AppError(t('return.cannotDelete'), 400);
     }
-    await prisma.purchaseReturn.delete({ where: { id } });
+
+    const totalAmount = Number(record.total_amount);
+
+    await prisma.$transaction(async (tx) => {
+      // If COMPLETED, payable was reduced. Reverse: increase remaining + original.
+      if (record.status === 'COMPLETED' && totalAmount > 0) {
+        const payables = await tx.payable.findMany({
+          where: { purchase_order_id: record.purchase_order_id, supplier_id: record.supplier_id },
+          orderBy: [{ due_date: 'asc' }, { created_at: 'asc' }],
+        });
+
+        let toRestore = totalAmount;
+        for (const inv of payables) {
+          if (toRestore <= 0) break;
+          const original = Number(inv.original_amount);
+          const paid = Number(inv.paid_amount);
+          const currentRemaining = Number(inv.remaining);
+          const restore = toRestore;
+          const newOriginal = original + restore;
+          const newRemaining = currentRemaining + restore;
+          let newStatus: 'UNPAID' | 'PARTIAL' | 'PAID' | 'OVERDUE' = inv.status as any;
+          if (newRemaining <= 0) newStatus = 'PAID';
+          else if (paid > 0 && paid < newOriginal) newStatus = 'PARTIAL';
+          else if (paid <= 0) newStatus = inv.due_date && inv.due_date < new Date() ? 'OVERDUE' : 'UNPAID';
+
+          await tx.payable.update({
+            where: { id: inv.id },
+            data: { original_amount: newOriginal, remaining: newRemaining, status: newStatus },
+          });
+          toRestore -= restore;
+          break;
+        }
+        logger.info(`PurchaseReturn ${record.return_code} deleted — payable restored by ${totalAmount}`);
+      }
+
+      await tx.purchaseReturn.delete({ where: { id } });
+    });
+
+    await delCache('cache:/api/payables*', 'cache:/api/dashboard*', 'cache:/api/returns*');
+
+    if (record.status === 'COMPLETED') {
+      AlertService.createAlert({
+        type: 'INFO',
+        title: t('purchaseReturn.reversedOnDelete', { code: record.return_code }),
+        message: t('purchaseReturn.reversedOnDelete', { code: record.return_code }),
+      }).catch((err) => logger.warn(`Alert creation failed: ${err.message}`));
+    }
   }
 
   static async updateStatus(id: string, status: ReturnStatus) {

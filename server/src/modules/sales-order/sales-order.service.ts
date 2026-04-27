@@ -477,6 +477,71 @@ export class SalesOrderService {
     return updated;
   }
 
+  static async delete(id: string) {
+    const order = await prisma.salesOrder.findUnique({
+      where: { id },
+      include: {
+        items: { select: { id: true } },
+        invoices: { where: { status: { not: 'CANCELLED' } } },
+        receivables: { include: { payments: true } },
+        purchase_orders: { select: { id: true } },
+        sales_returns: true,
+      },
+    });
+    if (!order) throw new AppError(t('order.salesNotFound'), 404);
+
+    // Block guards
+    if (order.invoices.some((inv) => inv.status === 'APPROVED')) {
+      throw new AppError(t('order.deleteBlockedInvoiceApproved'), 400);
+    }
+    if (order.receivables.some((r) => Number(r.paid_amount) > 0)) {
+      throw new AppError(t('order.deleteBlockedHasPayment'), 400);
+    }
+    if (order.sales_returns.some((sr) => sr.status === 'COMPLETED')) {
+      throw new AppError(t('order.deleteBlockedReturnCompleted'), 400);
+    }
+
+    const receivableIds = order.receivables.map((r) => r.id);
+    const invoiceIdsToCancel = order.invoices
+      .filter((inv) => inv.status !== 'CANCELLED')
+      .map((inv) => inv.id);
+    const returnIdsToDelete = order.sales_returns
+      .filter((sr) => sr.status !== 'COMPLETED')
+      .map((sr) => sr.id);
+    const purchaseOrderIds = order.purchase_orders.map((po) => po.id);
+
+    await prisma.$transaction(async (tx) => {
+      if (receivableIds.length > 0) {
+        await tx.receivable.deleteMany({ where: { id: { in: receivableIds } } });
+      }
+      if (invoiceIdsToCancel.length > 0) {
+        await tx.invoice.updateMany({
+          where: { id: { in: invoiceIdsToCancel } },
+          data: { status: 'CANCELLED' },
+        });
+      }
+      if (returnIdsToDelete.length > 0) {
+        await tx.salesReturn.deleteMany({ where: { id: { in: returnIdsToDelete } } });
+      }
+      if (purchaseOrderIds.length > 0) {
+        await tx.purchaseOrder.updateMany({
+          where: { id: { in: purchaseOrderIds } },
+          data: { sales_order_id: null },
+        });
+      }
+      await tx.salesOrderItem.deleteMany({ where: { sales_order_id: id } });
+      await tx.salesOrder.delete({ where: { id } });
+    });
+
+    await delCache(
+      'cache:/api/sales-orders*',
+      'cache:/api/dashboard*',
+      'cache:/api/receivables*',
+      'cache:/api/invoices*',
+    );
+    return { deleted: true };
+  }
+
   // Create debts only when both sales + purchase invoices are approved
   static async checkAndCreateDebts(salesOrderId: string) {
     const so = await prisma.salesOrder.findUnique({

@@ -112,10 +112,60 @@ export class SalesReturnService {
   static async delete(id: string) {
     const record = await prisma.salesReturn.findUnique({ where: { id } });
     if (!record) throw new AppError(t('return.notFound'), 404);
-    if (record.status === 'COMPLETED' || record.status === 'APPROVED' || record.status === 'RECEIVING') {
+
+    // Block in-flight statuses where reversal is ambiguous (goods being received / approved but not finished)
+    if (record.status === 'APPROVED' || record.status === 'RECEIVING') {
       throw new AppError(t('return.cannotDelete'), 400);
     }
-    await prisma.salesReturn.delete({ where: { id } }); // Cascade deletes items
+
+    const totalAmount = Number(record.total_amount);
+
+    await prisma.$transaction(async (tx) => {
+      // If COMPLETED, the receivable was reduced via reduceReceivable() at status update.
+      // Replay in reverse: bump remaining + original_amount back, recompute status.
+      if (record.status === 'COMPLETED' && totalAmount > 0) {
+        const receivables = await tx.receivable.findMany({
+          where: { sales_order_id: record.sales_order_id, customer_id: record.customer_id },
+          orderBy: [{ due_date: 'asc' }, { created_at: 'asc' }],
+        });
+
+        let toRestore = totalAmount;
+        for (const inv of receivables) {
+          if (toRestore <= 0) break;
+          const original = Number(inv.original_amount);
+          const paid = Number(inv.paid_amount);
+          const currentRemaining = Number(inv.remaining);
+          // Cap restore so newOriginal doesn't go above any prior value implicitly — bounded by totalAmount
+          const restore = toRestore;
+          const newOriginal = original + restore;
+          const newRemaining = currentRemaining + restore;
+          let newStatus: 'UNPAID' | 'PARTIAL' | 'PAID' | 'OVERDUE' = inv.status as any;
+          if (newRemaining <= 0) newStatus = 'PAID';
+          else if (paid > 0 && paid < newOriginal) newStatus = 'PARTIAL';
+          else if (paid <= 0) newStatus = inv.due_date && inv.due_date < new Date() ? 'OVERDUE' : 'UNPAID';
+
+          await tx.receivable.update({
+            where: { id: inv.id },
+            data: { original_amount: newOriginal, remaining: newRemaining, status: newStatus },
+          });
+          toRestore -= restore;
+          break; // restore the full return amount onto the first matching receivable
+        }
+        logger.info(`SalesReturn ${record.return_code} deleted — receivable restored by ${totalAmount}`);
+      }
+
+      await tx.salesReturn.delete({ where: { id } }); // Cascade deletes items
+    });
+
+    await delCache('cache:/api/receivables*', 'cache:/api/dashboard*', 'cache:/api/returns*');
+
+    if (record.status === 'COMPLETED') {
+      AlertService.createAlert({
+        type: 'INFO',
+        title: t('salesReturn.reversedOnDelete', { code: record.return_code }),
+        message: t('salesReturn.reversedOnDelete', { code: record.return_code }),
+      }).catch((err) => logger.warn(`Alert creation failed: ${err.message}`));
+    }
   }
 
   static async updateStatus(id: string, status: ReturnStatus) {

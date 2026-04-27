@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card, Space, Typography, Spin, Empty, Tag, Button, Modal, Tooltip, Row, Col, Statistic, Input, DatePicker, Form, Avatar, Popconfirm, Select, InputNumber, Drawer, Dropdown, Table, Tabs,
 } from 'antd';
-import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, DollarOutlined, ShopOutlined, SaveOutlined, UserOutlined, PhoneOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, SearchOutlined, SwapOutlined, MailOutlined, ExclamationCircleOutlined, LinkOutlined } from '@ant-design/icons';
+import { FilePdfOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, PlusOutlined, DollarOutlined, ShopOutlined, SaveOutlined, UserOutlined, PhoneOutlined, CalendarOutlined, FieldTimeOutlined, FileTextOutlined, EnvironmentOutlined, DownloadOutlined, SearchOutlined, SwapOutlined, MailOutlined, ExclamationCircleOutlined, LinkOutlined, FileDoneOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
@@ -192,7 +192,7 @@ const SalesOrderDetailPage: React.FC = () => {
         {/* Header */}
         <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 20 }} align="start" wrap>
           <Space size={16}>
-            <Avatar size={48} style={{ background: '#1677ff', fontSize: 18, fontWeight: 700 }}>SO</Avatar>
+            <FileDoneOutlined style={{ fontSize: 36, color: '#1677ff', flexShrink: 0 }} />
             <div>
               <Text strong style={{ fontSize: 20, display: 'block' }}>{order.order_code}</Text>
               <Space size={6}>
