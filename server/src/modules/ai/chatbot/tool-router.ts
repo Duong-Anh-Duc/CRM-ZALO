@@ -25,6 +25,7 @@ QUY TẮC:
 - Câu lương → PAYROLL
 - Câu Zalo → ZALO
 - Câu xuất Excel → EXPORT
+- Câu xuất PDF / báo giá / sao kê / report giấy → PDF (+ READ nếu cần data)
 - Câu mơ hồ / chào → [] (rỗng, dùng meta tools đủ)
 
 Trả JSON: {"domains":["KEY1","KEY2"]}. JSON thuần, không markdown.`;

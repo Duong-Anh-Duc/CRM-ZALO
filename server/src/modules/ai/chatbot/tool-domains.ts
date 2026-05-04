@@ -112,6 +112,10 @@ export const DOMAINS = {
     label: 'Xuất Excel danh sách KH-SP-NCC',
     tools: ['export_customers_excel', 'export_products_excel', 'export_suppliers_excel'],
   },
+  PDF: {
+    label: 'Tạo PDF: báo giá, công nợ KH/NCC, báo cáo tuỳ ý',
+    tools: ['render_custom_pdf', 'pdf_receivable_report', 'pdf_payable_report', 'pdf_quote'],
+  },
   TRAINING: {
     label: 'Tài liệu training cho AI',
     tools: ['add_ai_training', 'list_ai_training', 'delete_ai_training'],

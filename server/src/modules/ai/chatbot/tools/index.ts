@@ -19,6 +19,7 @@ import { trainingTools } from './training.tools';
 import { helpTools } from './help.tools';
 import { confirmTools } from './confirm.tools';
 import { memoryTools } from './memory.tools';
+import { pdfTools } from './pdf.tools';
 
 let registered = false;
 
@@ -87,6 +88,9 @@ export function registerAllTools(): void {
 
   // Long-term memory tools — audited so we can trace remember/forget changes
   toolRegistry.registerAll(withAudit(memoryTools));
+
+  // PDF generation tools — audited so we can trace what was rendered
+  toolRegistry.registerAll(withAudit(pdfTools));
 
   registered = true;
 }
