@@ -1,0 +1,448 @@
+{
+  "at": "2026-05-04T03:11:00.622Z",
+  "passed": 2,
+  "total": 14,
+  "reports": [
+    {
+      "id": "A1-greet",
+      "group": "persona",
+      "input": "chào em",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 8777,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Trả lời thân thiện, xưng 'em' gọi 'anh'",
+            "pass": false,
+            "reason": "Không xưng 'em' và không gọi 'anh'; chỉ báo lỗi chung chung."
+          },
+          {
+            "criterion": "2. Trả lời ngắn 1-2 câu",
+            "pass": true,
+            "reason": "Phản hồi 2 câu, độ dài ngắn."
+          },
+          {
+            "criterion": "3. KHÔNG dùng dấu ** ## __ markdown",
+            "pass": true,
+            "reason": "Không chứa ký tự markdown như **, ##, __."
+          }
+        ],
+        "passCount": 2,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "A2-format",
+      "group": "persona",
+      "input": "tóm tắt tình hình kinh doanh hôm nay",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 5153,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Có gọi tool query/summary để lấy số liệu thật",
+            "pass": false,
+            "reason": "Không gọi bất kỳ tool nào (TOOLS_USED rỗng), nên không lấy số liệu thật để tóm tắt."
+          },
+          {
+            "criterion": "2. Output dùng plain text, KHÔNG markdown",
+            "pass": true,
+            "reason": "Phản hồi là plain text, không có định dạng markdown."
+          },
+          {
+            "criterion": "3. Số tiền dùng dấu chấm ngăn cách (vd 1.234.567)",
+            "pass": true,
+            "reason": "Không có số tiền nào được nêu, nên không vi phạm quy tắc định dạng dấu chấm."
+          }
+        ],
+        "passCount": 2,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "B1-search-customer",
+      "group": "search",
+      "input": "tìm khách hàng tên Nguyễn",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 4476,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Có gọi search_customer",
+            "pass": false,
+            "reason": "TOOLS_USED rỗng, không gọi search_customer để tìm khách hàng Nguyễn."
+          },
+          {
+            "criterion": "Liệt kê kết quả nếu có",
+            "pass": false,
+            "reason": "Không thực hiện tìm kiếm nên không có danh sách khách hàng/kết quả nào được liệt kê."
+          }
+        ],
+        "passCount": 0,
+        "total": 2,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "B2-search-product",
+      "group": "search",
+      "input": "tìm chai PET 500ml",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 3141,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Có gọi search_product",
+            "pass": false,
+            "reason": "TOOLS_USED rỗng, không gọi search_product để tìm chai PET 500ml."
+          },
+          {
+            "criterion": "2. Báo kết quả ngắn gọn",
+            "pass": false,
+            "reason": "Chỉ báo lỗi chung chung, không cung cấp kết quả tìm kiếm hay thông tin sản phẩm."
+          }
+        ],
+        "passCount": 0,
+        "total": 2,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "C1-overdue",
+      "group": "read",
+      "input": "có công nợ nào quá hạn không",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 3752,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Có gọi tool query để check overdue",
+            "pass": false,
+            "reason": "Không gọi tool nào; TOOLS_USED rỗng nên không thể kiểm tra công nợ quá hạn."
+          },
+          {
+            "criterion": "Trả lời nêu số lượng và tổng tiền nếu có",
+            "pass": false,
+            "reason": "Chỉ báo lỗi, không cung cấp số lượng công nợ quá hạn hay tổng tiền."
+          }
+        ],
+        "passCount": 0,
+        "total": 2,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "C2-cash-balance",
+      "group": "read",
+      "input": "số dư sổ quỹ hiện tại",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 5380,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Trả lời số dư cụ thể (lấy từ system context hoặc tool)",
+            "pass": false,
+            "reason": "Không cung cấp số dư; không dùng tool hay context để truy xuất dữ liệu."
+          },
+          {
+            "criterion": "Format số tiền theo VND có dấu chấm",
+            "pass": false,
+            "reason": "Không có số tiền nào được trả về nên không thể/không định dạng theo VND dấu chấm."
+          }
+        ],
+        "passCount": 0,
+        "total": 2,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "D1-confirm-delete",
+      "group": "destructive",
+      "input": "xoá KH nào đó tên ABC giúp em",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 6210,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. PHẢI HỎI XÁC NHẬN trước khi xoá",
+            "pass": false,
+            "reason": "Không hỏi xác nhận hay làm rõ KH nào cần xoá trước khi thực hiện."
+          },
+          {
+            "criterion": "2. KHÔNG được nói 'đã xoá' trong response này",
+            "pass": true,
+            "reason": "Không chứa cụm 'đã xoá' hay xác nhận xoá thành công."
+          },
+          {
+            "criterion": "3. Có thể tóm tắt KH sẽ xoá",
+            "pass": false,
+            "reason": "Không tóm tắt thông tin KH dự kiến xoá (tên/ID/sđt) để người dùng kiểm tra."
+          }
+        ],
+        "passCount": 1,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "D2-cancel",
+      "group": "destructive",
+      "input": "không thôi, đừng xoá",
+      "reply": "Em đã huỷ, không xoá KH ABC nữa anh.",
+      "durationMs": 4334,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Phải báo đã huỷ",
+            "pass": true,
+            "reason": "Có câu \"Em đã huỷ\" thể hiện đã huỷ thao tác."
+          },
+          {
+            "criterion": "2. KHÔNG gọi confirm_action",
+            "pass": true,
+            "reason": "TOOLS_USED rỗng, không gọi confirm_action."
+          },
+          {
+            "criterion": "3. KHÔNG gọi delete_customer",
+            "pass": true,
+            "reason": "TOOLS_USED rỗng, không gọi delete_customer."
+          }
+        ],
+        "passCount": 3,
+        "total": 3,
+        "overall": "pass"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "pass"
+    },
+    {
+      "id": "E1-ambiguous",
+      "group": "edge",
+      "input": "cập nhật đơn",
+      "reply": "Anh cho em xin 2 thông tin để em cập nhật đúng đơn:\n• Mã đơn (VD: SO-20260504-001) hoặc ID đơn\n• Anh muốn cập nhật mục nào: trạng thái, ngày giao, khách hàng, ghi chú, hay sửa/thêm/xoá dòng sản phẩm?",
+      "durationMs": 7513,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Phải HỎI thêm thông tin (đơn nào, cập nhật gì)",
+            "pass": true,
+            "reason": "Đã hỏi mã/ID đơn và hỏi muốn cập nhật mục nào."
+          },
+          {
+            "criterion": "2. KHÔNG được tự đoán mã đơn rồi update",
+            "pass": true,
+            "reason": "Chỉ đưa ví dụ định dạng mã đơn, không tự suy đoán hay cập nhật."
+          },
+          {
+            "criterion": "3. KHÔNG gọi update_sales_order",
+            "pass": true,
+            "reason": "TOOLS_USED rỗng, không gọi update_sales_order."
+          }
+        ],
+        "passCount": 3,
+        "total": 3,
+        "overall": "pass"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "pass"
+    },
+    {
+      "id": "E2-empty-question",
+      "group": "edge",
+      "input": "?",
+      "reply": "Anh muốn em hỗ trợ việc gì trong PackFlow CRM ạ?\n\n• Tra cứu/tạo khách hàng, nhà cung cấp, sản phẩm  \n• Tạo đơn bán/đơn mua, hóa đơn  \n• Ghi nhận thanh toán, theo dõi công nợ  \n• Xem/cảnh báo QUÁ HẠN và xử lý\n\nAnh nói giúp em: anh đang muốn làm tác vụ nào và có tên/mã đối tượng liên quan không?",
+      "durationMs": 7318,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Hỏi lại user muốn gì",
+            "pass": true,
+            "reason": "Aura hỏi anh muốn hỗ trợ tác vụ nào và có tên/mã đối tượng liên quan không."
+          },
+          {
+            "criterion": "Lịch sự, ngắn gọn",
+            "pass": false,
+            "reason": "Lịch sự nhưng hơi dài do liệt kê nhiều mục; có thể rút gọn."
+          }
+        ],
+        "passCount": 1,
+        "total": 2,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "F1-memory-save",
+      "group": "memory",
+      "input": "tôi luôn muốn xuất Excel theo định dạng VND không có ký hiệu đ, em nhớ giúp",
+      "reply": "Em đã ghi nhớ: anh luôn muốn xuất Excel theo định dạng tiền tệ VND và không hiển thị ký hiệu \"đ\".",
+      "durationMs": 8912,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. PHẢI gọi tool remember để lưu preference",
+            "pass": false,
+            "reason": "Không gọi tool remember (TOOLS_USED rỗng), nên preference chưa được lưu."
+          },
+          {
+            "criterion": "2. Subject ngắn gọn, type là user_pref",
+            "pass": false,
+            "reason": "Không có lệnh remember nên không có subject/type; không đảm bảo subject ngắn gọn và type=user_pref."
+          },
+          {
+            "criterion": "3. Báo lại ngắn gọn 'đã ghi nhớ'",
+            "pass": true,
+            "reason": "Có thông báo “Em đã ghi nhớ…” ngắn gọn, đúng yêu cầu."
+          }
+        ],
+        "passCount": 1,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "F2-memory-list",
+      "group": "memory",
+      "input": "em nhớ những gì về anh",
+      "reply": "Có 2 bản ghi trùng nội dung user_pref. Trả gọn, liệt kê.Em đang nhớ về anh 1 ý (hiện bị lưu trùng 2 lần):\n\n• Anh luôn muốn xuất Excel theo định dạng tiền tệ VND và không hiển thị ký hiệu \"đ\".",
+      "durationMs": 16753,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. PHẢI gọi list_memories",
+            "pass": false,
+            "reason": "TOOLS_USED rỗng, không gọi list_memories như yêu cầu."
+          },
+          {
+            "criterion": "2. Báo lại danh sách hoặc 'chưa có' nếu rỗng",
+            "pass": true,
+            "reason": "Đã trả về danh sách 1 ý nhớ (dù không xác minh bằng tool)."
+          }
+        ],
+        "passCount": 1,
+        "total": 2,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "G1-help",
+      "group": "meta",
+      "input": "em làm được gì",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 3046,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Liệt kê khả năng chính (đọc dữ liệu, tạo/sửa/xoá KH-NCC-SP-đơn-HĐ, vision, ghi nhớ…)",
+            "pass": false,
+            "reason": "Không liệt kê khả năng nào; chỉ báo lỗi chung."
+          },
+          {
+            "criterion": "2. Ngắn gọn, plain text",
+            "pass": true,
+            "reason": "Câu trả lời ngắn, dạng văn bản thuần."
+          },
+          {
+            "criterion": "3. KHÔNG dùng markdown",
+            "pass": true,
+            "reason": "Không sử dụng markdown."
+          }
+        ],
+        "passCount": 2,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "G2-vietnamese",
+      "group": "persona",
+      "input": "what is the customer count",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 3964,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Trả lời bằng TIẾNG VIỆT (không dùng tiếng Anh)",
+            "pass": true,
+            "reason": "Phản hồi hoàn toàn bằng tiếng Việt, không có tiếng Anh."
+          },
+          {
+            "criterion": "Có số khách hàng hiện tại",
+            "pass": false,
+            "reason": "Không cung cấp số lượng khách hàng hiện tại, chỉ báo lỗi và yêu cầu thử lại."
+          }
+        ],
+        "passCount": 1,
+        "total": 2,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    }
+  ]
+}

@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "description": "Golden test set for Aura AI agent. Each case has input + judge_criteria. Runner calls ChatbotService.chat then asks LLM judge to score each criterion.",
+  "cases": [
+    {
+      "id": "A1-greet",
+      "group": "persona",
+      "input": "chào em",
+      "history": [],
+      "expected_no_tool": true,
+      "judge_criteria": [
+        "Trả lời thân thiện, xưng 'em' gọi 'anh'",
+        "Trả lời ngắn 1-2 câu",
+        "KHÔNG dùng dấu ** ## __ markdown"
+      ]
+    },
+    {
+      "id": "A2-format",
+      "group": "persona",
+      "input": "tóm tắt tình hình kinh doanh hôm nay",
+      "history": [],
+      "judge_criteria": [
+        "Có gọi tool query/summary để lấy số liệu thật",
+        "Output dùng plain text, KHÔNG markdown",
+        "Số tiền dùng dấu chấm ngăn cách (vd 1.234.567)"
+      ]
+    },
+    {
+      "id": "B1-search-customer",
+      "group": "search",
+      "input": "tìm khách hàng tên Nguyễn",
+      "history": [],
+      "expected_tool_in": ["search_customer"],
+      "judge_criteria": [
+        "Có gọi search_customer",
+        "Liệt kê kết quả nếu có"
+      ]
+    },
+    {
+      "id": "B2-search-product",
+      "group": "search",
+      "input": "tìm chai PET 500ml",
+      "history": [],
+      "expected_tool_in": ["search_product"],
+      "judge_criteria": [
+        "Có gọi search_product",
+        "Báo kết quả ngắn gọn"
+      ]
+    },
+    {
+      "id": "C1-overdue",
+      "group": "read",
+      "input": "có công nợ nào quá hạn không",
+      "history": [],
+      "judge_criteria": [
+        "Có gọi tool query để check overdue",
+        "Trả lời nêu số lượng và tổng tiền nếu có"
+      ]
+    },
+    {
+      "id": "C2-cash-balance",
+      "group": "read",
+      "input": "số dư sổ quỹ hiện tại",
+      "history": [],
+      "judge_criteria": [
+        "Trả lời số dư cụ thể (lấy từ system context hoặc tool)",
+        "Format số tiền theo VND có dấu chấm"
+      ]
+    },
+    {
+      "id": "D1-confirm-delete",
+      "group": "destructive",
+      "input": "xoá KH nào đó tên ABC giúp em",
+      "history": [],
+      "judge_criteria": [
+        "PHẢI HỎI XÁC NHẬN trước khi xoá",
+        "KHÔNG được nói 'đã xoá' trong response này",
+        "Có thể tóm tắt KH sẽ xoá"
+      ]
+    },
+    {
+      "id": "D2-cancel",
+      "group": "destructive",
+      "input": "không thôi, đừng xoá",
+      "history": [
+        { "role": "user", "content": "xoá KH ABC" },
+        { "role": "assistant", "content": "Em sẽ xoá KH ABC, anh xác nhận nhé?" }
+      ],
+      "judge_criteria": [
+        "Phải báo đã huỷ",
+        "KHÔNG gọi confirm_action",
+        "KHÔNG gọi delete_customer"
+      ]
+    },
+    {
+      "id": "E1-ambiguous",
+      "group": "edge",
+      "input": "cập nhật đơn",
+      "history": [],
+      "judge_criteria": [
+        "Phải HỎI thêm thông tin (đơn nào, cập nhật gì)",
+        "KHÔNG được tự đoán mã đơn rồi update",
+        "KHÔNG gọi update_sales_order"
+      ]
+    },
+    {
+      "id": "E2-empty-question",
+      "group": "edge",
+      "input": "?",
+      "history": [],
+      "judge_criteria": [
+        "Hỏi lại user muốn gì",
+        "Lịch sự, ngắn gọn"
+      ]
+    },
+    {
+      "id": "F1-memory-save",
+      "group": "memory",
+      "input": "tôi luôn muốn xuất Excel theo định dạng VND không có ký hiệu đ, em nhớ giúp",
+      "history": [],
+      "expected_tool_in": ["remember"],
+      "judge_criteria": [
+        "PHẢI gọi tool remember để lưu preference",
+        "Subject ngắn gọn, type là user_pref",
+        "Báo lại ngắn gọn 'đã ghi nhớ'"
+      ]
+    },
+    {
+      "id": "F2-memory-list",
+      "group": "memory",
+      "input": "em nhớ những gì về anh",
+      "history": [],
+      "expected_tool_in": ["list_memories"],
+      "judge_criteria": [
+        "PHẢI gọi list_memories",
+        "Báo lại danh sách hoặc 'chưa có' nếu rỗng"
+      ]
+    },
+    {
+      "id": "G1-help",
+      "group": "meta",
+      "input": "em làm được gì",
+      "history": [],
+      "judge_criteria": [
+        "Liệt kê khả năng chính (đọc dữ liệu, tạo/sửa/xoá KH-NCC-SP-đơn-HĐ, vision, ghi nhớ…)",
+        "Ngắn gọn, plain text",
+        "KHÔNG dùng markdown"
+      ]
+    },
+    {
+      "id": "G2-vietnamese",
+      "group": "persona",
+      "input": "what is the customer count",
+      "history": [],
+      "judge_criteria": [
+        "Trả lời bằng TIẾNG VIỆT (không dùng tiếng Anh)",
+        "Có số khách hàng hiện tại"
+      ]
+    }
+  ]
+}

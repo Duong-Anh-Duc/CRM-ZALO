@@ -1,0 +1,36 @@
+{
+  "at": "2026-05-04T03:25:41.860Z",
+  "passed": 0,
+  "total": 1,
+  "reports": [
+    {
+      "id": "C1-overdue",
+      "group": "read",
+      "input": "có công nợ nào quá hạn không",
+      "reply": "Có anh. Hiện có công nợ QUÁ HẠN ở cả phải thu (KH) và phải trả (NCC).\n\nPhải thu KH (có QUÁ HẠN)\n• Tiệm Tạp Hóa Phương Nam: còn 51.700.000 VND (1 HĐ quá hạn)\n• Công ty CP Nước Giải Khát Tân Hiệp Phát: còn 28.043.637 VND (1 HĐ quá hạn)\n• Công ty TNHH Dược Phẩm Việt Hưng: còn 27.096.000 VND (1 HĐ quá hạn)\n• Công ty CP Thực phẩm Việt Hưng: còn 22.237.500 VND (1 HĐ quá hạn)\n• Công ty CP XNK Nông Sản Mekong: còn 20.369.900 VND (1 HĐ quá hạn)\n\nPhải trả NCC (có QUÁ HẠN)\n• Công ty CP Bao Bì Sài Gòn: còn 105.411.331 VND (6 HĐ quá hạn)\n• Công ty TNHH Nhựa Tân Tiến: còn 49.708.959 VND (9 HĐ quá hạn)\n• Công ty TNHH Tân Phú Container: còn 34.740.000 VND (1 HĐ quá hạn)\n• Công ty TNHH SX Nhựa Đại Phát: còn 18.630.000 VND (5 HĐ quá hạn)\n• Công ty CP Bao Bì Thiên Long: còn 9.000.000 VND (1 HĐ quá hạn)\n\n[action:/receivables/customer/2b7e6200-22b5-40fe-98b8-2d74931af551|Công ty CP Nước Giải Khát Tân Hiệp Phát]\n[action:/payables/supplier/ffadcebd-fe15-4541-907b-35a6c33a3890|Công ty CP Bao Bì Sài Gòn]",
+      "durationMs": 35720,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Có gọi tool query để check overdue",
+            "pass": true,
+            "reason": "TOOL_CALLS có get_receivable_details({}) và get_payable_details({}) để kiểm tra công nợ."
+          },
+          {
+            "criterion": "Trả lời nêu số lượng và tổng tiền nếu có",
+            "pass": false,
+            "reason": "REPLY liệt kê từng khách/NCC và số HĐ quá hạn, nhưng không nêu tổng số đối tượng/HĐ và tổng tiền quá hạn."
+          }
+        ],
+        "passCount": 1,
+        "total": 2,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    }
+  ]
+}

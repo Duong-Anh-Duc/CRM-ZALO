@@ -1,0 +1,41 @@
+{
+  "at": "2026-05-04T03:05:36.173Z",
+  "passed": 0,
+  "total": 1,
+  "reports": [
+    {
+      "id": "F1-memory-save",
+      "group": "memory",
+      "input": "tôi luôn muốn xuất Excel theo định dạng VND không có ký hiệu đ, em nhớ giúp",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 5376,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. PHẢI gọi tool remember để lưu preference",
+            "pass": false,
+            "reason": "Không gọi tool remember; TOOLS_USED trống."
+          },
+          {
+            "criterion": "2. Subject ngắn gọn, type là user_pref",
+            "pass": false,
+            "reason": "Không lưu preference nên không có subject/type theo yêu cầu."
+          },
+          {
+            "criterion": "3. Báo lại ngắn gọn 'đã ghi nhớ'",
+            "pass": false,
+            "reason": "Không xác nhận 'đã ghi nhớ', chỉ báo lỗi chung chung."
+          }
+        ],
+        "passCount": 0,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    }
+  ]
+}

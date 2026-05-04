@@ -10,7 +10,9 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx src/prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "eval": "tsx evals/runner.ts",
+    "eval:case": "tsx evals/runner.ts"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

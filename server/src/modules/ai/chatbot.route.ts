@@ -2,7 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import { authenticate } from '../../middleware/auth.middleware';
 import { requireAbility } from '../../middleware/ability.middleware';
 import { AuthenticatedRequest } from '../../types';
-import { ChatbotService } from './chatbot.service';
+import { ChatbotService, ChatUser } from './chatbot.service';
 import { sendSuccess } from '../../utils/response';
 
 const router = Router();
@@ -20,6 +20,16 @@ function parseAttachments(raw: unknown): Attachment[] {
     .slice(0, 4);
 }
 
+function buildChatUser(req: AuthenticatedRequest): ChatUser | undefined {
+  if (!req.user) return undefined;
+  return {
+    id: req.user.userId,
+    email: req.user.email,
+    role: req.user.role,
+    roleSlug: req.user.roleSlug,
+  };
+}
+
 // SSE streaming endpoint
 router.post('/chat/stream', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -34,7 +44,8 @@ router.post('/chat/stream', async (req: AuthenticatedRequest, res: Response, nex
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    for await (const chunk of ChatbotService.chatStream(question || '', history || [], attachments)) {
+    const user = buildChatUser(req);
+    for await (const chunk of ChatbotService.chatStream(question || '', history || [], attachments, user)) {
       res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
     }
 
@@ -51,7 +62,7 @@ router.post('/chat', async (req: AuthenticatedRequest, res: Response, next: Next
     if (!question && attachments.length === 0) {
       return res.status(400).json({ error: 'question or attachments is required' });
     }
-    const answer = await ChatbotService.chat(question || '', history || [], attachments);
+    const answer = await ChatbotService.chat(question || '', history || [], attachments, buildChatUser(req));
     sendSuccess(res, { answer });
   } catch (err) { next(err); }
 });

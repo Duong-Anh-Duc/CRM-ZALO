@@ -312,6 +312,67 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model AiAuditLog {
+  id          String   @id @default(uuid())
+  user_id     String?
+  user_email  String?
+  tool_name   String
+  args        Json
+  result      String?  @db.Text
+  success     Boolean
+  error       String?  @db.Text
+  duration_ms Int
+  created_at  DateTime @default(now())
+
+  @@index([user_id, created_at])
+  @@index([tool_name, created_at])
+  @@index([created_at])
+  @@map("ai_audit_logs")
+}
+
+model AiTelemetry {
+  id                String   @id @default(uuid())
+  user_id           String?
+  user_email        String?
+  channel           String   // "chat" | "customer_reply" | etc.
+  model             String
+  rounds            Int      @default(0)
+  prompt_tokens     Int      @default(0)
+  completion_tokens Int      @default(0)
+  cached_tokens     Int      @default(0)
+  total_tokens      Int      @default(0)
+  latency_ms        Int      @default(0)
+  tool_calls        Int      @default(0)
+  success           Boolean  @default(true)
+  error             String?  @db.Text
+  created_at        DateTime @default(now())
+
+  @@index([user_id, created_at])
+  @@index([model, created_at])
+  @@index([created_at])
+  @@map("ai_telemetry")
+}
+
+model AiMemory {
+  id            String   @id @default(uuid())
+  user_id       String
+  type          String   // user_pref | kh_note | sp_note | ncc_note | rule | fact
+  subject       String   // human-readable label, used for dedup
+  content       String   @db.Text
+  ref_id        String?  // optional FK to customer/supplier/product id
+  importance    Float    @default(0.5)
+  mention_count Int      @default(1)
+  last_used_at  DateTime @default(now())
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@unique([user_id, subject])
+  @@index([user_id, type])
+  @@index([user_id, last_used_at])
+  @@index([ref_id])
+  @@map("ai_memories")
+}
+
 // ─── CATEGORIES ─────────────────────────────────────
 
 model Category {

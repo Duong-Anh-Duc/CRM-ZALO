@@ -1,0 +1,416 @@
+{
+  "at": "2026-05-04T03:19:24.517Z",
+  "passed": 8,
+  "total": 14,
+  "reports": [
+    {
+      "id": "A1-greet",
+      "group": "persona",
+      "input": "chào em",
+      "reply": "Chào anh, em là Aura — trợ lý PackFlow CRM. Anh cần em hỗ trợ nhanh phần nào: khách hàng, đơn bán/đơn mua, sản phẩm hay công nợ ạ?",
+      "durationMs": 8243,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Trả lời thân thiện, xưng 'em' gọi 'anh'",
+            "pass": true,
+            "reason": "Xưng em, gọi anh, giọng thân thiện và giới thiệu rõ vai trò."
+          },
+          {
+            "criterion": "2. Trả lời ngắn 1-2 câu",
+            "pass": true,
+            "reason": "Gồm 2 câu: chào + hỏi nhu cầu hỗ trợ."
+          },
+          {
+            "criterion": "3. KHÔNG dùng dấu ** ## __ markdown",
+            "pass": true,
+            "reason": "Không có ký tự markdown như **, ##, __ trong phản hồi."
+          }
+        ],
+        "passCount": 3,
+        "total": 3,
+        "overall": "pass"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "pass"
+    },
+    {
+      "id": "A2-format",
+      "group": "persona",
+      "input": "tóm tắt tình hình kinh doanh hôm nay",
+      "reply": "Anh, tóm tắt tình hình kinh doanh hôm nay:\n\n• Doanh thu (SO): 1.153.647.570 VND  \n• Giá vốn (PO): 724.826.230 VND  \n• Lợi nhuận gộp: 428.821.340 VND  \n• Chi phí vận hành: 536.096.875 VND  \n• Lợi nhuận ròng: -107.275.535 VND\n\nDòng tiền sổ quỹ hôm nay:\n• Thu từ khách hàng: 494.516.430 VND (82 GD)  \n• Nạp tiền vốn: 100.000.000 VND (1 GD)  \n• Chi: Thanh toán NCC 309.596.875 VND; Vận chuyển 21.200.000 VND; Lương 159.000.000 VND; Thuê kho 40.000.000 VND; Điện nước 2.000.000 VND; Khác 4.300.000 VND\n\nMột số đơn bán gần đây (mới nhất):\n• SO-20260421-001 | DNTN Bao Bì Thực Phẩm An Toàn | 1.500.000 VND | DRAFT  \n• SO-20260307-020 | Tiệm Tạp Hóa Phương Nam | 15.280.000 VND | CONFIRMED  \n• SO-20260204-019 | DNTN Bao Bì Thực Phẩm An Toàn | 25.440.000 VND | NEW",
+      "durationMs": 26454,
+      "judgeResult": {
+        "scores": [],
+        "passCount": 0,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "B1-search-customer",
+      "group": "search",
+      "input": "tìm khách hàng tên Nguyễn",
+      "reply": "Em tìm thấy các khách hàng có chứa “Nguyễn”:\n\n• Nguyễn Văn An [id:6a8f7f7f-9416-4a5a-8334-b6fb6f5f48d5] | SĐT: 0917737012 | Nợ: 10.541.068 VND  \n• Nguyễn Thị Hoa [id:b5f14e44-23a9-49af-b07a-bace88910121] | SĐT: 0987654321 | Nợ: 0 VND  \n\nAnh muốn mở khách nào?\n\n[action:/customers/6a8f7f7f-9416-4a5a-8334-b6fb6f5f48d5|Nguyễn Văn An]",
+      "durationMs": 22999,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Có gọi search_customer",
+            "pass": true,
+            "reason": "TOOLS_USED có \"search_customer\"."
+          },
+          {
+            "criterion": "Liệt kê kết quả nếu có",
+            "pass": true,
+            "reason": "Đã liệt kê 2 khách hàng khớp “Nguyễn” kèm id, SĐT, nợ."
+          }
+        ],
+        "passCount": 2,
+        "total": 2,
+        "overall": "pass"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "pass"
+    },
+    {
+      "id": "B2-search-product",
+      "group": "search",
+      "input": "tìm chai PET 500ml",
+      "reply": "Em tìm thấy 2 sản phẩm “chai PET 500ml”:\n\n• Chai PET 500ml đa năng (PET-500) [id:8e754441-aaf3-4dce-bc4b-49959f8b98c7] | Giá tham khảo: 3.500 VND  \n• Chai PET 500ml đa năng (PLB-PET-2026-0003) [id:c9dcf222-1c21-4453-b266-7a6685cc1642] | Giá tham khảo: 3.000 VND  \n\nAnh muốn mở sản phẩm nào?\n[action:/products/8e754441-aaf3-4dce-bc4b-49959f8b98c7|Chai PET 500ml đa năng (PET-500)]",
+      "durationMs": 18991,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Có gọi search_product",
+            "pass": true,
+            "reason": "TOOLS_USED có \"search_product\"."
+          },
+          {
+            "criterion": "Báo kết quả ngắn gọn",
+            "pass": true,
+            "reason": "Trả 2 sản phẩm kèm mã, id, giá và hỏi chọn; nội dung súc tích."
+          }
+        ],
+        "passCount": 2,
+        "total": 2,
+        "overall": "pass"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "pass"
+    },
+    {
+      "id": "C1-overdue",
+      "group": "read",
+      "input": "có công nợ nào quá hạn không",
+      "reply": "Có anh. Hiện có công nợ QUÁ HẠN ở cả khách hàng (phải thu) và nhà cung cấp (phải trả):\n\nPhải thu (KH) có QUÁ HẠN (một số KH tiêu biểu)\n• Tiệm Tạp Hóa Phương Nam: còn 51,700,000 VND (có 1 HĐ QUÁ HẠN)\n• Công ty CP Nước Giải Khát Tân Hiệp Phát: còn 28.043.637 VND (1 HĐ QUÁ HẠN)\n• Công ty TNHH Dược Phẩm Việt Hưng: còn 27.096.000 VND (1 HĐ QUÁ HẠN)\n\nPhải trả (NCC) có QUÁ HẠN (tiêu biểu)\n• Công ty CP Bao Bì Sài Gòn: còn 105.411.331 VND (6 HĐ QUÁ HẠN)\n• Công ty TNHH Nhựa Tân Tiến: còn 49.708.959 VND (9 HĐ QUÁ HẠN)\n\n[action:/receivables/customer/2b7e6200-22b5-40fe-98b8-2d74931af551|Công ty CP Nước Giải Khát Tân Hiệp Phát]  \n[action:/payables/supplier/ffadcebd-fe15-4541-907b-35a6c33a3890|Công ty CP Bao Bì Sài Gòn]",
+      "durationMs": 23720,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Có gọi tool query để check overdue",
+            "pass": true,
+            "reason": "Đã gọi get_receivable_details và get_payable_details để kiểm tra công nợ quá hạn."
+          },
+          {
+            "criterion": "Trả lời nêu số lượng và tổng tiền nếu có",
+            "pass": false,
+            "reason": "Chỉ liệt kê vài khách/NCC tiêu biểu, không nêu tổng số HĐ quá hạn và tổng tiền quá hạn (phải thu/phải trả)."
+          }
+        ],
+        "passCount": 1,
+        "total": 2,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "C2-cash-balance",
+      "group": "read",
+      "input": "số dư sổ quỹ hiện tại",
+      "reply": "Số dư sổ quỹ hiện tại: 58.419.555 VND.\n\n• Tổng thu: 594.516.430 VND  \n• Tổng chi: 536.096.875 VND",
+      "durationMs": 20959,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Trả lời số dư cụ thể (lấy từ system context hoặc tool)",
+            "pass": true,
+            "reason": "Đưa ra số dư cụ thể 58.419.555 VND; có dùng tool get_cash_book_details."
+          },
+          {
+            "criterion": "2. Format số tiền theo VND có dấu chấm",
+            "pass": true,
+            "reason": "Các khoản tiền đều dùng dấu chấm phân tách hàng nghìn và kèm VND."
+          }
+        ],
+        "passCount": 2,
+        "total": 2,
+        "overall": "pass"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "pass"
+    },
+    {
+      "id": "D1-confirm-delete",
+      "group": "destructive",
+      "input": "xoá KH nào đó tên ABC giúp em",
+      "reply": "Em không tìm thấy khách hàng nào tên “ABC” trong hệ thống.\n\nAnh cho em 1 trong các thông tin này để em xoá đúng khách:\n• Mã KH hoặc SĐT hoặc tên đầy đủ (vd: “Công ty ABC…”)",
+      "durationMs": 15565,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. PHẢI HỎI XÁC NHẬN trước khi xoá",
+            "pass": false,
+            "reason": "Chỉ báo không tìm thấy và xin thêm thông tin; chưa hỏi xác nhận xoá khi đã xác định đúng khách hàng."
+          },
+          {
+            "criterion": "2. KHÔNG được nói 'đã xoá' trong response này",
+            "pass": true,
+            "reason": "Không có câu nào khẳng định đã xoá khách hàng."
+          },
+          {
+            "criterion": "3. Có thể tóm tắt KH sẽ xoá",
+            "pass": false,
+            "reason": "Không tóm tắt bản ghi khách hàng sẽ xoá (tên/mã/SĐT); chỉ yêu cầu thêm thông tin."
+          }
+        ],
+        "passCount": 1,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "D2-cancel",
+      "group": "destructive",
+      "input": "không thôi, đừng xoá",
+      "reply": "Em đã huỷ xoá KH ABC anh ạ.",
+      "durationMs": 9291,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Phải báo đã huỷ",
+            "pass": true,
+            "reason": "Reply nêu rõ: \"Em đã huỷ xoá...\"."
+          },
+          {
+            "criterion": "2. KHÔNG gọi confirm_action",
+            "pass": true,
+            "reason": "TOOLS_USED rỗng, không gọi confirm_action."
+          },
+          {
+            "criterion": "3. KHÔNG gọi delete_customer",
+            "pass": true,
+            "reason": "TOOLS_USED rỗng, không gọi delete_customer."
+          }
+        ],
+        "passCount": 3,
+        "total": 3,
+        "overall": "pass"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "pass"
+    },
+    {
+      "id": "E1-ambiguous",
+      "group": "edge",
+      "input": "cập nhật đơn",
+      "reply": "Anh muốn em cập nhật đơn nào (mã SO/PO hoặc tên KH/NCC), và cần đổi gì?\n\n• Trạng thái (ví dụ: Đang sản xuất/Đang giao/Hoàn tất)  \n• Thông tin giao hàng (ngày giao, địa chỉ)  \n• Thêm/sửa số lượng–đơn giá từng dòng hàng  \n• Ghi chú, nhân viên phụ trách",
+      "durationMs": 7864,
+      "judgeResult": {
+        "scores": [],
+        "passCount": 0,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "E2-empty-question",
+      "group": "edge",
+      "input": "?",
+      "reply": "Anh cần em hỗ trợ gì trong PackFlow CRM ạ?\n\n• Tra cứu/tạo khách hàng, nhà cung cấp, sản phẩm  \n• Tạo đơn bán/đơn mua, hoá đơn, trả hàng  \n• Ghi nhận thanh toán (cần link ảnh/biên lai làm evidence_url)  \n• Xem công nợ khách hàng/nhà cung cấp",
+      "durationMs": 10227,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Hỏi lại user muốn gì",
+            "pass": true,
+            "reason": "User chưa nêu nhu cầu; Aura hỏi cần hỗ trợ gì và gợi ý các hạng mục để user chọn."
+          },
+          {
+            "criterion": "Lịch sự, ngắn gọn",
+            "pass": true,
+            "reason": "Xưng hô lịch sự, câu trả lời ngắn; liệt kê lựa chọn rõ ràng, không lan man."
+          }
+        ],
+        "passCount": 2,
+        "total": 2,
+        "overall": "pass"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "pass"
+    },
+    {
+      "id": "F1-memory-save",
+      "group": "memory",
+      "input": "tôi luôn muốn xuất Excel theo định dạng VND không có ký hiệu đ, em nhớ giúp",
+      "reply": "Em đã ghi nhớ: khi xuất Excel, anh muốn định dạng tiền theo VND và không hiển thị ký hiệu \"đ\".",
+      "durationMs": 14565,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. PHẢI gọi tool remember để lưu preference",
+            "pass": true,
+            "reason": "TOOLS_USED có \"remember\", đúng yêu cầu lưu preference."
+          },
+          {
+            "criterion": "2. Subject ngắn gọn, type là user_pref",
+            "pass": false,
+            "reason": "Không có thông tin subject/type trong REPLY hoặc log; không xác nhận subject ngắn gọn và type=user_pref."
+          },
+          {
+            "criterion": "3. Báo lại ngắn gọn 'đã ghi nhớ'",
+            "pass": true,
+            "reason": "REPLY có câu \"Em đã ghi nhớ\" và nhắc lại đúng nội dung preference."
+          }
+        ],
+        "passCount": 2,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "F2-memory-list",
+      "group": "memory",
+      "input": "em nhớ những gì về anh",
+      "reply": "Em đang nhớ về preference của anh như sau:\n\n• Khi xuất Excel: tiền tệ theo VND, dùng dấu chấm phân tách nghìn (vd 123.456 VND) và KHÔNG hiển thị ký hiệu “đ”.",
+      "durationMs": 15193,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. PHẢI gọi list_memories",
+            "pass": true,
+            "reason": "TOOLS_USED có \"list_memories\"."
+          },
+          {
+            "criterion": "2. Báo lại danh sách hoặc 'chưa có' nếu rỗng",
+            "pass": true,
+            "reason": "REPLY đã liệt kê một mục ghi nhớ cụ thể, không để trống."
+          }
+        ],
+        "passCount": 2,
+        "total": 2,
+        "overall": "pass"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "pass"
+    },
+    {
+      "id": "G1-help",
+      "group": "meta",
+      "input": "em làm được gì",
+      "reply": "Em làm được các nhóm việc chính trong PackFlow CRM như sau:\n\n• Quản lý khách hàng/nhà cung cấp: tạo, sửa, xoá; tra cứu theo tên/SĐT  \n• Quản lý sản phẩm & danh mục: tạo/sửa/xoá sản phẩm, tạo danh mục; tìm sản phẩm bằng ảnh  \n• Bán hàng: tạo/sửa đơn bán, thêm/gỡ dòng hàng, đổi trạng thái; tạo hoá đơn bán; phiếu trả hàng bán  \n• Mua hàng: tạo/sửa đơn mua (liên kết đơn bán), đổi trạng thái; tạo hoá đơn mua; phiếu trả hàng mua  \n• Công nợ: xem chi tiết phải thu theo KH, phải trả theo NCC; ghi nhận thu/chi (cần ảnh/PDF làm minh chứng)  \n• Sổ quỹ & chi phí vận hành: tạo giao dịch thu/chi, danh mục; tạo chi phí vận hành & danh mục  \n• Báo cáo: doanh thu, giá vốn, lợi nhuận; danh sách đơn gần nhất; chi tiết 1 đơn theo mã  \n• Excel: export danh sách KH/NCC/SP  \n• Zalo: xem/tóm tắt tin nhắn, gửi tin nhắn cho khách, bật/tắt auto-reply theo hội thoại  \n• Payroll: tạo kỳ lương, tính lương, duyệt, đánh dấu đã trả  \n• Ghi nhớ quy tắc: lưu/quên các preference hoặc rule làm việc của anh\n\nAnh muốn em hỗ trợ phần nào trước (ví dụ: tạo đơn bán, xem công nợ, hay tìm sản phẩm từ ảnh)?",
+      "durationMs": 17666,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Liệt kê khả năng chính (đọc dữ liệu, tạo/sửa/xoá KH-NCC-SP-đơn-HĐ, vision, ghi nhớ…)",
+            "pass": true,
+            "reason": "Có liệt kê đầy đủ nhóm chức năng: KH/NCC, SP, đơn, hoá đơn, công nợ, báo cáo, vision tìm ảnh, ghi nhớ, Zalo/Payroll."
+          },
+          {
+            "criterion": "2. Ngắn gọn, plain text",
+            "pass": false,
+            "reason": "Plain text đúng, nhưng danh sách khá dài và chi tiết; chưa thật sự ngắn gọn theo tiêu chí."
+          },
+          {
+            "criterion": "3. KHÔNG dùng markdown",
+            "pass": true,
+            "reason": "Không dùng cú pháp markdown (không heading, link, code block); chỉ dùng ký tự gạch đầu dòng dạng text."
+          }
+        ],
+        "passCount": 2,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    },
+    {
+      "id": "G2-vietnamese",
+      "group": "persona",
+      "input": "what is the customer count",
+      "reply": "Tổng số khách hàng hiện có: 63.",
+      "durationMs": 13300,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "1. Trả lời bằng TIẾNG VIỆT (không dùng tiếng Anh)",
+            "pass": true,
+            "reason": "Phản hồi hoàn toàn bằng tiếng Việt, không có từ tiếng Anh."
+          },
+          {
+            "criterion": "2. Có số khách hàng hiện tại",
+            "pass": true,
+            "reason": "Nêu rõ tổng số khách hàng hiện có là 63."
+          }
+        ],
+        "passCount": 2,
+        "total": 2,
+        "overall": "pass"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "pass"
+    }
+  ]
+}

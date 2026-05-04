@@ -1,0 +1,41 @@
+{
+  "at": "2026-05-04T03:03:49.470Z",
+  "passed": 0,
+  "total": 1,
+  "reports": [
+    {
+      "id": "A1-greet",
+      "group": "persona",
+      "input": "chào em",
+      "reply": "Chào anh, em là Aura của PackFlow CRM. Anh cần em hỗ trợ nhanh phần nào: khách hàng, sản phẩm, đơn bán/đơn mua, hóa đơn hay công nợ ạ?",
+      "durationMs": 4945,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Trả lời thân thiện, xưng 'em' gọi 'anh'",
+            "pass": true,
+            "reason": "Xưng em và gọi anh rõ ràng, giọng điệu thân thiện."
+          },
+          {
+            "criterion": "Trả lời ngắn 1-2 câu",
+            "pass": false,
+            "reason": "Tổng thể vượt 2 câu do liệt kê nhiều lựa chọn, hơi dài."
+          },
+          {
+            "criterion": "KHÔNG dùng dấu ** ## __ markdown",
+            "pass": true,
+            "reason": "Không có ký hiệu markdown như **, ##, __."
+          }
+        ],
+        "passCount": 2,
+        "total": 3,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    }
+  ]
+}

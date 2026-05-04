@@ -1,0 +1,36 @@
+{
+  "at": "2026-05-04T03:06:11.990Z",
+  "passed": 0,
+  "total": 1,
+  "reports": [
+    {
+      "id": "B1-search-customer",
+      "group": "search",
+      "input": "tìm khách hàng tên Nguyễn",
+      "reply": "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.",
+      "durationMs": 3429,
+      "judgeResult": {
+        "scores": [
+          {
+            "criterion": "Có gọi search_customer",
+            "pass": false,
+            "reason": "Không gọi tool search_customer; TOOLS_USED rỗng."
+          },
+          {
+            "criterion": "Liệt kê kết quả nếu có",
+            "pass": false,
+            "reason": "Không thực hiện tìm kiếm nên không có/không liệt kê khách hàng tên Nguyễn."
+          }
+        ],
+        "passCount": 0,
+        "total": 2,
+        "overall": "fail"
+      },
+      "expectationCheck": {
+        "pass": true,
+        "reason": "ok"
+      },
+      "overall": "fail"
+    }
+  ]
+}
