@@ -22,6 +22,26 @@ async function resolveRoleIdBySlug(slug: string): Promise<string> {
   return role.id;
 }
 
+/**
+ * Returns true if `userId` is currently an active admin AND would leave 0 active
+ * admins after the proposed change. Used to block removing the last admin.
+ */
+async function wouldRemoveLastAdmin(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { role: true },
+  });
+  if (!user || !user.is_active || user.role.slug !== 'admin') return false;
+  const otherActiveAdmins = await prisma.user.count({
+    where: {
+      id: { not: userId },
+      is_active: true,
+      role: { slug: 'admin' },
+    },
+  });
+  return otherActiveAdmins === 0;
+}
+
 export class UserService {
   static async list(page = 1, limit = 20, search?: string) {
     const where = {
@@ -96,6 +116,14 @@ export class UserService {
       }
     }
 
+    // Last-admin protection: even if actor is different (or unknown), refuse changes
+    // that leave the system with zero active admins.
+    if (data.is_active === false || (role_slug && role_slug !== 'admin')) {
+      if (await wouldRemoveLastAdmin(id)) {
+        throw new AppError(t('user.cannotRemoveLastAdmin'), 400);
+      }
+    }
+
     if (role_slug) {
       updateData.role_id = await resolveRoleIdBySlug(role_slug);
     }
@@ -116,6 +144,9 @@ export class UserService {
   static async deactivate(id: string, actorId?: string) {
     if (actorId && actorId === id) {
       throw new AppError(t('user.cannotDeactivateSelf'), 400);
+    }
+    if (await wouldRemoveLastAdmin(id)) {
+      throw new AppError(t('user.cannotRemoveLastAdmin'), 400);
     }
     return prisma.user.update({
       where: { id },

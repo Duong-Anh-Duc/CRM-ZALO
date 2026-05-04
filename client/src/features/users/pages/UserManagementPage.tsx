@@ -48,7 +48,9 @@ const UserManagementPage: React.FC = () => {
   const canCreate = usePermission('user.create');
   const canUpdate = usePermission('user.update');
   const canDelete = usePermission('user.delete');
-  const currentUserId = useAuthStore((s) => s.user?.id);
+  const currentUser = useAuthStore((s) => s.user);
+  const currentUserId = currentUser?.id;
+  const currentUserEmail = currentUser?.email?.toLowerCase();
 
   const { data, isLoading } = useUsers({ search, page, limit: pageSize });
   const createMutation = useCreateUser();
@@ -116,12 +118,21 @@ const UserManagementPage: React.FC = () => {
       render: (v: boolean) => <Tag color={v ? 'green' : 'default'} style={{ borderRadius: 8 }}>{v ? t('common.active') : t('common.disabled')}</Tag>,
     },
     {
-      title: t('common.actions'), key: 'actions', width: 150, align: 'center',
+      title: t('common.actions'), key: 'actions', width: 180, align: 'center',
       render: (_: unknown, record: AuthUser) => {
-        const isSelf = record.id === currentUserId;
+        // Match by id OR email — ID can mismatch when auth payload uses different
+        // shape than the list payload; email is a stable secondary identity.
+        const isSelf =
+          (!!currentUserId && record.id === currentUserId) ||
+          (!!currentUserEmail && record.email?.toLowerCase() === currentUserEmail);
         return (
           <Space size={4}>
-            {canUpdate && (
+            {isSelf && (
+              <Tag color="blue" style={{ borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
+                {t('user.you') || 'Bạn'}
+              </Tag>
+            )}
+            {canUpdate && !isSelf && (
               <Tooltip title={t('common.edit')}>
                 <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
               </Tooltip>
@@ -132,11 +143,6 @@ const UserManagementPage: React.FC = () => {
                   <Button type="text" size="small" danger icon={<DeleteOutlined />} />
                 </Tooltip>
               </Popconfirm>
-            )}
-            {isSelf && (
-              <Tooltip title={t('user.selfRowHint')}>
-                <Tag color="blue" style={{ borderRadius: 8, fontSize: 11 }}>{t('user.you')}</Tag>
-              </Tooltip>
             )}
           </Space>
         );

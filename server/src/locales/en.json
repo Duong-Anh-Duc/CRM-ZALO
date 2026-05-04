@@ -20,7 +20,9 @@
     "emailExists": "Email already exists",
     "deactivated": "Account deactivated",
     "cannotDeactivateSelf": "You cannot deactivate yourself",
-    "cannotChangeOwnRole": "You cannot change your own role"
+    "cannotChangeOwnRole": "You cannot change your own role",
+    "cannotRemoveLastAdmin": "Cannot deactivate or demote the last admin. Promote another admin first.",
+    "cannotDeleteSelf": "You cannot delete yourself"
   },
   "role": {
     "notFound": "Role not found",

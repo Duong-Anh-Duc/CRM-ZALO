@@ -20,7 +20,9 @@
     "emailExists": "Email đã tồn tại",
     "deactivated": "Đã vô hiệu hóa tài khoản",
     "cannotDeactivateSelf": "Không thể vô hiệu hóa chính mình",
-    "cannotChangeOwnRole": "Không thể tự thay đổi vai trò của mình"
+    "cannotChangeOwnRole": "Không thể tự thay đổi vai trò của mình",
+    "cannotRemoveLastAdmin": "Không thể vô hiệu / hạ quyền quản trị viên cuối cùng. Hãy bổ nhiệm thêm quản trị khác trước.",
+    "cannotDeleteSelf": "Không thể xoá chính mình"
   },
   "role": {
     "notFound": "Không tìm thấy vai trò",
