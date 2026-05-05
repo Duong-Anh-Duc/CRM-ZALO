@@ -12,10 +12,10 @@ export const supplierSchema = z.object({
     .email({ message: i18n.t('validation.emailInvalid') })
     .optional()
     .or(z.literal('')),
-  payment_terms: z.enum(
-    ['PREPAID', 'COD', 'NET_15', 'NET_30', 'NET_45', 'NET_60'],
-    { message: i18n.t('validation.paymentTermsRequired') },
-  ),
+  payment_terms: z
+    .enum(['PREPAID', 'COD', 'NET_15', 'NET_30', 'NET_45', 'NET_60'])
+    .optional()
+    .or(z.literal('')),
 });
 
 export type SupplierFormValues = z.infer<typeof supplierSchema>;

@@ -111,9 +111,9 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
         <Form.Item
           name="payment_terms"
           label={t('supplier.paymentTerms')}
-          rules={[{ required: true, message: t('supplier.paymentTermsRequired') }]}
         >
           <Select
+            allowClear
             placeholder={t('supplier.paymentTermsPlaceholder')}
             options={paymentTermsOptions}
             style={{ borderRadius: 8 }}
