@@ -276,7 +276,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
         </Space>
       }
     >
-      <Form form={form} layout="vertical" requiredMark="optional">
+      <Form form={form} layout="vertical">
         <Tabs items={tabItems} />
       </Form>
     </Modal>
