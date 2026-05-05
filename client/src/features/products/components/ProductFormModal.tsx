@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Modal, Form, Input, InputNumber, Select, Tabs, Button, Space, Upload,
+  Modal, Form, Input, InputNumber, Select, Tabs, Button, Space, Upload, Divider,
 } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd';
@@ -105,6 +105,43 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
               ]}
             />
           </Form.Item>
+
+          <Divider style={{ margin: '16px 0' }}>{t('product.pricing')}</Divider>
+
+          <Form.Item name="retail_price" label={t('product.retailPriceVnd')}>
+            <InputNumber min={0} style={{ ...fieldStyle, width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0} />
+          </Form.Item>
+          <Form.Item label={t('product.priceTiers')}>
+            <Form.List name="price_tiers">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map(({ key, name, ...rest }) => (
+                    <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
+                      <Form.Item {...rest} name={[name, 'min_qty']} rules={[{ required: true, message: t('product.minQtyRequired') }]}>
+                        <InputNumber placeholder={t('product.minQty')} min={1} style={{ ...fieldStyle, width: 160 }} />
+                      </Form.Item>
+                      <Form.Item {...rest} name={[name, 'price']} rules={[{ required: true, message: t('product.priceRequired') }]}>
+                        <InputNumber
+                          placeholder={t('product.unitPriceVnd')}
+                          min={0}
+                          style={{ ...fieldStyle, width: 200 }}
+                          formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                          parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0}
+                        />
+                      </Form.Item>
+                      <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f' }} />
+                    </Space>
+                  ))}
+                  <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />} style={{ borderRadius: 8 }}>
+                    {t('product.addPriceTier')}
+                  </Button>
+                </>
+              )}
+            </Form.List>
+          </Form.Item>
+
+          <Divider style={{ margin: '16px 0' }}>{t('product.images')}</Divider>
+
           <Form.Item label={t('product.images')}>
             {isEdit ? (
               <ProductImageManager productId={product!.id} images={product!.images || []} canManage={true} />
@@ -212,45 +249,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
           </Form.Item>
           <Form.Item name="safety_standards" label={t('product.safetyStandards')}>
             <Select mode="multiple" options={safetyOptions} style={fieldStyle} placeholder={t('product.selectSafety')} />
-          </Form.Item>
-        </>
-      ),
-    },
-    {
-      key: 'pricing',
-      label: t('product.pricing'),
-      children: (
-        <>
-          <Form.Item name="retail_price" label={t('product.retailPriceVnd')}>
-            <InputNumber min={0} style={{ ...fieldStyle, width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0} />
-          </Form.Item>
-          <Form.Item label={t('product.priceTiers')}>
-            <Form.List name="price_tiers">
-              {(fields, { add, remove }) => (
-                <>
-                  {fields.map(({ key, name, ...rest }) => (
-                    <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
-                      <Form.Item {...rest} name={[name, 'min_qty']} rules={[{ required: true, message: t('product.minQtyRequired') }]}>
-                        <InputNumber placeholder={t('product.minQty')} min={1} style={{ ...fieldStyle, width: 160 }} />
-                      </Form.Item>
-                      <Form.Item {...rest} name={[name, 'price']} rules={[{ required: true, message: t('product.priceRequired') }]}>
-                        <InputNumber
-                          placeholder={t('product.unitPriceVnd')}
-                          min={0}
-                          style={{ ...fieldStyle, width: 200 }}
-                          formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                          parser={(v: string | undefined) => v ? Number(v.replace(/\./g, '')) : 0}
-                        />
-                      </Form.Item>
-                      <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f' }} />
-                    </Space>
-                  ))}
-                  <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />} style={{ borderRadius: 8 }}>
-                    {t('product.addPriceTier')}
-                  </Button>
-                </>
-              )}
-            </Form.List>
           </Form.Item>
         </>
       ),
