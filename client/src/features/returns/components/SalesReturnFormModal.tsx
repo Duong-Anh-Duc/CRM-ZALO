@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Select, DatePicker, Input, Table, InputNumber, Typography } from 'antd';
+import { Modal, Form, Select, DatePicker, Input, Table, InputNumber, Typography, message } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
@@ -65,7 +65,10 @@ const SalesReturnFormModal: React.FC<Props> = ({ open, onClose, onSuccess }) => 
       .filter((i) => i.return_qty > 0)
       .map((i) => ({ product_id: i.product_id, quantity: i.return_qty, unit_price: i.unit_price, reason: i.reason || undefined }));
 
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      message.error(t('return.selectAtLeastOneItem') || 'Vui lòng nhập số lượng trả cho ít nhất 1 sản phẩm');
+      return;
+    }
 
     await createMutation.mutateAsync({
       sales_order_id: values.sales_order_id,

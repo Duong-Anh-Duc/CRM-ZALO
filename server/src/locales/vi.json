@@ -117,6 +117,7 @@
     "supplierNameRequired": "Vui lòng nhập tên NCC",
     "customerRequired": "Vui lòng chọn khách hàng",
     "supplierRequired": "Vui lòng chọn NCC",
+    "salesOrderRequired": "Vui lòng chọn đơn bán liên kết",
     "vatRateRequired": "Vui lòng chọn thuế suất",
     "qtyInteger": "Số lượng phải là số nguyên",
     "qtyPositive": "Số lượng phải > 0",

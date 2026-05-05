@@ -158,8 +158,12 @@ const CreatePurchaseOrderPage: React.FC = () => {
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item name="sales_order_id" label={t('order.linkedSO')}>
-                <Select showSearch optionFilterProp="label" options={soOptions} placeholder={t('order.selectLinkedSO')} allowClear style={{ borderRadius: 8 }} size="large" />
+              <Form.Item
+                name="sales_order_id"
+                label={t('order.linkedSO')}
+                rules={[{ required: true, message: t('validation.salesOrderRequired') || 'Vui lòng chọn đơn bán liên kết' }]}
+              >
+                <Select showSearch optionFilterProp="label" options={soOptions} placeholder={t('order.selectLinkedSO')} style={{ borderRadius: 8 }} size="large" />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
