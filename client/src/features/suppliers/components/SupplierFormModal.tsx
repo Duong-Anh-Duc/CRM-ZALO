@@ -74,10 +74,10 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
         <Form.Item
           name="company_name"
-          label={t('customer.companyName')}
-          rules={[{ required: true, message: t('customer.companyNameRequired') }]}
+          label={t('supplier.supplierName')}
+          rules={[{ required: true, message: t('validation.supplierNameRequired') }]}
         >
-          <Input placeholder={t('customer.companyNamePlaceholder')} style={{ borderRadius: 8 }} />
+          <Input placeholder={t('supplier.supplierNamePlaceholder')} style={{ borderRadius: 8 }} />
         </Form.Item>
 
         <Form.Item name="tax_code" label={t('customer.taxCode')}>

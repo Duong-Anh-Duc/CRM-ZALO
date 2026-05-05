@@ -474,6 +474,8 @@
     "totalPayables": "Tổng {{count}} khoản phải trả",
     "updatedAt": "Cập nhật",
     "companyName": "Nhà cung cấp",
+    "supplierName": "Tên nhà cung cấp",
+    "supplierNamePlaceholder": "Nhập tên nhà cung cấp",
     "costPrice": "Giá nhập",
     "unit": "Đơn vị",
     "leadTime": "Thời gian giao",

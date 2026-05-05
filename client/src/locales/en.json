@@ -474,6 +474,8 @@
     "totalPayables": "Total {{count}} payables",
     "updatedAt": "Updated At",
     "companyName": "Supplier",
+    "supplierName": "Supplier name",
+    "supplierNamePlaceholder": "Enter supplier name",
     "costPrice": "Cost Price",
     "unit": "Unit",
     "leadTime": "Lead Time",
