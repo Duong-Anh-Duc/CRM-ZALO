@@ -167,12 +167,11 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
               <Input.TextArea rows={2} placeholder={t('customer.addressPlaceholder')} style={{ borderRadius: 8 }} />
             </Form.Item>
 
-            {/* Debt limit - only for business */}
+            {/* Debt limit - optional, only for business */}
             {isBusiness && (
               <Form.Item
                 name="debt_limit"
                 label={t('customer.debtLimit')}
-                rules={[{ required: true, message: t('customer.debtLimitRequired') }]}
               >
                 <InputNumber
                   style={{ width: '100%', borderRadius: 8 }}
