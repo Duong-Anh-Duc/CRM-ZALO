@@ -99,7 +99,7 @@ const PurchaseReturnFormModal: React.FC<Props> = ({ open, onClose, onSuccess }) 
     >
       <Form form={form} layout="vertical" initialValues={{ return_date: dayjs() }}>
         <Form.Item name="purchase_order_id" label={t('return.selectPurchaseOrder')} rules={[{ required: true }]}>
-          <Select showSearch optionFilterProp="label" options={poOptions} onChange={handlePOChange} placeholder={t('return.selectPurchaseOrder')} />
+          <Select showSearch optionFilterProp="label" options={poOptions} onChange={handlePOChange} placeholder={t('return.selectPurchaseOrder')} popupMatchSelectWidth={false} />
         </Form.Item>
         <Form.Item name="supplier_id" hidden><Input /></Form.Item>
         <Form.Item name="return_date" label={t('return.returnDate')}>

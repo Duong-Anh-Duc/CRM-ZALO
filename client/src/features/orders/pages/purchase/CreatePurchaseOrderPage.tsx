@@ -154,7 +154,7 @@ const CreatePurchaseOrderPage: React.FC = () => {
           <Row gutter={[16, 0]}>
             <Col xs={24} md={10}>
               <Form.Item name="supplier_id" label={t('order.supplier')} rules={[{ required: true, message: t('validation.supplierRequired') }]}>
-                <Select showSearch optionFilterProp="label" options={supplierOptions} placeholder={t('order.selectSupplier')} style={{ borderRadius: 8 }} size="large" />
+                <Select showSearch optionFilterProp="label" options={supplierOptions} placeholder={t('order.selectSupplier')} style={{ borderRadius: 8 }} size="large" popupMatchSelectWidth={false} />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
@@ -163,7 +163,7 @@ const CreatePurchaseOrderPage: React.FC = () => {
                 label={t('order.linkedSO')}
                 rules={[{ required: true, message: t('validation.salesOrderRequired') || 'Vui lòng chọn đơn bán liên kết' }]}
               >
-                <Select showSearch optionFilterProp="label" options={soOptions} placeholder={t('order.selectLinkedSO')} style={{ borderRadius: 8 }} size="large" />
+                <Select showSearch optionFilterProp="label" options={soOptions} placeholder={t('order.selectLinkedSO')} style={{ borderRadius: 8 }} size="large" popupMatchSelectWidth={false} />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>

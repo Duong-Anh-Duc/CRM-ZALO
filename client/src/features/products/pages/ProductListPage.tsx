@@ -192,6 +192,7 @@ const ProductListPage: React.FC = () => {
             showSearch
             optionFilterProp="label"
             style={{ maxWidth: 220, flex: '1 1 180px', borderRadius: 8 }}
+            popupMatchSelectWidth={false}
             value={supplierId}
             onChange={(v) => {
               setSupplierId(v);

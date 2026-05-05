@@ -329,6 +329,7 @@ const CreateSalesOrderPage: React.FC = () => {
                         updateItem(item.key, 'purchase_price', sp?.purchase_price || undefined);
                       }}
                       allowClear placeholder={t('order.assignLater')} style={{ width: '100%', borderRadius: 8 }}
+                      popupMatchSelectWidth={false}
                       options={(item.product?.supplier_prices || []).map((sp: any) => ({
                         label: `${sp.supplier?.company_name} — ${formatVND(sp.purchase_price)}${sp.is_preferred ? ' ★' : ''}`,
                         value: sp.supplier_id,

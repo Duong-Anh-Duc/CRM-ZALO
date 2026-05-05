@@ -69,6 +69,7 @@ const SupplierPriceFormModal: React.FC<Props> = ({ open, productId, record, onCl
       <Form form={form} layout="vertical">
         <Form.Item name="supplier_id" label={t('product.supplier')} rules={[{ required: true, message: t('validation.supplierRequired') }]}>
           <Select showSearch optionFilterProp="label" disabled={isEdit}
+            popupMatchSelectWidth={false}
             options={suppliers.map((s: any) => ({ label: s.company_name, value: s.id }))}
             style={{ borderRadius: 8 }} />
         </Form.Item>

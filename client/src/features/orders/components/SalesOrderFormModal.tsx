@@ -97,7 +97,7 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
     >
       <Form form={form} layout="vertical" initialValues={{ items: [{ vat_rate: 10 }] }}>
         <Form.Item name="customer_id" label={t('order.customer')} rules={[{ required: true, message: t('validation.customerRequired') }]}>
-          <Select showSearch optionFilterProp="label" options={customerOptions} placeholder={t('customer.customerTypePlaceholder')} style={{ borderRadius: 8 }} />
+          <Select showSearch optionFilterProp="label" options={customerOptions} placeholder={t('customer.customerTypePlaceholder')} style={{ borderRadius: 8 }} popupMatchSelectWidth={false} />
         </Form.Item>
 
         <Row gutter={12}>

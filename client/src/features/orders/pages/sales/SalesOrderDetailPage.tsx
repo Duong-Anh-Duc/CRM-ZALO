@@ -693,6 +693,7 @@ const SalesOrderDetailPage: React.FC = () => {
                     }}
                     allowClear placeholder={t('order.assignLater')}
                     style={{ minWidth: 180, borderRadius: 6 }}
+                    popupMatchSelectWidth={false}
                     options={(item.product?.supplier_prices || []).map((sp: any) => ({
                       label: `${sp.supplier?.company_name} — ${formatVND(sp.purchase_price)}${sp.is_preferred ? ' \u2605' : ''}`,
                       value: sp.supplier_id,

@@ -99,7 +99,7 @@ const SalesReturnFormModal: React.FC<Props> = ({ open, onClose, onSuccess }) => 
     >
       <Form form={form} layout="vertical" initialValues={{ return_date: dayjs() }}>
         <Form.Item name="sales_order_id" label={t('return.selectSalesOrder')} rules={[{ required: true }]}>
-          <Select showSearch optionFilterProp="label" options={soOptions} onChange={handleSOChange} placeholder={t('return.selectSalesOrder')} />
+          <Select showSearch optionFilterProp="label" options={soOptions} onChange={handleSOChange} placeholder={t('return.selectSalesOrder')} popupMatchSelectWidth={false} />
         </Form.Item>
         <Form.Item name="customer_id" hidden><Input /></Form.Item>
         <Form.Item name="return_date" label={t('return.returnDate')}>
