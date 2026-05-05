@@ -178,8 +178,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
       label: t('product.packaging'),
       children: (
         <>
-          <Form.Item name="unit_of_sale" label={t('product.unitOfSale')} rules={[{ required: true, message: t('product.unitRequired') }]}>
-            <Select options={unitOptions} style={fieldStyle} placeholder={t('product.selectUnit')} />
+          <Form.Item name="unit_of_sale" label={t('product.unitOfSale')}>
+            <Select allowClear options={unitOptions} style={fieldStyle} placeholder={t('product.selectUnit')} />
           </Form.Item>
           <Form.Item name="pcs_per_carton" label={t('product.pcsPerCarton')}>
             <InputNumber min={0} style={{ ...fieldStyle, width: '100%' }} />
