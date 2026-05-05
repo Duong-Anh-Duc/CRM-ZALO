@@ -141,12 +141,11 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
               </Form.Item>
             )}
 
-            {/* Phone - always */}
+            {/* Phone - optional, validate format if provided */}
             <Form.Item
               name="phone"
               label={t('customer.phone')}
               rules={[
-                { required: isIndividual, message: t('customer.phoneRequired') },
                 { pattern: /^[0-9+\-\s()]+$/, message: t('customer.phoneInvalid') },
               ]}
             >
