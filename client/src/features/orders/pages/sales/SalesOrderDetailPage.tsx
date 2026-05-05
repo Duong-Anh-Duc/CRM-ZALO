@@ -386,7 +386,7 @@ const SalesOrderDetailPage: React.FC = () => {
               </Col>
               <Col xs={24} sm={8}>
                 <Form.Item name="vat_rate" label="VAT">
-                  <Select style={{ borderRadius: 8 }} options={[
+                  <Select popupMatchSelectWidth={false} style={{ borderRadius: 8 }} options={[
                     { label: '0%', value: 'VAT_0' }, { label: '5%', value: 'VAT_5' },
                     { label: '8%', value: 'VAT_8' }, { label: '10%', value: 'VAT_10' },
                   ]} />
@@ -682,18 +682,17 @@ const SalesOrderDetailPage: React.FC = () => {
                   <InputNumber size="small" min={0} max={100} value={Number(item.discount_pct)} style={{ width: 65, borderRadius: 6 }}
                     addonAfter="%"
                     onBlur={(e) => { const v = Number(e.target.value); if (v >= 0 && v !== Number(item.discount_pct)) updateItemMutation.mutate({ itemId: item.id, data: { discount_pct: v } }); }} />
-                  <Select size="small" value={item.vat_rate ?? 0} style={{ width: 85, borderRadius: 6 }}
+                  <Select popupMatchSelectWidth={false} size="small" value={item.vat_rate ?? 0} style={{ width: 85, borderRadius: 6 }}
                     options={[{ label: 'VAT 0%', value: 0 }, { label: 'VAT 8%', value: 8 }, { label: 'VAT 10%', value: 10 }]}
                     onChange={(v) => updateItemMutation.mutate({ itemId: item.id, data: { vat_rate: v } })} />
                   <Text strong style={{ minWidth: 80 }}>{formatVND(item.line_total)}</Text>
-                  <Select size="small" value={item.supplier_id || undefined}
+                  <Select popupMatchSelectWidth={false} size="small" value={item.supplier_id || undefined}
                     onChange={(v) => {
                       const sp = item.product?.supplier_prices?.find((s: any) => s.supplier_id === v);
                       updateItemMutation.mutate({ itemId: item.id, data: { supplier_id: v || null, purchase_price: sp?.purchase_price || null } });
                     }}
                     allowClear placeholder={t('order.assignLater')}
                     style={{ minWidth: 180, borderRadius: 6 }}
-                    popupMatchSelectWidth={false}
                     options={(item.product?.supplier_prices || []).map((sp: any) => ({
                       label: `${sp.supplier?.company_name} — ${formatVND(sp.purchase_price)}${sp.is_preferred ? ' \u2605' : ''}`,
                       value: sp.supplier_id,
@@ -748,10 +747,10 @@ const SalesOrderDetailPage: React.FC = () => {
           value={productSearch} onChange={(e) => setProductSearch(e.target.value)}
           allowClear size="large" style={{ borderRadius: 8, marginBottom: 12 }} autoFocus />
         <Space wrap style={{ marginBottom: 16, width: '100%' }}>
-          <Select value={productCategory} onChange={setProductCategory} placeholder={t('product.category')} allowClear
+          <Select popupMatchSelectWidth={false} value={productCategory} onChange={setProductCategory} placeholder={t('product.category')} allowClear
             style={{ minWidth: 160, borderRadius: 8 }}
             options={[{ label: t('common.all'), value: '' }, ...categories.map((c: any) => ({ label: c?.name, value: c?.id }))]} />
-          <Select value={productMaterial} onChange={setProductMaterial} placeholder={t('product.material')} allowClear
+          <Select popupMatchSelectWidth={false} value={productMaterial} onChange={setProductMaterial} placeholder={t('product.material')} allowClear
             style={{ minWidth: 120, borderRadius: 8 }}
             options={[{ label: t('common.all'), value: '' }, { label: 'PET', value: 'PET' }, { label: 'HDPE', value: 'HDPE' }, { label: 'PP', value: 'PP' }, { label: 'PVC', value: 'PVC' }]} />
           <Text type="secondary">{drawerProducts.length} {t('product.results')}</Text>

@@ -77,7 +77,7 @@ const EmployeeProfileFormModal: React.FC<Props> = ({
           label={t('payroll.selectUser')}
           rules={[{ required: true, message: t('payroll.selectUserRequired') }]}
         >
-          <Select
+          <Select popupMatchSelectWidth={false}
             placeholder={t('payroll.selectUserPlaceholder')}
             disabled={isEdit}
             showSearch
@@ -144,7 +144,7 @@ const EmployeeProfileFormModal: React.FC<Props> = ({
           rules={[{ required: true }]}
           initialValue="ACTIVE"
         >
-          <Select
+          <Select popupMatchSelectWidth={false}
             options={[
               { value: 'ACTIVE', label: t('payroll.statusActive') },
               { value: 'PROBATION', label: t('payroll.statusProbation') },

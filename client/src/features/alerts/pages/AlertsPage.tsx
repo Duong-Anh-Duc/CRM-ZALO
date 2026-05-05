@@ -79,7 +79,7 @@ const AlertsPage: React.FC = () => {
           }
           extra={
             <Space>
-              <Select
+              <Select popupMatchSelectWidth={false}
                 placeholder={t('alert.filterType')}
                 allowClear
                 value={filterType}
@@ -92,7 +92,7 @@ const AlertsPage: React.FC = () => {
                   { label: t('alert.typeEscalation'), value: 'ESCALATION' },
                 ]}
               />
-              <Select
+              <Select popupMatchSelectWidth={false}
                 placeholder={t('alert.filterStatus')}
                 allowClear
                 value={filterRead}

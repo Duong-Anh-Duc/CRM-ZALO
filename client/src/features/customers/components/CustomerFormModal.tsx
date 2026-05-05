@@ -98,7 +98,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
           label={t('customer.customerType')}
           rules={[{ required: true, message: t('customer.customerTypeRequired') }]}
         >
-          <Select
+          <Select popupMatchSelectWidth={false}
             placeholder={t('customer.customerTypePlaceholder')}
             options={customerTypeOptions}
             style={{ borderRadius: 8 }}

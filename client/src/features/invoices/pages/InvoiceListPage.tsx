@@ -142,7 +142,7 @@ const InvoiceListPage: React.FC = () => {
             allowClear
             style={{ maxWidth: 300, flex: '1 1 200px', borderRadius: 8 }}
           />
-          <Select
+          <Select popupMatchSelectWidth={false}
             placeholder={t('invoice.status')}
             value={status}
             onChange={(v) => { setStatus(v); setPage(1); }}

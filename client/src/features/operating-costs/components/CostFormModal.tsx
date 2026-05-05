@@ -87,7 +87,7 @@ const CostFormModal: React.FC<CostFormModalProps> = ({
           label={t('cost.category')}
           rules={[{ required: true, message: t('cost.categoryRequired') }]}
         >
-          <Select
+          <Select popupMatchSelectWidth={false}
             placeholder={t('cost.selectCategory')}
             style={{ borderRadius: 8 }}
             options={(categories ?? [])

@@ -148,7 +148,7 @@ const SalesOrderListPage: React.FC = () => {
       <Space wrap style={{ marginBottom: 16, width: '100%' }}>
         <Input prefix={<SearchOutlined />} placeholder={t('order.searchPlaceholder')} allowClear value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ maxWidth: 360, flex: '1 1 200px', borderRadius: 8 }} />
-        <Select value={status} options={statusOptions} onChange={(val) => { setStatus(val); setPage(1); }} style={{ maxWidth: 220, flex: '1 1 160px' }} />
+        <Select popupMatchSelectWidth={false} value={status} options={statusOptions} onChange={(val) => { setStatus(val); setPage(1); }} style={{ maxWidth: 220, flex: '1 1 160px' }} />
         <RangePicker format="DD/MM/YYYY" onChange={(dates) => { setDateRange(dates as any); setPage(1); }}
           style={{ borderRadius: 8 }} placeholder={[t('common.fromDate'), t('common.toDate')]} />
       </Space>

@@ -283,11 +283,11 @@ const CreatePurchaseOrderPage: React.FC = () => {
         />
 
         <Space wrap style={{ marginBottom: 16, width: '100%' }}>
-          <Select value={productCategory} onChange={setProductCategory} placeholder={t('product.category')} allowClear
+          <Select popupMatchSelectWidth={false} value={productCategory} onChange={setProductCategory} placeholder={t('product.category')} allowClear
             style={{ minWidth: 160, borderRadius: 8 }}
             options={[{ label: t('common.all'), value: '' }, ...categories.map((c: any) => ({ label: c?.name, value: c?.id }))]}
           />
-          <Select value={productMaterial} onChange={setProductMaterial} placeholder={t('product.material')} allowClear
+          <Select popupMatchSelectWidth={false} value={productMaterial} onChange={setProductMaterial} placeholder={t('product.material')} allowClear
             style={{ minWidth: 120, borderRadius: 8 }}
             options={[
               { label: t('common.all'), value: '' },

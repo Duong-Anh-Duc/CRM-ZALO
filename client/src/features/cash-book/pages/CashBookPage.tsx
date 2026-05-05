@@ -99,7 +99,7 @@ const CashBookPage: React.FC = () => {
           title={t('cashBook.title')}
           extra={
             <Space wrap>
-              <Select value={period} onChange={(v) => { setPeriod(v); setPage(1); }} style={{ width: 140, borderRadius: 8 }} options={[
+              <Select popupMatchSelectWidth={false} value={period} onChange={(v) => { setPeriod(v); setPage(1); }} style={{ width: 140, borderRadius: 8 }} options={[
                 { value: 'thisMonth', label: t('dashboard.thisMonth') },
                 { value: 'thisQuarter', label: t('dashboard.thisQuarter') },
                 { value: 'thisYear', label: t('dashboard.thisYear') },
@@ -173,7 +173,7 @@ const CashBookPage: React.FC = () => {
 
         <Space wrap style={{ marginBottom: 12, width: '100%' }}>
           <Input placeholder={t('cashBook.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ maxWidth: 240, flex: '1 1 180px', borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          <Select placeholder={t('cashBook.filterCategory')} allowClear showSearch optionFilterProp="label" style={{ maxWidth: 200, flex: '1 1 160px', borderRadius: 8 }} value={categoryFilter} onChange={(v) => { setCategoryFilter(v); setPage(1); }} options={categoryOptions} />
+          <Select popupMatchSelectWidth={false} placeholder={t('cashBook.filterCategory')} allowClear showSearch optionFilterProp="label" style={{ maxWidth: 200, flex: '1 1 160px', borderRadius: 8 }} value={categoryFilter} onChange={(v) => { setCategoryFilter(v); setPage(1); }} options={categoryOptions} />
         </Space>
 
         <Table

@@ -77,7 +77,7 @@ const DashboardPage: React.FC = () => {
       {/* Filter bar */}
       <Row justify="end" style={{ marginBottom: 16 }}>
         <Space>
-          <Select value={period} onChange={setPeriod} style={{ width: 160 }}>
+          <Select popupMatchSelectWidth={false} value={period} onChange={setPeriod} style={{ width: 160 }}>
             <Select.Option value="thisMonth">{t('dashboard.thisMonth')}</Select.Option>
             <Select.Option value="thisQuarter">{t('dashboard.thisQuarter')}</Select.Option>
             <Select.Option value="thisYear">{t('dashboard.thisYear')}</Select.Option>

@@ -123,7 +123,7 @@ const ReceivableListPage: React.FC = () => {
   return (
     <div>
       <Space style={{ width: '100%', justifyContent: 'flex-end', marginBottom: 12 }} wrap>
-        <Select value={period} onChange={(v) => { setPeriod(v); setPage(1); }} style={{ width: 140 }} options={[
+        <Select popupMatchSelectWidth={false} value={period} onChange={(v) => { setPeriod(v); setPage(1); }} style={{ width: 140 }} options={[
           { value: 'thisMonth', label: t('dashboard.thisMonth') },
           { value: 'thisQuarter', label: t('dashboard.thisQuarter') },
           { value: 'thisYear', label: t('dashboard.thisYear') },
@@ -181,7 +181,7 @@ const ReceivableListPage: React.FC = () => {
       )}
 
       <Space wrap style={{ marginBottom: 16, width: '100%' }}>
-        <Select value={status} options={statusOptions}
+        <Select popupMatchSelectWidth={false} value={status} options={statusOptions}
           onChange={(val) => { setStatus(val); setPage(1); }} style={{ maxWidth: 200, flex: '1 1 160px' }} />
         <Input prefix={<SearchOutlined />} placeholder={t('debt.searchCustomer')} allowClear
           value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}

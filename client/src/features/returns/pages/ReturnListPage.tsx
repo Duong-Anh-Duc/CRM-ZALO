@@ -85,7 +85,7 @@ const SalesReturnTab: React.FC = () => {
       <Space wrap style={{ marginBottom: 12, width: '100%', justifyContent: 'space-between' }}>
         <Space wrap>
           <Input placeholder={t('return.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ maxWidth: 240, flex: '1 1 180px', borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          <Select placeholder={t('debt.filterStatus')} allowClear style={{ maxWidth: 180, flex: '1 1 140px', borderRadius: 8 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={statusOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
+          <Select popupMatchSelectWidth={false} placeholder={t('debt.filterStatus')} allowClear style={{ maxWidth: 180, flex: '1 1 140px', borderRadius: 8 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={statusOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
         </Space>
         {canCreate && <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setFormOpen(true)}>{t('return.createSalesReturn')}</Button>}
       </Space>
@@ -161,7 +161,7 @@ const PurchaseReturnTab: React.FC = () => {
       <Space wrap style={{ marginBottom: 12, width: '100%', justifyContent: 'space-between' }}>
         <Space wrap>
           <Input placeholder={t('return.searchPlaceholder')} prefix={<SearchOutlined />} allowClear style={{ maxWidth: 240, flex: '1 1 180px', borderRadius: 8 }} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          <Select placeholder={t('debt.filterStatus')} allowClear style={{ maxWidth: 180, flex: '1 1 140px', borderRadius: 8 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={statusOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
+          <Select popupMatchSelectWidth={false} placeholder={t('debt.filterStatus')} allowClear style={{ maxWidth: 180, flex: '1 1 140px', borderRadius: 8 }} value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={statusOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
         </Space>
         {canCreate && <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8 }} onClick={() => setFormOpen(true)}>{t('return.createPurchaseReturn')}</Button>}
       </Space>

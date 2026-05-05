@@ -137,7 +137,7 @@ const AuditLogPage: React.FC = () => {
             value={filters.search}
             onChange={(e) => updateFilter({ search: e.target.value || undefined })}
           />
-          <Select
+          <Select popupMatchSelectWidth={false}
             placeholder={t('auditLog.filterAction')}
             allowClear
             style={{ maxWidth: 160, flex: '1 1 120px', borderRadius: 8 }}
@@ -150,7 +150,7 @@ const AuditLogPage: React.FC = () => {
               { value: 'UPSERT', label: translateAction('UPSERT') },
             ]}
           />
-          <Select
+          <Select popupMatchSelectWidth={false}
             placeholder={t('auditLog.filterModel')}
             allowClear
             showSearch
@@ -160,7 +160,7 @@ const AuditLogPage: React.FC = () => {
             onChange={(v) => updateFilter({ model_name: v })}
             options={modelOptions}
           />
-          <Select
+          <Select popupMatchSelectWidth={false}
             placeholder={t('auditLog.filterUser')}
             allowClear
             showSearch

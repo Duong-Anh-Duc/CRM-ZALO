@@ -111,7 +111,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         </Form.Item>
 
         <Form.Item label={t('payment.method')} name="method" rules={[{ required: true, message: t('payment.methodRequired') }]}>
-          <Select options={methodOptions} style={{ borderRadius: 8 }} />
+          <Select popupMatchSelectWidth={false} options={methodOptions} style={{ borderRadius: 8 }} />
         </Form.Item>
 
         <Form.Item label={t('payment.reference')} name="reference">

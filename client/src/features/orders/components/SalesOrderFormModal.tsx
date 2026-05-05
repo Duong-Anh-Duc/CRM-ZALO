@@ -131,7 +131,7 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
                 <Row key={key} gutter={8} align="top" style={{ marginBottom: 8 }}>
                   <Col xs={24} sm={7}>
                     <Form.Item {...rest} name={[name, 'product_id']} rules={[{ required: true, message: t('validation.productRequired') }]}>
-                      <Select showSearch optionFilterProp="label" options={productOptions} placeholder={t('product.name')} onChange={(v) => handleProductSelect(v, name)} size="small" />
+                      <Select popupMatchSelectWidth={false} showSearch optionFilterProp="label" options={productOptions} placeholder={t('product.name')} onChange={(v) => handleProductSelect(v, name)} size="small" />
                     </Form.Item>
                   </Col>
                   <Col xs={6} sm={3}>
@@ -151,7 +151,7 @@ const SalesOrderFormModal: React.FC<SalesOrderFormModalProps> = ({ open, onClose
                   </Col>
                   <Col xs={5} sm={3}>
                     <Form.Item {...rest} name={[name, 'vat_rate']} initialValue={10}>
-                      <Select options={vatOptions} placeholder="VAT" size="small" />
+                      <Select popupMatchSelectWidth={false} options={vatOptions} placeholder="VAT" size="small" />
                     </Form.Item>
                   </Col>
                   <Col xs={24} sm={3} style={{ display: 'flex', alignItems: 'center', paddingTop: 4 }}>

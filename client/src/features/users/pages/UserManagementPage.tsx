@@ -192,7 +192,7 @@ const UserManagementPage: React.FC = () => {
             </Form.Item>
           )}
           <Form.Item name="role_slug" label={t('user.role')} rules={[{ required: true, message: t('user.roleRequired') }]}>
-            <Select style={{ borderRadius: 8 }} options={ROLE_OPTIONS} />
+            <Select popupMatchSelectWidth={false} style={{ borderRadius: 8 }} options={ROLE_OPTIONS} />
           </Form.Item>
         </Form>
       </Modal>

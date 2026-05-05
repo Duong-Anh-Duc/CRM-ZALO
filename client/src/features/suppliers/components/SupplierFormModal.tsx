@@ -112,7 +112,7 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
           name="payment_terms"
           label={t('supplier.paymentTerms')}
         >
-          <Select
+          <Select popupMatchSelectWidth={false}
             allowClear
             placeholder={t('supplier.paymentTermsPlaceholder')}
             options={paymentTermsOptions}

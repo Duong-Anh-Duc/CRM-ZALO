@@ -201,7 +201,7 @@ const CreateSalesOrderPage: React.FC = () => {
           <Row gutter={[16, 0]}>
             <Col xs={24} md={10}>
               <Form.Item name="customer_id" label={t('order.customer')} rules={[{ required: true, message: t('validation.customerRequired') }]}>
-                <Select showSearch optionFilterProp="label" options={customerOptions} placeholder={t('order.selectCustomer')} style={{ borderRadius: 8 }} size="large" />
+                <Select popupMatchSelectWidth={false} showSearch optionFilterProp="label" options={customerOptions} placeholder={t('order.selectCustomer')} style={{ borderRadius: 8 }} size="large" />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
@@ -307,7 +307,7 @@ const CreateSalesOrderPage: React.FC = () => {
                 </Col>
                 <Col xs={8} sm={4}>
                   <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>VAT</div>
-                  <Select value={item.vat_rate} onChange={(v) => updateItem(item.key, 'vat_rate', v)} options={vatOptions} style={{ width: '100%' }} />
+                  <Select popupMatchSelectWidth={false} value={item.vat_rate} onChange={(v) => updateItem(item.key, 'vat_rate', v)} options={vatOptions} style={{ width: '100%' }} />
                 </Col>
                 <Col xs={24}>
                   <div style={{ background: '#f6ffed', borderRadius: 8, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
@@ -321,7 +321,7 @@ const CreateSalesOrderPage: React.FC = () => {
                 {item.product && (
                   <Col xs={24}>
                     <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('order.supplier')}</div>
-                    <Select value={item.supplier_id || undefined}
+                    <Select popupMatchSelectWidth={false} value={item.supplier_id || undefined}
                       onChange={(v) => {
                         const sp = item.product?.supplier_prices?.find((s: any) => s.supplier_id === v);
                         updateItem(item.key, 'supplier_id', v);
@@ -329,7 +329,6 @@ const CreateSalesOrderPage: React.FC = () => {
                         updateItem(item.key, 'purchase_price', sp?.purchase_price || undefined);
                       }}
                       allowClear placeholder={t('order.assignLater')} style={{ width: '100%', borderRadius: 8 }}
-                      popupMatchSelectWidth={false}
                       options={(item.product?.supplier_prices || []).map((sp: any) => ({
                         label: `${sp.supplier?.company_name} — ${formatVND(sp.purchase_price)}${sp.is_preferred ? ' ★' : ''}`,
                         value: sp.supplier_id,
@@ -371,27 +370,27 @@ const CreateSalesOrderPage: React.FC = () => {
         <Row gutter={[8, 8]} style={{ marginBottom: 12 }}>
           <Col xs={12}>
             <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.category')}</div>
-            <Select value={productCategory} onChange={setProductCategory} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
+            <Select popupMatchSelectWidth={false} value={productCategory} onChange={setProductCategory} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
               options={categories.map((c: any) => ({ label: c?.name, value: c?.id }))} />
           </Col>
           <Col xs={12}>
             <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.material')}</div>
-            <Select value={productMaterial} onChange={setProductMaterial} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
+            <Select popupMatchSelectWidth={false} value={productMaterial} onChange={setProductMaterial} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
               options={['PET', 'HDPE', 'LDPE', 'PP', 'PVC', 'PS', 'PC', 'OTHER'].map((v) => ({ label: v, value: v }))} />
           </Col>
           <Col xs={12}>
             <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.color')}</div>
-            <Select value={productColor} onChange={setProductColor} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
+            <Select popupMatchSelectWidth={false} value={productColor} onChange={setProductColor} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
               options={['TRANSPARENT', 'WHITE', 'BLACK', 'BLUE', 'GREEN', 'RED', 'YELLOW', 'CUSTOM'].map((v) => ({ label: t(`colorLabels.${v}`, v), value: v }))} />
           </Col>
           <Col xs={12}>
             <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.shape')}</div>
-            <Select value={productShape} onChange={setProductShape} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
+            <Select popupMatchSelectWidth={false} value={productShape} onChange={setProductShape} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
               options={['ROUND', 'SQUARE', 'OVAL', 'RECTANGLE', 'CUSTOM'].map((v) => ({ label: t(`shapeLabels.${v}`, v), value: v }))} />
           </Col>
           <Col xs={12}>
             <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{t('product.neckType')}</div>
-            <Select value={productNeck} onChange={setProductNeck} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
+            <Select popupMatchSelectWidth={false} value={productNeck} onChange={setProductNeck} placeholder={t('common.all')} allowClear style={{ width: '100%', borderRadius: 8 }}
               options={['WIDE', 'NARROW', 'PUMP', 'SPRAY', 'SCREW', 'FLIP', 'CUSTOM'].map((v) => ({ label: t(`neckLabels.${v}`, v), value: v }))} />
           </Col>
           <Col xs={12}>

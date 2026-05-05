@@ -91,13 +91,13 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
             <Input style={fieldStyle} />
           </Form.Item>
           <Form.Item name="category_id" label={t('product.category')}>
-            <Select allowClear showSearch optionFilterProp="label" style={fieldStyle} placeholder={t('product.selectCategory')} options={categoryOptions} />
+            <Select popupMatchSelectWidth={false} allowClear showSearch optionFilterProp="label" style={fieldStyle} placeholder={t('product.selectCategory')} options={categoryOptions} />
           </Form.Item>
           <Form.Item name="description" label={t('common.description')}>
             <Input.TextArea rows={3} style={fieldStyle} />
           </Form.Item>
           <Form.Item name="is_active" label={t('common.status')} initialValue={true}>
-            <Select
+            <Select popupMatchSelectWidth={false}
               style={fieldStyle}
               options={[
                 { value: true, label: t('common.active') },
@@ -169,7 +169,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
       children: (
         <>
           <Form.Item name="material" label={t('product.material')}>
-            <Select allowClear options={materialOptions} style={fieldStyle} placeholder={t('product.selectMaterial')} />
+            <Select popupMatchSelectWidth={false} allowClear options={materialOptions} style={fieldStyle} placeholder={t('product.selectMaterial')} />
           </Form.Item>
           <Form.Item name="capacity_ml" label={t('product.capacityMl')}>
             <InputNumber min={0} style={{ ...fieldStyle, width: '100%' }} />
@@ -187,7 +187,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
             <InputNumber min={0} style={{ ...fieldStyle, width: '100%' }} />
           </Form.Item>
           <Form.Item name="color" label={t('product.color')}>
-            <Select allowClear options={colorOptions} style={fieldStyle} placeholder={t('product.selectColor')} />
+            <Select popupMatchSelectWidth={false} allowClear options={colorOptions} style={fieldStyle} placeholder={t('product.selectColor')} />
           </Form.Item>
           <Form.Item noStyle shouldUpdate={(prev, cur) => prev.color !== cur.color}>
             {({ getFieldValue }) =>
@@ -199,10 +199,10 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
             }
           </Form.Item>
           <Form.Item name="shape" label={t('product.shape')}>
-            <Select allowClear options={shapeOptions} style={fieldStyle} placeholder={t('product.selectShape')} />
+            <Select popupMatchSelectWidth={false} allowClear options={shapeOptions} style={fieldStyle} placeholder={t('product.selectShape')} />
           </Form.Item>
           <Form.Item name="neck_type" label={t('product.neckType')}>
-            <Select allowClear options={neckOptions} style={fieldStyle} placeholder={t('product.selectNeckType')} />
+            <Select popupMatchSelectWidth={false} allowClear options={neckOptions} style={fieldStyle} placeholder={t('product.selectNeckType')} />
           </Form.Item>
           <Form.Item name="neck_spec" label={t('product.neckSpec')}>
             <Input style={fieldStyle} placeholder={t('product.neckSpecPlaceholder')} />
@@ -216,7 +216,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
       children: (
         <>
           <Form.Item name="unit_of_sale" label={t('product.unitOfSale')}>
-            <Select allowClear options={unitOptions} style={fieldStyle} placeholder={t('product.selectUnit')} />
+            <Select popupMatchSelectWidth={false} allowClear options={unitOptions} style={fieldStyle} placeholder={t('product.selectUnit')} />
           </Form.Item>
           <Form.Item name="pcs_per_carton" label={t('product.pcsPerCarton')}>
             <InputNumber min={0} style={{ ...fieldStyle, width: '100%' }} />
@@ -245,10 +245,10 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ open, product, onCl
       children: (
         <>
           <Form.Item name="industries" label={t('product.industries')}>
-            <Select mode="multiple" options={industryOptions} style={fieldStyle} placeholder={t('product.selectIndustry')} />
+            <Select popupMatchSelectWidth={false} mode="multiple" options={industryOptions} style={fieldStyle} placeholder={t('product.selectIndustry')} />
           </Form.Item>
           <Form.Item name="safety_standards" label={t('product.safetyStandards')}>
-            <Select mode="multiple" options={safetyOptions} style={fieldStyle} placeholder={t('product.selectSafety')} />
+            <Select popupMatchSelectWidth={false} mode="multiple" options={safetyOptions} style={fieldStyle} placeholder={t('product.selectSafety')} />
           </Form.Item>
         </>
       ),

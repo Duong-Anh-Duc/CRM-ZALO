@@ -78,7 +78,7 @@ const CashTransactionFormModal: React.FC<Props> = ({ open, defaultType, onClose,
           </Radio.Group>
         </Form.Item>
         <Form.Item name="category_id" label={t('cashBook.category')} rules={[{ required: true }]}>
-          <Select options={categoryOptions} placeholder={t('cashBook.selectCategory')} showSearch optionFilterProp="label" />
+          <Select popupMatchSelectWidth={false} options={categoryOptions} placeholder={t('cashBook.selectCategory')} showSearch optionFilterProp="label" />
         </Form.Item>
         <Form.Item name="date" label={t('cashBook.date')} rules={[{ required: true }]}>
           <DatePicker style={{ width: '100%' }} />
@@ -90,7 +90,7 @@ const CashTransactionFormModal: React.FC<Props> = ({ open, defaultType, onClose,
           <Input />
         </Form.Item>
         <Form.Item name="payment_method" label={t('payment.method')}>
-          <Select options={[
+          <Select popupMatchSelectWidth={false} options={[
             { value: 'CASH', label: t('payment.methodCash') },
             { value: 'BANK_TRANSFER', label: t('payment.methodBankTransfer') },
           ]} />
