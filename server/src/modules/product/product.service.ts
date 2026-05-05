@@ -231,9 +231,10 @@ export class ProductService {
     return product;
   }
 
-  static async generateSku(material: PlasticMaterial): Promise<string> {
+  static async generateSku(material?: PlasticMaterial | null): Promise<string> {
     const year = new Date().getFullYear();
-    const prefix = `PLB-${material}-${year}-`;
+    const matToken = material ? String(material) : 'GEN';
+    const prefix = `PLB-${matToken}-${year}-`;
     const lastProduct = await prisma.product.findFirst({
       where: { sku: { startsWith: prefix } },
       orderBy: { sku: 'desc' },
